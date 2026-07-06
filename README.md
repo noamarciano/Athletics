@@ -4,11 +4,16 @@ Premium dark (Nike Training Club style) fitness & nutrition tracker. Single-file
 
 **Features**
 
-- 🏋️ Full Push/Pull A+B routine + Friday run/mobility block — every workout, exercise, set count and rep target is editable in-app
+- 🏠 Daily dashboard — greeting, streak counter, everything you did today (sets, tonnage, runs, meals), quick actions, latest weight & photo
+- 🏋️ Full Push/Pull A+B routine + Friday run/mobility block — every workout, exercise, set count, rep target **and order** is editable in-app (add/remove/rename/reorder anything)
 - 📈 Set-by-set weight/rep logging with last-week ghost values (progressive overload at a glance) + weekly tonnage
-- ⏱️ Rest timer (1:00 / 1:30 / 2:00 / 3:00) with chime + vibration
+- ⏱️ Rest timer (1:00 / 1:30 / 2:00 / 3:00) — loud boxing-bell alarm + vibration + "time's up" banner (audio pre-unlocked for iOS)
 - 🏃 Run tracker: unlimited runs per week, auto pace, distance + pace trend chart
-- 🥗 Daily Lean Bulk checklist per day-of-week, weekly completion map
+- 🔥 **Strava integration** — connect your own (free) Strava API app once and all runs import automatically, no server needed
+- 📊 Progress tab: auto-detected PRs ("bench 80→82.5kg"), pace improvement over 14 days, per-exercise strength charts (max weight + volume), weekly km bars, all-time bests
+- ⚖️ Body tracking: weight log with trend chart, height + auto BMI
+- 📸 Progress photo gallery — compressed client-side, cached in IndexedDB, synced across devices via private gists
+- 🥗 Daily Lean Bulk checklist per day-of-week, weekly completion map (meals editable & reorderable)
 - 🗓️ Week time-travel switcher (`< שבוע 28 >`) — full history of every week
 - 🔄 Cross-device sync (Mac ↔ iPhone) via a **private GitHub Gist**
 - 💾 Local-first: everything persists in `localStorage`; JSON export/import backup
@@ -47,6 +52,12 @@ Your app is then live at `https://<YOUR_USERNAME>.github.io/Athletics/` — open
 3. Repeat on the iPhone with the **same token**. The app auto-creates/finds one private gist (`athletics-data.json`) and merges data both ways (per-week, per-run, last-write-wins).
 
 Sync runs automatically ~2.5s after any change and every time the app regains focus.
+
+## Connect Strava (optional, once)
+
+1. Go to <https://www.strava.com/settings/api> and create a personal API application (any name/site). Set **Authorization Callback Domain** to the app's domain — `<YOUR_USERNAME>.github.io` (or `localhost` for local testing).
+2. In the app: ⚙️ Settings → Strava → paste **Client ID** + **Client Secret** → התחבר → approve on Strava.
+3. Runs import automatically on every app open (and via "ייבא ריצות עכשיו"). Tokens live in your private synced state — connect on the Mac once and the iPhone gets it through gist sync.
 
 ## Install on iPhone
 

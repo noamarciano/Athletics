@@ -19,7 +19,7 @@
 <script>
 tailwind.config = {
   theme: { extend: {
-    colors: { obsidian:'#0B0B0C', volt:'#CCFF00', ember:'#FF5A1F' },
+    colors: { obsidian:'#0B0B0C', volt:'#CCFF00', ember:'#FF5A1F', strava:'#FC4C02' },
     fontFamily: { rubik:['Rubik','Assistant','sans-serif'] }
   } }
 };
@@ -33,6 +33,8 @@ tailwind.config = {
   input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
   input[type=date] { -webkit-appearance:none; appearance:none; min-height:2.6rem; }
   input[type=date]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.4; }
+  select { background:rgba(0,0,0,.3); }
+  select option { background:#15151a; color:#fff; }
   .glass { backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); background:rgba(15,23,42,.4); border:1px solid rgba(255,255,255,.06); box-shadow:0 25px 50px -12px rgba(0,0,0,.55); }
   .glow-volt { box-shadow:0 0 22px rgba(204,255,0,.35); }
   .text-glow { text-shadow:0 0 18px rgba(204,255,0,.45); }
@@ -72,6 +74,7 @@ const LS_KEY = 'athletics.state.v1';
 const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
+const PHOTO_FILE = 'photo.b64.txt';
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
@@ -123,7 +126,6 @@ const DEFAULT_TEMPLATES = [
   { id:'friday', icon:'🏃', name:'בלוק שישי', sub:'ריצה ושחרור · קבוע', exercises:[
     { id:'fr1', muscle:'אירובי קבוע',            name:'30 דקות ריצה קלה (קצב התאוששות)',         sets:1, reps:'30 דק׳' },
     { id:'fr2', muscle:'שחרור עמוד שדרה',        name:'תלייה פסיבית על מתח',                      sets:1, reps:'דקה אחת' },
-    { id:'fr3', muscle:'שחרור ליבה וירך',        name:'מתיחת ספה (Couch Stretch)',                sets:1, reps:'לכל רגל' },
   ]},
 ];
 
@@ -182,19 +184,90 @@ function parseDur(str){
   if (p.length === 2) return Math.round(p[0] * 60 + p[1]);
   return Math.round(p[0] * 3600 + p[1] * 60 + p[2]);
 }
+function greet(){
+  const h = new Date().getHours();
+  if (h >= 5 && h < 11) return 'בוקר טוב';
+  if (h < 15) return 'צהריים טובים';
+  if (h < 18) return 'אחר הצהריים טובים';
+  if (h < 22) return 'ערב טוב';
+  return 'לילה טוב';
+}
+
+/* image compression for progress photos */
+function fileToDataUrl(file, maxDim, q){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const sc = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * sc));
+        c.height = Math.max(1, Math.round(img.height * sc));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        res(c.toDataURL('image/jpeg', q));
+      } catch (e) { rej(e); }
+    };
+    img.onerror = rej;
+    img.src = url;
+  });
+}
+function shrinkDataUrl(dataUrl, maxDim, q){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const sc = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * sc));
+      c.height = Math.max(1, Math.round(img.height * sc));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = rej;
+    img.src = dataUrl;
+  });
+}
+
+/* tiny IndexedDB cache for full-res photos */
+const idb = {
+  _db: null,
+  open(){
+    return new Promise((res, rej) => {
+      if (idb._db) return res(idb._db);
+      const r = indexedDB.open('athletics', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('photos');
+      r.onsuccess = () => { idb._db = r.result; res(idb._db); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async get(k){ const db = await idb.open(); return new Promise((res, rej) => { const t = db.transaction('photos').objectStore('photos').get(k); t.onsuccess = () => res(t.result || null); t.onerror = () => rej(t.error); }); },
+  async set(k, v){ const db = await idb.open(); return new Promise((res, rej) => { const t = db.transaction('photos','readwrite').objectStore('photos').put(v, k); t.onsuccess = () => res(); t.onerror = () => rej(t.error); }); },
+  async del(k){ const db = await idb.open(); return new Promise((res, rej) => { const t = db.transaction('photos','readwrite').objectStore('photos').delete(k); t.onsuccess = () => res(); t.onerror = () => rej(t.error); }); },
+};
 
 /* ============================== state ============================== */
 function seed(){
-  return { version:1, templates:clone(DEFAULT_TEMPLATES), meals:clone(DEFAULT_MEALS),
-           logs:{}, runs:[], deletedRuns:[], stamps:{ templates:0, meals:0, weeks:{} }, settings:{ gistId:'' } };
+  return {
+    version:1,
+    templates: clone(DEFAULT_TEMPLATES),
+    meals: clone(DEFAULT_MEALS),
+    logs:{}, runs:[], deletedRuns:[],
+    weights:[], deletedWeights:[],
+    photos:[], deletedPhotos:[],
+    stamps:{ templates:0, meals:0, settings:0, weeks:{} },
+    settings:{ gistId:'', name:'', height:'', strava:null },
+  };
 }
 function normalize(s){
   const base = seed();
   const out = Object.assign(base, s);
-  out.stamps = Object.assign({ templates:0, meals:0, weeks:{} }, s.stamps || {});
+  out.stamps = Object.assign({ templates:0, meals:0, settings:0, weeks:{} }, s.stamps || {});
   out.stamps.weeks = (s.stamps && s.stamps.weeks) || {};
-  out.settings = Object.assign({ gistId:'' }, s.settings || {});
+  out.settings = Object.assign({ gistId:'', name:'', height:'', strava:null }, s.settings || {});
   out.logs = s.logs || {}; out.runs = s.runs || []; out.deletedRuns = s.deletedRuns || [];
+  out.weights = s.weights || []; out.deletedWeights = s.deletedWeights || [];
+  out.photos = s.photos || []; out.deletedPhotos = s.deletedPhotos || [];
   return out;
 }
 function load(){
@@ -206,26 +279,43 @@ function load(){
 }
 function persist(d){ try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch (e) {} }
 
+function unionById(a, b, dead){
+  const byId = {};
+  b.concat(a).forEach(r => {
+    if (!r || dead.has(r.id)) return;
+    const prev = byId[r.id];
+    if (!prev || (r.updatedAt || 0) > (prev.updatedAt || 0)) byId[r.id] = r;
+  });
+  return Object.values(byId);
+}
+
 function mergeStates(local, remote){
   const out = clone(local);
   remote = normalize(clone(remote));
   if ((remote.stamps.templates || 0) > (out.stamps.templates || 0)) { out.templates = remote.templates; out.stamps.templates = remote.stamps.templates; }
   if ((remote.stamps.meals || 0) > (out.stamps.meals || 0)) { out.meals = remote.meals; out.stamps.meals = remote.stamps.meals; }
+  if ((remote.stamps.settings || 0) > (out.stamps.settings || 0)) {
+    const gid = out.settings.gistId;
+    out.settings = remote.settings;
+    out.settings.gistId = gid || remote.settings.gistId || '';
+    out.stamps.settings = remote.stamps.settings;
+  } else {
+    out.settings.gistId = out.settings.gistId || remote.settings.gistId || '';
+  }
   const weeks = new Set(Object.keys(out.logs).concat(Object.keys(remote.logs)));
   weeks.forEach(k => {
     const lt = out.stamps.weeks[k] || 0, rt = remote.stamps.weeks[k] || 0;
     if (rt > lt || (!out.logs[k] && remote.logs[k])) { out.logs[k] = remote.logs[k]; out.stamps.weeks[k] = rt; }
   });
-  const dead = new Set((out.deletedRuns || []).concat(remote.deletedRuns || []));
-  const byId = {};
-  (remote.runs || []).concat(out.runs || []).forEach(r => {
-    if (!r || dead.has(r.id)) return;
-    const prev = byId[r.id];
-    if (!prev || (r.updatedAt || 0) > (prev.updatedAt || 0)) byId[r.id] = r;
-  });
-  out.runs = Object.values(byId).sort((a, b) => a.date < b.date ? 1 : -1);
-  out.deletedRuns = Array.from(dead).slice(-300);
-  out.settings.gistId = out.settings.gistId || remote.settings.gistId || '';
+  const deadRuns = new Set((out.deletedRuns || []).concat(remote.deletedRuns || []));
+  out.runs = unionById(out.runs || [], remote.runs || [], deadRuns).sort((a, b) => a.date < b.date ? 1 : -1);
+  out.deletedRuns = Array.from(deadRuns).slice(-500);
+  const deadW = new Set((out.deletedWeights || []).concat(remote.deletedWeights || []));
+  out.weights = unionById(out.weights || [], remote.weights || [], deadW).sort((a, b) => a.date < b.date ? 1 : -1);
+  out.deletedWeights = Array.from(deadW).slice(-300);
+  const deadP = new Set((out.deletedPhotos || []).concat(remote.deletedPhotos || []));
+  out.photos = unionById(out.photos || [], remote.photos || [], deadP).sort((a, b) => a.date < b.date ? 1 : -1);
+  out.deletedPhotos = Array.from(deadP).slice(-300);
   return out;
 }
 
@@ -255,9 +345,97 @@ function tonnage(state, week, tpl){
   return Math.round(t);
 }
 
+/* ---------- analytics ---------- */
+function todayStats(state){
+  const today = toISO(new Date());
+  const week = weekStartISO(new Date());
+  const wk = state.logs[week] || {};
+  let sets = 0, ton = 0;
+  const perTpl = [];
+  state.templates.forEach(tpl => {
+    let s = 0, t = 0;
+    tpl.exercises.forEach(ex => {
+      const arr = (((wk.workouts || {})[tpl.id]) || {})[ex.id] || [];
+      arr.forEach(x => { if (x.done && x.t === today) { s++; t += numOr0(x.w) * numOr0(x.r); } });
+    });
+    if (s > 0) perTpl.push({ tpl, sets: s, ton: Math.round(t) });
+    sets += s; ton += t;
+  });
+  const runs = state.runs.filter(r => r.date === today);
+  const km = runs.reduce((a, r) => a + r.km, 0);
+  const dayIdx = new Date().getDay();
+  const meals = state.meals.filter(m => ((wk.nutrition || {})[dayIdx] || {})[m.id]).length;
+  return { sets, ton: Math.round(ton), perTpl, runs, km, meals };
+}
+function dayActive(state, iso){
+  const wkk = weekStartISO(fromISO(iso));
+  const wk = state.logs[wkk] || {};
+  const dayIdx = fromISO(iso).getDay();
+  const hasSet = state.templates.some(tpl => tpl.exercises.some(ex => {
+    const arr = ((wk.workouts || {})[tpl.id] || {})[ex.id] || [];
+    return arr.some(x => x.done && x.t === iso);
+  }));
+  if (hasSet) return true;
+  if (state.runs.some(r => r.date === iso)) return true;
+  const n = (wk.nutrition || {})[dayIdx] || {};
+  return Object.keys(n).some(k => n[k]);
+}
+function streak(state){
+  const today = toISO(new Date());
+  let s = 0;
+  for (let i = 0; i < 180; i++) {
+    const d = addDays(today, -i);
+    if (dayActive(state, d)) s++;
+    else { if (i === 0) continue; break; }
+  }
+  return s;
+}
+function exerciseHistory(state, tplId, exId){
+  return Object.keys(state.logs).sort().map(wk => {
+    const arr = (((state.logs[wk] || {}).workouts || {})[tplId] || {})[exId] || [];
+    let maxW = 0, vol = 0;
+    arr.forEach(s => { const w = numOr0(s.w); if (w > maxW) maxW = w; vol += numOr0(s.w) * numOr0(s.r); });
+    return { week: wk, maxW, vol: Math.round(vol) };
+  }).filter(p => p.maxW > 0 || p.vol > 0);
+}
+function findPRs(state){
+  const out = [];
+  state.templates.forEach(tpl => tpl.exercises.forEach(ex => {
+    const h = exerciseHistory(state, tpl.id, ex.id);
+    if (h.length >= 2) {
+      const last = h[h.length - 1];
+      const bestPrev = Math.max.apply(null, h.slice(0, -1).map(p => p.maxW));
+      if (last.maxW > bestPrev && bestPrev > 0) out.push({ icon:'🏋️', text: ex.name, from: bestPrev + ' ק"ג', to: last.maxW + ' ק"ג', week: last.week });
+    }
+  }));
+  return out.sort((a, b) => a.week < b.week ? 1 : -1).slice(0, 8);
+}
+function runningInsights(state){
+  const runs = state.runs.slice().sort((a, b) => a.date < b.date ? -1 : 1);
+  const withPace = runs.filter(r => r.km > 0 && r.sec > 0);
+  const today = toISO(new Date());
+  const cur = weekStartISO(new Date());
+  const weeks = [];
+  for (let i = 7; i >= 0; i--) {
+    const ws = addDays(cur, -7 * i), end = addDays(ws, 6);
+    const km = runs.filter(r => r.date >= ws && r.date <= end).reduce((a, r) => a + r.km, 0);
+    weeks.push({ label: 'ש' + weekNum(ws), v: Math.round(km * 10) / 10 });
+  }
+  if (!withPace.length) return { weeks, fastest:null, longest:null, paceDelta:null, recentPace:0, total: runs.reduce((a, r) => a + r.km, 0) };
+  const fastest = withPace.reduce((b, r) => (r.sec / r.km) < (b.sec / b.km) ? r : b);
+  const longest = runs.reduce((b, r) => r.km > b.km ? r : b);
+  const d14 = addDays(today, -14), d28 = addDays(today, -28);
+  const avg = a => { const km = a.reduce((x, r) => x + r.km, 0); return km > 0 ? a.reduce((x, r) => x + r.sec, 0) / km : 0; };
+  const recentPace = avg(withPace.filter(r => r.date > d14));
+  const prevPace = avg(withPace.filter(r => r.date > d28 && r.date <= d14));
+  const paceDelta = (recentPace && prevPace) ? Math.round(prevPace - recentPace) : null;
+  return { weeks, fastest, longest, paceDelta, recentPace, total: runs.reduce((a, r) => a + r.km, 0) };
+}
+
 /* ============================== icons & atoms ============================== */
 const I = {
   chevR:'M9 18l6-6-6-6', chevL:'M15 18l-6-6 6-6',
+  chevUp:'M18 15l-6-6-6 6', chevDown:'M6 9l6 6 6-6',
   plus:'M12 5v14M5 12h14', check:'M20 6L9 17l-5-5', x:'M18 6L6 18M6 6l12 12',
   bolt:'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
   activity:'M22 12h-4l-3 9L9 3l-3 9H2',
@@ -269,6 +447,12 @@ const I = {
   timer:['M10 2h4','M12 14l3-3','M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16z'],
   download:['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4','M7 10l5 5 5-5','M12 15V3'],
   upload:['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4','M17 8l-5-5-5 5','M12 3v12'],
+  home:['M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z','M9 22V12h6v10'],
+  trend:['M22 7l-8.5 8.5-5-5L2 17','M16 7h6v6'],
+  gear:['M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z','M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+  flame:'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z',
+  camera:['M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z','M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+  scale:['M12 3v3','M18.5 5.5L16 8','M5.5 5.5L8 8','M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9z'],
 };
 function Icon({ d, className, filled }){
   return (
@@ -290,32 +474,158 @@ function Ring({ pct, size = 44, stroke = 4, color = '#CCFF00' }){
   );
 }
 
+/* generic dual-series line chart (A = solid volt w/ area, B = dashed ember, optional) */
+function TrendChart({ data, fmtA, fmtB, unitA, unitB }){
+  const [sel, setSel] = useState(data.length ? data.length - 1 : null);
+  useEffect(() => { setSel(data.length ? data.length - 1 : null); }, [data.length, data.map(d => d.a).join(',')]);
+  if (!data.length) return <div className="text-center py-8 text-white/25 text-sm">אין עדיין נתונים — תתחיל לרשום 💪</div>;
+  const W = 640, H = 220, L = 42, R = 46, T = 14, B = 26;
+  const fa = fmtA || (v => String(Math.round(v * 10) / 10));
+  const fb = fmtB || (v => String(Math.round(v)));
+  const amax = Math.max.apply(null, data.map(d => d.a).concat([1])) * 1.2;
+  const hasB = data.some(d => d.b != null && d.b > 0);
+  let bmin = 0, bmax = 1;
+  if (hasB) {
+    const bs = data.filter(d => d.b > 0).map(d => d.b);
+    bmin = Math.min.apply(null, bs); bmax = Math.max.apply(null, bs);
+    const p = Math.max((bmax - bmin) * .25, 1); bmin -= p; bmax += p;
+  }
+  const X = i => data.length === 1 ? (L + (W - L - R) / 2) : L + i * (W - L - R) / (data.length - 1);
+  const Ya = v => H - B - (v / amax) * (H - T - B);
+  const Yb = v => H - B - ((v - bmin) / (bmax - bmin)) * (H - T - B);
+  const aPts = data.map((d, i) => X(i) + ',' + Ya(d.a)).join(' ');
+  const bPts = hasB ? data.filter(d => d.b > 0).map((d) => X(data.indexOf(d)) + ',' + Yb(d.b)).join(' ') : '';
+  const area = data.length > 1
+    ? 'M' + X(0) + ',' + (H - B) + ' L' + data.map((d, i) => X(i) + ',' + Ya(d.a)).join(' L') + ' L' + X(data.length - 1) + ',' + (H - B) + ' Z'
+    : '';
+  const step = Math.max(1, Math.ceil(data.length / 6));
+  const s = sel != null ? data[sel] : null;
+  return (
+    <div dir="ltr">
+      <svg viewBox={'0 0 ' + W + ' ' + H} className="w-full select-none">
+        <defs>
+          <linearGradient id="gta" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#CCFF00" stopOpacity=".24"/>
+            <stop offset="100%" stopColor="#CCFF00" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        {[.33, .66, 1].map(f => {
+          const v = amax * f, y = Ya(v);
+          return (
+            <g key={f}>
+              <line x1={L} x2={W - R} y1={y} y2={y} stroke="rgba(255,255,255,.05)"/>
+              <text x={L - 7} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(204,255,0,.45)">{fa(v)}</text>
+            </g>
+          );
+        })}
+        {hasB && [.2, .8].map(f => {
+          const v = bmin + (bmax - bmin) * f;
+          return <text key={f} x={W - R + 7} y={Yb(v) + 3} fontSize="9" fill="rgba(255,90,31,.6)">{fb(v)}</text>;
+        })}
+        {area && <path d={area} fill="url(#gta)"/>}
+        {hasB && data.filter(d => d.b > 0).length > 1 && <polyline points={bPts} fill="none" stroke="#FF5A1F" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" opacity=".85"/>}
+        {data.length > 1 && <polyline points={aPts} fill="none" stroke="#CCFF00" strokeWidth="2.5" strokeLinejoin="round" style={{ filter:'drop-shadow(0 0 6px rgba(204,255,0,.5))' }}/>}
+        {data.map((d, i) => (
+          <g key={i}>
+            {sel === i && <line x1={X(i)} x2={X(i)} y1={T} y2={H - B} stroke="rgba(255,255,255,.15)" strokeDasharray="3 3"/>}
+            <circle cx={X(i)} cy={Ya(d.a)} r={sel === i ? 5 : 3.5} fill={sel === i ? '#CCFF00' : '#0B0B0C'} stroke="#CCFF00" strokeWidth="2"/>
+            {hasB && d.b > 0 && <circle cx={X(i)} cy={Yb(d.b)} r={sel === i ? 4 : 3} fill={sel === i ? '#FF5A1F' : '#0B0B0C'} stroke="#FF5A1F" strokeWidth="1.5"/>}
+            <rect x={X(i) - 14} y={T} width="28" height={H - T - B} fill="transparent" onClick={() => setSel(i)} style={{ cursor:'pointer' }}/>
+          </g>
+        ))}
+        {data.map((d, i) => ((i % step === 0 || i === data.length - 1)
+          ? <text key={'x' + i} x={X(i)} y={H - 8} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,.35)">{d.label}</text>
+          : null))}
+      </svg>
+      {s && (
+        <div dir="rtl" className="mt-2 bg-black/30 rounded-2xl px-4 py-2 flex items-center justify-between gap-2 border border-white/5">
+          <span className="text-xs font-bold text-white/50">{s.label}</span>
+          <div className="flex gap-4 text-center">
+            <div><span className="font-black text-volt">{fa(s.a)}</span><span className="text-[9px] text-white/40 ms-1">{unitA || ''}</span></div>
+            {hasB && s.b > 0 && <div><span className="font-black text-ember">{fb(s.b)}</span><span className="text-[9px] text-white/40 ms-1">{unitB || ''}</span></div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BarChart({ items, unit }){
+  const max = Math.max.apply(null, items.map(i => i.v).concat([1]));
+  return (
+    <div className="flex items-end gap-1.5 pt-2" dir="ltr" style={{ height:'120px' }}>
+      {items.map((it, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
+          <div className="text-[9px] text-white/50 font-bold">{it.v ? it.v : ''}</div>
+          <div className="w-full rounded-t-lg bg-gradient-to-t from-lime-700/40 to-volt transition-all duration-500"
+               style={{ height: Math.max(3, (it.v / max) * 74) + 'px', opacity: it.v ? 1 : .12 }}></div>
+          <div className="text-[8px] text-white/35">{it.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ============================== rest timer ============================== */
 function RestTimer(){
   const [total, setTotal] = useState(0);
   const [left, setLeft] = useState(0);
+  const [flash, setFlash] = useState(false);
+  const ctxRef = useRef(null);
+  const flashTimer = useRef(null);
+
+  /* iOS requires the AudioContext to be created/resumed inside a user gesture —
+     we unlock it when a preset is tapped so the finish alarm is guaranteed to play */
+  function unlockAudio(){
+    try {
+      if (!ctxRef.current) ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = ctxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      g.gain.value = 0.0001; o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + 0.01);
+    } catch (e) {}
+  }
+  const start = s => {
+    unlockAudio();
+    clearTimeout(flashTimer.current);
+    setFlash(false); setTotal(s); setLeft(s);
+  };
   useEffect(() => {
     if (left <= 0) return;
     const t = setTimeout(() => {
       const nl = left - 1;
       setLeft(nl);
-      if (nl === 0) chime();
+      if (nl === 0) finish();
     }, 1000);
     return () => clearTimeout(t);
   }, [left]);
-  function chime(){
+  function alarm(){
     try {
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const beep = (t, f) => {
+      if (!ctxRef.current) ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = ctxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const ding = (t, f, vol) => {
         const o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination); o.frequency.value = f;
-        g.gain.setValueAtTime(.35, ctx.currentTime + t);
-        g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + t + .25);
-        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + .3);
+        o.type = 'square';
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.22);
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.3);
       };
-      beep(0, 880); beep(.3, 880); beep(.6, 1318);
+      /* boxing-bell style: ding-ding-DING, twice */
+      [0, .22, .44].forEach((t, i) => ding(t, i === 2 ? 1568 : 1046, .5));
+      [1.1, 1.32, 1.54].forEach((t, i) => ding(t, i === 2 ? 1568 : 1046, .5));
     } catch (e) {}
+  }
+  function finish(){
+    if (navigator.vibrate) { try { navigator.vibrate([300, 120, 300, 120, 600]); } catch (e) {} }
+    alarm();
+    setFlash(true);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(false), 6000);
   }
   return (
     <React.Fragment>
@@ -324,7 +634,7 @@ function RestTimer(){
           <Icon d={I.timer} className="w-4 h-4 text-ember"/> מנוחה
         </span>
         {[60, 90, 120, 180].map(s => (
-          <button key={s} onClick={() => { setTotal(s); setLeft(s); }}
+          <button key={s} onClick={() => start(s)}
                   className="flex-1 py-1.5 rounded-xl bg-white/5 text-sm font-bold active:scale-95 transition select-none">
             {fmtDur(s)}
           </button>
@@ -333,7 +643,7 @@ function RestTimer(){
       {left > 0 && (
         <div className="fixed bottom-24 inset-x-0 z-50 flex justify-center pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-3 rounded-full ps-5 pe-3 py-2.5 bg-gradient-to-l from-ember to-orange-600 shadow-2xl shadow-ember/40 fadein">
-            <span className="font-black text-2xl tabular-nums text-white" style={{ fontVariantNumeric:'tabular-nums' }}>{fmtDur(left)}</span>
+            <span className="font-black text-2xl text-white" style={{ fontVariantNumeric:'tabular-nums' }}>{fmtDur(left)}</span>
             <div className="w-24 h-1.5 bg-black/30 rounded-full overflow-hidden" dir="ltr">
               <div className="h-full bg-white rounded-full" style={{ width:(left / total * 100) + '%', transition:'width 1s linear' }}/>
             </div>
@@ -341,6 +651,14 @@ function RestTimer(){
               <Icon d={I.x} className="w-4 h-4"/>
             </button>
           </div>
+        </div>
+      )}
+      {flash && left === 0 && (
+        <div className="fixed bottom-24 inset-x-0 z-50 flex justify-center pointer-events-none">
+          <button onClick={() => { clearTimeout(flashTimer.current); setFlash(false); }}
+                  className="pointer-events-auto flex items-center gap-2 rounded-full px-6 py-3 bg-volt text-obsidian shadow-2xl glow-volt fadein font-black text-lg animate-pulse">
+            ⏰ הזמן נגמר — סט חדש! 💪
+          </button>
         </div>
       )}
     </React.Fragment>
@@ -366,7 +684,7 @@ function SetRow({ s, i, prev, onField, onToggle }){
   );
 }
 
-function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField }){
+function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, moveEx, idx, count }){
   const sets = getSets(state, week, tpl.id, ex);
   const prev = prevSets(state, week, tpl.id, ex.id);
   const prevSumm = useMemo(() => {
@@ -377,9 +695,17 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField })
   }, [prev]);
   if (edit) return (
     <div className="glass rounded-3xl p-4 space-y-2.5 fadein">
-      <div className="flex gap-2">
-        <input className="inp flex-1 font-bold" value={ex.name} onChange={e => updEx(ex.id, { name: e.target.value })}/>
-        <button onClick={() => delEx(ex.id)} className="w-11 rounded-xl bg-ember/15 text-ember flex items-center justify-center shrink-0 active:scale-90 transition">
+      <div className="flex gap-1.5">
+        <input className="inp flex-1 min-w-0 font-bold" value={ex.name} onChange={e => updEx(ex.id, { name: e.target.value })}/>
+        <button onClick={() => moveEx(ex.id, -1)} disabled={idx === 0}
+                className="w-10 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center shrink-0 active:scale-90 transition disabled:opacity-15">
+          <Icon d={I.chevUp} className="w-4 h-4"/>
+        </button>
+        <button onClick={() => moveEx(ex.id, 1)} disabled={idx === count - 1}
+                className="w-10 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center shrink-0 active:scale-90 transition disabled:opacity-15">
+          <Icon d={I.chevDown} className="w-4 h-4"/>
+        </button>
+        <button onClick={() => delEx(ex.id)} className="w-10 rounded-xl bg-ember/15 text-ember flex items-center justify-center shrink-0 active:scale-90 transition">
           <Icon d={I.trash} className="w-4 h-4"/>
         </button>
       </div>
@@ -431,8 +757,11 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
     const t = (wo[tpl.id] = wo[tpl.id] || {});
     const arr = (t[ex.id] = t[ex.id] || []);
     while (arr.length <= idx) arr.push({ w:'', r:'', done:false });
-    if (field === 'done') arr[idx].done = !arr[idx].done;
-    else arr[idx][field] = val;
+    if (field === 'done') {
+      arr[idx].done = !arr[idx].done;
+      if (arr[idx].done) arr[idx].t = toISO(new Date());
+      else delete arr[idx].t;
+    } else arr[idx][field] = val;
   }, ['week', week]);
 
   const updTpl = patch => mutate(d => { Object.assign(d.templates.find(x => x.id === tpl.id), patch); }, 'templates');
@@ -448,6 +777,17 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
   const addEx = () => mutate(d => {
     d.templates.find(x => x.id === tpl.id).exercises.push({ id: uid(), muscle:'קבוצת שריר', name:'תרגיל חדש', sets:3, reps:'8-10' });
   }, 'templates');
+  const moveEx = (exId, dir) => mutate(d => {
+    const t = d.templates.find(x => x.id === tpl.id);
+    const i = t.exercises.findIndex(e => e.id === exId), j = i + dir;
+    if (i < 0 || j < 0 || j >= t.exercises.length) return;
+    const tmp = t.exercises[i]; t.exercises[i] = t.exercises[j]; t.exercises[j] = tmp;
+  }, 'templates');
+  const moveTpl = dir => mutate(d => {
+    const i = d.templates.findIndex(x => x.id === tpl.id), j = i + dir;
+    if (i < 0 || j < 0 || j >= d.templates.length) return;
+    const tmp = d.templates[i]; d.templates[i] = d.templates[j]; d.templates[j] = tmp;
+  }, 'templates');
   const delWorkout = () => {
     if (!confirm('למחוק את האימון "' + tpl.name + '" לגמרי?')) return;
     mutate(d => { d.templates = d.templates.filter(x => x.id !== tpl.id); }, 'templates');
@@ -462,9 +802,19 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
         </button>
         <div className="flex gap-2">
           {edit && (
-            <button onClick={delWorkout} className="w-10 h-10 rounded-2xl bg-ember/15 text-ember flex items-center justify-center active:scale-90 transition">
-              <Icon d={I.trash} className="w-4 h-4"/>
-            </button>
+            <React.Fragment>
+              <button onClick={() => moveTpl(-1)} title="הזז למעלה ברשימת האימונים"
+                      className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center active:scale-90 transition">
+                <Icon d={I.chevUp} className="w-4 h-4"/>
+              </button>
+              <button onClick={() => moveTpl(1)} title="הזז למטה ברשימת האימונים"
+                      className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center active:scale-90 transition">
+                <Icon d={I.chevDown} className="w-4 h-4"/>
+              </button>
+              <button onClick={delWorkout} className="w-10 h-10 rounded-2xl bg-ember/15 text-ember flex items-center justify-center active:scale-90 transition">
+                <Icon d={I.trash} className="w-4 h-4"/>
+              </button>
+            </React.Fragment>
           )}
           <button onClick={() => setEdit(!edit)}
                   className={'h-10 px-4 rounded-2xl flex items-center gap-2 text-sm font-bold active:scale-95 transition ' + (edit ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 text-white/70 border border-white/10')}>
@@ -512,9 +862,10 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
 
       {!edit && <RestTimer/>}
 
-      {tpl.exercises.map(ex => (
+      {tpl.exercises.map((ex, i) => (
         <ExerciseCard key={ex.id} state={state} week={week} tpl={tpl} ex={ex} edit={edit}
-                      updEx={updEx} delEx={delEx} setSetField={setSetField}/>
+                      updEx={updEx} delEx={delEx} setSetField={setSetField}
+                      moveEx={moveEx} idx={i} count={tpl.exercises.length}/>
       ))}
 
       {edit && (
@@ -522,6 +873,29 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
           <Icon d={I.plus} className="w-5 h-5"/> הוסף תרגיל
         </button>
       )}
+    </div>
+  );
+}
+
+function WeekChips({ state, week, onOpen }){
+  return (
+    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+      {state.templates.map(t => {
+        const p = tplProgress(state, week, t);
+        const pct = p.total ? p.done / p.total : 0;
+        return (
+          <button key={t.id} onClick={() => onOpen(t.id)} className="glass rounded-2xl ps-2 pe-3 py-2 flex items-center gap-2 shrink-0 active:scale-95 transition">
+            <div className="relative w-[34px] h-[34px]">
+              <Ring pct={pct} size={34} stroke={3} color={pct > 0 ? '#CCFF00' : 'rgba(255,255,255,.15)'}/>
+              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black">{Math.round(pct * 100)}%</span>
+            </div>
+            <div className="text-start">
+              <div className="text-xs font-bold whitespace-nowrap">{t.name}</div>
+              <div className="text-[10px] text-white/40 whitespace-nowrap">{p.done}/{p.total} סטים</div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -538,24 +912,7 @@ function WorkoutsTab({ state, week, mutate, openTpl, setOpenTpl }){
 
   return (
     <div className="fadein space-y-3">
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-        {state.templates.map(t => {
-          const p = tplProgress(state, week, t);
-          const pct = p.total ? p.done / p.total : 0;
-          return (
-            <button key={t.id} onClick={() => setOpenTpl(t.id)} className="glass rounded-2xl ps-2 pe-3 py-2 flex items-center gap-2 shrink-0 active:scale-95 transition">
-              <div className="relative w-[34px] h-[34px]">
-                <Ring pct={pct} size={34} stroke={3} color={pct >= 1 ? '#CCFF00' : (pct > 0 ? '#CCFF00' : 'rgba(255,255,255,.15)')}/>
-                <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black">{Math.round(pct * 100)}%</span>
-              </div>
-              <div className="text-start">
-                <div className="text-xs font-bold whitespace-nowrap">{t.name}</div>
-                <div className="text-[10px] text-white/40 whitespace-nowrap">{p.done}/{p.total} סטים</div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <WeekChips state={state} week={week} onOpen={setOpenTpl}/>
 
       {state.templates.map(t => {
         const p = tplProgress(state, week, t);
@@ -669,7 +1026,7 @@ function RunChart({ runs }){
   );
 }
 
-function RunsTab({ state, week, mutate }){
+function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
   const todayISO = toISO(new Date());
   const inWeek = todayISO >= week && todayISO <= addDays(week, 6);
   const [f, setF] = useState({ title:'', km:'', dur:'', date: inWeek ? todayISO : week });
@@ -684,9 +1041,10 @@ function RunsTab({ state, week, mutate }){
   const bestPace = state.runs.length ? Math.min.apply(null, state.runs.map(r => r.sec / Math.max(r.km, .01))) : 0;
 
   const kmNum = numOr0(f.km), secNum = parseDur(f.dur);
-  const valid = kmNum > 0 && secNum > 0 && f.date;
   const addRun = () => {
-    if (!valid) return;
+    if (!(kmNum > 0)) { alert('הכנס מרחק בק"מ (למשל 5.0)'); return; }
+    if (!(secNum > 0)) { alert('הכנס זמן ריצה (למשל 30:00)'); return; }
+    if (!f.date) { alert('בחר תאריך'); return; }
     mutate(d => { d.runs.unshift({ id: uid(), date: f.date, title: f.title.trim() || 'ריצה', km: kmNum, sec: secNum, updatedAt: Date.now() }); });
     setF({ title:'', km:'', dur:'', date: f.date });
   };
@@ -704,11 +1062,14 @@ function RunsTab({ state, week, mutate }){
 
   const RunRow = ({ r }) => (
     <div className="glass rounded-2xl p-3 flex items-center gap-3">
-      <div className="w-9 h-9 rounded-xl bg-ember/15 text-ember flex items-center justify-center shrink-0">
+      <div className={'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ' + (r.src === 'strava' ? 'bg-strava/15 text-strava' : 'bg-ember/15 text-ember')}>
         <Icon d={I.activity} className="w-4 h-4"/>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-sm truncate">{r.title}</div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-bold text-sm truncate">{r.title}</span>
+          {r.src === 'strava' && <span className="text-[8px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-1.5 py-0.5 shrink-0">STRAVA</span>}
+        </div>
         <div className="text-[10px] text-white/40">{heDate(r.date)}</div>
       </div>
       <div className="flex gap-3 text-center shrink-0">
@@ -724,28 +1085,16 @@ function RunsTab({ state, week, mutate }){
 
   return (
     <div className="fadein space-y-3">
-      <div className="grid grid-cols-4 gap-2">
-        <Stat v={totKm ? totKm.toFixed(1) : '0'} l={'ק"מ השבוע'} accent="text-volt"/>
-        <Stat v={weekRuns.length} l="ריצות השבוע"/>
-        <Stat v={fmtPace(avgPace)} l="קצב ממוצע" accent="text-ember"/>
-        <Stat v={fmtPace(bestPace)} l="שיא קצב"/>
-      </div>
-
-      <div className="glass rounded-3xl p-4">
-        <div className="flex items-center justify-between mb-1">
-          <div className="font-black italic">מגמות ביצועים</div>
-          <div className="flex gap-3 text-[10px] font-bold">
-            <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> מרחק</span>
-            <span className="flex items-center gap-1 text-ember"><span className="w-2.5 h-0.5 bg-ember inline-block rounded-full" style={{ borderTop:'1px dashed' }}></span> קצב</span>
-          </div>
-        </div>
-        <RunChart runs={state.runs}/>
-      </div>
-
       <div className="glass rounded-3xl p-4 space-y-2.5">
-        <div className="font-bold flex items-center gap-2">
-          <span className="w-7 h-7 rounded-xl bg-ember/20 text-ember flex items-center justify-center"><Icon d={I.plus} className="w-4 h-4"/></span>
-          ריצה חדשה
+        <div className="flex items-center justify-between">
+          <div className="font-bold flex items-center gap-2">
+            <span className="w-7 h-7 rounded-xl bg-ember/20 text-ember flex items-center justify-center"><Icon d={I.plus} className="w-4 h-4"/></span>
+            ריצה חדשה
+            <span className="text-[10px] text-white/30 font-normal">אין הגבלה — כמה שבא לך 🔥</span>
+          </div>
+          {!stravaConnected && (
+            <button onClick={onOpenSettings} className="text-[10px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-2.5 py-1 active:scale-95 transition">חבר STRAVA</button>
+          )}
         </div>
         <input className="inp" placeholder="כותרת (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
         <div className="grid grid-cols-3 gap-2">
@@ -758,12 +1107,30 @@ function RunsTab({ state, week, mutate }){
         </div>
         <div className="flex items-center justify-between bg-black/25 rounded-2xl px-4 py-2.5 border border-white/5">
           <span className="text-xs text-white/40">קצב מחושב</span>
-          <span className="font-black text-xl text-volt text-glow">{valid ? fmtPace(secNum / kmNum) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
+          <span className="font-black text-xl text-volt text-glow">{(kmNum > 0 && secNum > 0) ? fmtPace(secNum / kmNum) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
         </div>
-        <button onClick={addRun} disabled={!valid}
-                className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition disabled:opacity-25 glow-volt disabled:shadow-none">
+        <button onClick={addRun}
+                className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">
           הוסף ריצה ⚡
         </button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        <Stat v={totKm ? totKm.toFixed(1) : '0'} l={'ק"מ השבוע'} accent="text-volt"/>
+        <Stat v={weekRuns.length} l="ריצות השבוע"/>
+        <Stat v={fmtPace(avgPace)} l="קצב ממוצע" accent="text-ember"/>
+        <Stat v={fmtPace(bestPace)} l="שיא קצב"/>
+      </div>
+
+      <div className="glass rounded-3xl p-4">
+        <div className="flex items-center justify-between mb-1">
+          <div className="font-black italic">מגמות ביצועים</div>
+          <div className="flex gap-3 text-[10px] font-bold">
+            <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> מרחק</span>
+            <span className="flex items-center gap-1 text-ember"><span className="w-2.5 h-0.5 bg-ember inline-block rounded-full"></span> קצב</span>
+          </div>
+        </div>
+        <RunChart runs={state.runs}/>
       </div>
 
       <div className="flex items-center justify-between px-1 pt-1">
@@ -807,6 +1174,11 @@ function NutritionTab({ state, week, mutate }){
     mutate(d => { d.meals = d.meals.filter(x => x.id !== id); }, 'meals');
   };
   const addMeal = () => mutate(d => { d.meals.push({ id: uid(), icon:'🍽️', title:'ארוחה חדשה', desc:'' }); }, 'meals');
+  const moveMeal = (id, dir) => mutate(d => {
+    const i = d.meals.findIndex(m => m.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= d.meals.length) return;
+    const tmp = d.meals[i]; d.meals[i] = d.meals[j]; d.meals[j] = tmp;
+  }, 'meals');
 
   return (
     <div className="fadein space-y-3">
@@ -856,18 +1228,29 @@ function NutritionTab({ state, week, mutate }){
         </button>
       </div>
 
-      {state.meals.map(m => {
+      {state.meals.map((m, mi) => {
         const done = !!checks[m.id];
         if (edit) return (
           <div key={m.id} className="glass rounded-3xl p-4 space-y-2 fadein">
             <div className="flex gap-2">
               <input className="inp w-16 text-center text-xl" value={m.icon} onChange={e => updMeal(m.id, { icon: e.target.value })}/>
-              <input className="inp flex-1 font-bold" value={m.title} onChange={e => updMeal(m.id, { title: e.target.value })}/>
-              <button onClick={() => delMeal(m.id)} className="w-11 rounded-xl bg-ember/15 text-ember flex items-center justify-center shrink-0 active:scale-90 transition">
+              <input className="inp flex-1 min-w-0 font-bold" value={m.title} onChange={e => updMeal(m.id, { title: e.target.value })}/>
+            </div>
+            <textarea className="inp leading-relaxed" rows="3" value={m.desc} placeholder="פירוט הארוחה..." onChange={e => updMeal(m.id, { desc: e.target.value })}/>
+            <div className="flex gap-1.5">
+              <button onClick={() => moveMeal(m.id, -1)} disabled={mi === 0}
+                      className="w-10 h-9 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center active:scale-90 transition disabled:opacity-15">
+                <Icon d={I.chevUp} className="w-4 h-4"/>
+              </button>
+              <button onClick={() => moveMeal(m.id, 1)} disabled={mi === state.meals.length - 1}
+                      className="w-10 h-9 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center active:scale-90 transition disabled:opacity-15">
+                <Icon d={I.chevDown} className="w-4 h-4"/>
+              </button>
+              <div className="flex-1"></div>
+              <button onClick={() => delMeal(m.id)} className="w-10 h-9 rounded-xl bg-ember/15 text-ember flex items-center justify-center active:scale-90 transition">
                 <Icon d={I.trash} className="w-4 h-4"/>
               </button>
             </div>
-            <textarea className="inp leading-relaxed" rows="3" value={m.desc} placeholder="פירוט הארוחה..." onChange={e => updMeal(m.id, { desc: e.target.value })}/>
           </div>
         );
         return (
@@ -914,14 +1297,373 @@ function NutritionTab({ state, week, mutate }){
   );
 }
 
-/* ============================== settings / sync ============================== */
-function SettingsTab({ state, sync, syncNow, replaceState }){
+/* ============================== dashboard ============================== */
+function Dashboard({ state, setTab, setOpenTpl, setWeek }){
+  const today = toISO(new Date());
+  const ts = todayStats(state);
+  const st = streak(state);
+  const week = weekStartISO(new Date());
+  const latestW = state.weights.length ? state.weights[0] : null;
+  const prevW = state.weights.length > 1 ? state.weights[1] : null;
+  const latestPhoto = state.photos.length ? state.photos.slice().sort((a, b) => a.date < b.date ? 1 : -1)[0] : null;
+  const name = state.settings.name;
+
+  const go = (tab) => { setWeek(week); setTab(tab); };
+  const openWorkout = id => { setWeek(week); setOpenTpl(id); setTab('workouts'); };
+
+  const QA = ({ icon, label, tab, color }) => (
+    <button onClick={() => go(tab)} className="glass rounded-2xl py-3 flex flex-col items-center gap-1.5 active:scale-95 transition">
+      <div className={color}><Icon d={icon} className="w-5 h-5"/></div>
+      <span className="text-[10px] font-bold text-white/60">{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="fadein space-y-3">
+      <div className="glass rounded-3xl p-5 relative overflow-hidden">
+        <div className="absolute -end-4 -bottom-10 text-[130px] leading-none opacity-[.05] select-none" style={{ transform:'rotate(12deg)' }}>⚡</div>
+        <div className="flex items-start justify-between relative">
+          <div>
+            <div className="text-white/40 text-xs">{greet()},</div>
+            <div className="text-2xl font-black italic leading-tight">{name || 'אלוף'} 👊</div>
+            <div className="text-[11px] text-white/35 mt-1">{heDate(today)}</div>
+          </div>
+          {st >= 2 && (
+            <div className="flex items-center gap-1.5 bg-ember/15 border border-ember/25 rounded-full ps-2.5 pe-3 py-1.5">
+              <Icon d={I.flame} className="w-4 h-4 text-ember"/>
+              <span className="text-sm font-black text-ember">{st}</span>
+              <span className="text-[9px] text-ember/70 font-bold">ימים ברצף</span>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-2 mt-4 relative">
+          <div className="bg-black/30 rounded-2xl py-2.5 text-center">
+            <div className="font-black text-xl text-volt">{ts.sets}</div>
+            <div className="text-[9px] text-white/40 mt-0.5">סטים היום</div>
+          </div>
+          <div className="bg-black/30 rounded-2xl py-2.5 text-center">
+            <div className="font-black text-xl text-ember">{ts.km ? ts.km.toFixed(1) : 0}</div>
+            <div className="text-[9px] text-white/40 mt-0.5">ק"מ היום</div>
+          </div>
+          <div className="bg-black/30 rounded-2xl py-2.5 text-center">
+            <div className="font-black text-xl">{ts.meals}<span className="text-white/30 text-sm">/{state.meals.length}</span></div>
+            <div className="text-[9px] text-white/40 mt-0.5">ארוחות היום</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        <QA icon={I.dumbbell} label="התחל אימון" tab="workouts" color="text-volt"/>
+        <QA icon={I.activity} label="רשום ריצה" tab="runs" color="text-ember"/>
+        <QA icon={I.clipboard} label="צ'קליסט" tab="food" color="text-volt"/>
+        <QA icon={I.camera} label="התקדמות" tab="progress" color="text-ember"/>
+      </div>
+
+      <div className="glass rounded-3xl p-4">
+        <div className="font-black italic mb-2.5">מה עשית היום</div>
+        {(ts.perTpl.length === 0 && ts.runs.length === 0 && ts.meals === 0) ? (
+          <div className="text-center py-5">
+            <div className="text-3xl mb-1.5">😴</div>
+            <div className="text-white/40 text-sm font-bold">עוד לא רשמת כלום היום</div>
+            <div className="text-white/25 text-xs mt-0.5">יאללה, הברזל לא ירים את עצמו 🔥</div>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {ts.perTpl.map(p => (
+              <button key={p.tpl.id} onClick={() => openWorkout(p.tpl.id)} className="w-full flex items-center gap-3 bg-black/25 border border-white/5 rounded-2xl p-3 active:scale-[.985] transition text-start">
+                <span className="text-2xl">{p.tpl.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm">{p.tpl.name}</div>
+                  <div className="text-[10px] text-white/40">{p.sets} סטים · {p.ton.toLocaleString()} ק"ג נפח</div>
+                </div>
+                <Icon d={I.chevL} className="w-4 h-4 text-white/25"/>
+              </button>
+            ))}
+            {ts.runs.map(r => (
+              <div key={r.id} className="flex items-center gap-3 bg-black/25 border border-white/5 rounded-2xl p-3">
+                <span className="text-2xl">🏃</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm truncate">{r.title}</div>
+                  <div className="text-[10px] text-white/40">{r.km} ק"מ · {fmtPace(r.sec / Math.max(r.km, .01))} דק'/ק"מ · {fmtDur(r.sec)}</div>
+                </div>
+                {r.src === 'strava' && <span className="text-[8px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-1.5 py-0.5">STRAVA</span>}
+              </div>
+            ))}
+            {ts.meals > 0 && (
+              <button onClick={() => go('food')} className="w-full flex items-center gap-3 bg-black/25 border border-white/5 rounded-2xl p-3 active:scale-[.985] transition text-start">
+                <span className="text-2xl">🥗</span>
+                <div className="flex-1">
+                  <div className="font-bold text-sm">תזונה</div>
+                  <div className="text-[10px] text-white/40">{ts.meals} מתוך {state.meals.length} ארוחות סומנו</div>
+                </div>
+                <div className="relative w-[30px] h-[30px]">
+                  <Ring pct={ts.meals / Math.max(1, state.meals.length)} size={30} stroke={3}/>
+                </div>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="text-white/40 text-xs font-bold mb-2 px-1">האימונים של השבוע</div>
+        <WeekChips state={state} week={week} onOpen={openWorkout}/>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => go('progress')} className="glass rounded-3xl p-4 text-start active:scale-[.985] transition">
+          <div className="flex items-center gap-2 text-white/40 text-[10px] font-bold"><Icon d={I.scale} className="w-3.5 h-3.5"/> משקל גוף</div>
+          {latestW ? (
+            <div className="mt-1.5">
+              <span className="font-black text-2xl">{latestW.kg}</span>
+              <span className="text-xs text-white/40 ms-1">ק"ג</span>
+              {prevW && (
+                <span className={'text-[10px] font-bold ms-2 ' + (latestW.kg - prevW.kg >= 0 ? 'text-volt' : 'text-ember')}>
+                  {latestW.kg - prevW.kg >= 0 ? '+' : ''}{Math.round((latestW.kg - prevW.kg) * 10) / 10}
+                </span>
+              )}
+            </div>
+          ) : <div className="mt-1.5 text-white/25 text-sm font-bold">הוסף שקילה ←</div>}
+        </button>
+        <button onClick={() => go('progress')} className="glass rounded-3xl p-4 text-start active:scale-[.985] transition flex items-center gap-3">
+          {latestPhoto ? (
+            <React.Fragment>
+              <img src={latestPhoto.thumb} className="w-12 h-12 rounded-xl object-cover border border-white/10" alt=""/>
+              <div>
+                <div className="text-white/40 text-[10px] font-bold">תמונה אחרונה</div>
+                <div className="text-xs font-bold mt-0.5">{heDate(latestPhoto.date).split(' · ')[1]}</div>
+              </div>
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center"><Icon d={I.camera} className="w-5 h-5 text-white/25"/></div>
+              <div className="text-white/25 text-sm font-bold">צלם התקדמות ←</div>
+            </React.Fragment>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== progress ============================== */
+function PhotoViewer({ photo, onClose, onDelete, loadPhoto }){
+  const [src, setSrc] = useState(photo.thumb);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    setSrc(photo.thumb); setLoading(true);
+    loadPhoto(photo).then(full => { if (alive) { if (full) setSrc(full); setLoading(false); } }).catch(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [photo.id]);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col fadein" onClick={onClose}>
+      <div className="flex items-center justify-between p-4" style={{ paddingTop:'max(env(safe-area-inset-top), 16px)' }}>
+        <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"><Icon d={I.x} className="w-5 h-5"/></button>
+        <div className="text-sm font-bold">{heDate(photo.date)}</div>
+        <button onClick={e => { e.stopPropagation(); onDelete(photo); }} className="w-10 h-10 rounded-full bg-ember/20 text-ember flex items-center justify-center"><Icon d={I.trash} className="w-4 h-4"/></button>
+      </div>
+      <div className="flex-1 flex items-center justify-center p-4 relative">
+        <img src={src} className="max-w-full max-h-full rounded-2xl object-contain" alt="" style={{ filter: loading ? 'blur(6px)' : 'none', transition:'filter .3s' }}/>
+        {loading && <div className="absolute inset-0 flex items-center justify-center"><Icon d={I.refresh} className="w-7 h-7 text-volt spin"/></div>}
+      </div>
+    </div>
+  );
+}
+
+function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
+  const flat = useMemo(() => {
+    const arr = [];
+    state.templates.forEach(tpl => tpl.exercises.forEach(ex => arr.push({ tpl, ex })));
+    return arr;
+  }, [state.templates]);
+  const firstWithData = useMemo(() => {
+    const f = flat.find(p => exerciseHistory(state, p.tpl.id, p.ex.id).length > 0);
+    return f || flat[0];
+  }, []);
+  const [selEx, setSelEx] = useState(firstWithData ? firstWithData.tpl.id + '|' + firstWithData.ex.id : '');
+  const [kg, setKg] = useState('');
+  const [viewPhoto, setViewPhoto] = useState(null);
+  const fileRef = useRef(null);
+
+  const prs = useMemo(() => findPRs(state), [state.logs, state.templates]);
+  const ri = useMemo(() => runningInsights(state), [state.runs]);
+
+  const pair = selEx ? selEx.split('|') : null;
+  const selPair = pair ? flat.find(p => p.tpl.id === pair[0] && p.ex.id === pair[1]) : null;
+  const hist = selPair ? exerciseHistory(state, selPair.tpl.id, selPair.ex.id) : [];
+  const strengthData = hist.slice(-16).map(h => ({ label:'ש' + weekNum(h.week), a: h.maxW, b: h.vol }));
+
+  const weightData = state.weights.slice().sort((a, b) => a.date < b.date ? -1 : 1).slice(-20)
+    .map(w => ({ label: fromISO(w.date).getDate() + '.' + (fromISO(w.date).getMonth() + 1), a: w.kg, b: 0 }));
+  const latestW = state.weights.length ? state.weights[0] : null;
+  const h = numOr0(state.settings.height);
+  const bmi = (latestW && h > 0) ? Math.round(latestW.kg / Math.pow(h / 100, 2) * 10) / 10 : null;
+
+  const addWeight = () => {
+    const v = numOr0(kg);
+    if (!(v > 20 && v < 400)) { alert('הכנס משקל תקין בק"ג'); return; }
+    mutate(d => { d.weights.unshift({ id: uid(), date: toISO(new Date()), kg: v, updatedAt: Date.now() }); d.weights.sort((a, b) => a.date < b.date ? 1 : -1); });
+    setKg('');
+  };
+  const delWeight = w => {
+    if (!confirm('למחוק שקילה של ' + w.kg + ' ק"ג?')) return;
+    mutate(d => { d.weights = d.weights.filter(x => x.id !== w.id); if (d.deletedWeights.indexOf(w.id) < 0) d.deletedWeights.push(w.id); });
+  };
+  const onFile = e => {
+    const file = e.target.files && e.target.files[0];
+    if (file) addPhoto(file);
+    e.target.value = '';
+  };
+
+  const photosSorted = state.photos.slice().sort((a, b) => a.date < b.date ? 1 : -1);
+
+  return (
+    <div className="fadein space-y-3">
+      {/* ---- PRs ---- */}
+      <div className="glass rounded-3xl p-4">
+        <div className="font-black italic mb-2.5 flex items-center gap-2"><Icon d={I.trend} className="w-5 h-5 text-volt"/> הישגים אחרונים</div>
+        {prs.length === 0 && (!ri || ri.paceDelta == null) ? (
+          <div className="text-white/30 text-sm text-center py-3">ברגע שתעלה משקלים או תשתפר בריצה — זה יופיע כאן 📈</div>
+        ) : (
+          <div className="space-y-1.5">
+            {ri && ri.paceDelta != null && ri.paceDelta !== 0 && (
+              <div className="flex items-center gap-3 bg-black/25 border border-white/5 rounded-2xl p-3">
+                <span className="text-xl">🏃</span>
+                <div className="flex-1 text-sm font-bold">קצב ריצה (14 יום אחרונים)</div>
+                <span className={'text-xs font-black ' + (ri.paceDelta > 0 ? 'text-volt' : 'text-ember')}>
+                  {ri.paceDelta > 0 ? 'מהיר ב־' + ri.paceDelta + ' שנ׳/ק"מ ↑' : 'איטי ב־' + Math.abs(ri.paceDelta) + ' שנ׳/ק"מ'}
+                </span>
+              </div>
+            )}
+            {prs.map((p, i) => (
+              <div key={i} className="flex items-center gap-3 bg-black/25 border border-white/5 rounded-2xl p-3">
+                <span className="text-xl">{p.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold truncate">{p.text}</div>
+                  <div className="text-[10px] text-white/40">שבוע {weekNum(p.week)}</div>
+                </div>
+                <span className="text-xs font-black text-white/40">{p.from}</span>
+                <Icon d={I.chevL} className="w-3.5 h-3.5 text-volt"/>
+                <span className="text-xs font-black text-volt">{p.to}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ---- strength ---- */}
+      <div className="glass rounded-3xl p-4">
+        <div className="font-black italic mb-2.5">התקדמות בכוח 🏋️</div>
+        <select className="inp mb-2" value={selEx} onChange={e => setSelEx(e.target.value)}>
+          {state.templates.map(tpl => (
+            <optgroup key={tpl.id} label={tpl.name}>
+              {tpl.exercises.map(ex => <option key={ex.id} value={tpl.id + '|' + ex.id}>{ex.name}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        <div className="flex gap-3 text-[10px] font-bold mb-1">
+          <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> משקל שיא (ק"ג)</span>
+          <span className="flex items-center gap-1 text-ember"><span className="w-2.5 h-0.5 bg-ember inline-block rounded-full"></span> נפח שבועי</span>
+        </div>
+        <TrendChart data={strengthData} unitA={'ק"ג'} unitB={'ק"ג נפח'}/>
+      </div>
+
+      {/* ---- running ---- */}
+      <div className="glass rounded-3xl p-4">
+        <div className="font-black italic mb-2.5">התקדמות בריצה 🏃</div>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="bg-black/25 rounded-2xl py-2.5 text-center border border-white/5">
+            <div className="font-black text-ember">{ri && ri.fastest ? fmtPace(ri.fastest.sec / ri.fastest.km) : '—'}</div>
+            <div className="text-[9px] text-white/40 mt-0.5">שיא קצב</div>
+          </div>
+          <div className="bg-black/25 rounded-2xl py-2.5 text-center border border-white/5">
+            <div className="font-black text-volt">{ri && ri.longest ? ri.longest.km : '—'}</div>
+            <div className="text-[9px] text-white/40 mt-0.5">ריצה הכי ארוכה</div>
+          </div>
+          <div className="bg-black/25 rounded-2xl py-2.5 text-center border border-white/5">
+            <div className="font-black">{ri ? Math.round(ri.total * 10) / 10 : 0}</div>
+            <div className="text-[9px] text-white/40 mt-0.5">סה"כ ק"מ</div>
+          </div>
+        </div>
+        <div className="text-[10px] font-bold text-white/40 mb-1">ק"מ לפי שבוע (8 שבועות אחרונים)</div>
+        {ri && <BarChart items={ri.weeks}/>}
+      </div>
+
+      {/* ---- body ---- */}
+      <div className="glass rounded-3xl p-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="font-black italic">מעקב גוף ⚖️</div>
+          {bmi && <span className="text-[10px] font-bold text-white/40 bg-white/5 rounded-full px-2.5 py-1">BMI {bmi}</span>}
+        </div>
+        <div className="flex gap-2 mb-3">
+          <input className="inp flex-1 text-center font-bold" inputMode="decimal" placeholder={latestW ? 'שקילה חדשה (אחרונה: ' + latestW.kg + ')' : 'משקל בק"ג (למשל 78.5)'}
+                 value={kg} onChange={e => setKg(e.target.value)}/>
+          <button onClick={addWeight} className="px-5 rounded-2xl bg-volt text-obsidian font-black active:scale-95 transition">שמור</button>
+        </div>
+        {weightData.length > 0
+          ? <TrendChart data={weightData} unitA={'ק"ג'} fmtA={v => String(Math.round(v * 10) / 10)}/>
+          : <div className="text-white/25 text-xs text-center py-2">רשום שקילה ראשונה כדי לראות את הגרף</div>}
+        {state.weights.slice(0, 5).map(w => (
+          <div key={w.id} className="flex items-center justify-between border-t border-white/5 py-2 first:border-0">
+            <span className="text-xs text-white/40">{heDate(w.date)}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-black">{w.kg} <span className="text-[10px] text-white/40 font-normal">ק"ג</span></span>
+              <button onClick={() => delWeight(w)} className="text-white/20 active:scale-90 transition"><Icon d={I.trash} className="w-3.5 h-3.5"/></button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ---- photos ---- */}
+      <div className="glass rounded-3xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-black italic">גלריית התקדמות 📸</div>
+          <button onClick={() => fileRef.current && fileRef.current.click()}
+                  className="h-9 px-4 rounded-2xl bg-volt text-obsidian font-black text-sm flex items-center gap-2 active:scale-95 transition glow-volt">
+            <Icon d={I.camera} className="w-4 h-4"/> צלם / העלה
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile}/>
+        </div>
+        {photosSorted.length === 0 ? (
+          <div className="text-center py-6">
+            <div className="text-3xl mb-1.5">📷</div>
+            <div className="text-white/40 text-sm font-bold">אין תמונות עדיין</div>
+            <div className="text-white/25 text-xs mt-0.5">צלם תמונה אחרי אימון — עוד חודשיים תגיד תודה</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {photosSorted.map(p => (
+              <button key={p.id} onClick={() => setViewPhoto(p)} className="relative rounded-2xl overflow-hidden active:scale-95 transition" style={{ aspectRatio:'1' }}>
+                <img src={p.thumb} className="w-full h-full object-cover" alt=""/>
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1">
+                  <div className="text-[9px] font-bold text-white/80" dir="ltr">{fromISO(p.date).getDate()}.{fromISO(p.date).getMonth() + 1}.{fromISO(p.date).getFullYear()}</div>
+                </div>
+                {!p.gistId && <div className="absolute top-1.5 end-1.5 w-2 h-2 rounded-full bg-ember" title="ממתין לסנכרון"></div>}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="text-[9px] text-white/25 mt-2.5">התמונות נשמרות בג׳יסטים פרטיים בחשבון שלך ומסתנכרנות בין המכשירים. נקודה כתומה = טרם הועלה.</div>
+      </div>
+
+      {viewPhoto && <PhotoViewer photo={viewPhoto} onClose={() => setViewPhoto(null)} loadPhoto={loadPhoto}
+                                 onDelete={p => { delPhoto(p); setViewPhoto(null); }}/>}
+    </div>
+  );
+}
+
+/* ============================== settings ============================== */
+function SettingsTab({ state, sync, syncNow, replaceState, mutate, stravaUi, stravaConnect, stravaDisconnect, stravaImport, onBack }){
   const [tok, setTok] = useState(localStorage.getItem(TOKEN_KEY) || '');
   const fileRef = useRef(null);
   const connected = !!localStorage.getItem(TOKEN_KEY);
+  const sv = state.settings.strava || {};
 
   const saveTok = () => { const t = tok.trim(); if (!t) return; localStorage.setItem(TOKEN_KEY, t); syncNow(false); };
   const disconnect = () => { localStorage.removeItem(TOKEN_KEY); setTok(''); syncNow(false); };
+  const updSettings = patch => mutate(d => { Object.assign(d.settings, patch); }, 'settings');
+  const updStrava = patch => mutate(d => { d.settings.strava = Object.assign({}, d.settings.strava, patch); }, 'settings');
 
   const doExport = () => {
     const blob = new Blob([JSON.stringify(state, null, 1)], { type:'application/json' });
@@ -960,11 +1702,74 @@ function SettingsTab({ state, sync, syncNow, replaceState }){
 
   return (
     <div className="fadein space-y-3">
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1 text-white/60 text-sm font-bold active:scale-95 transition">
+          <Icon d={I.chevR} className="w-5 h-5"/> חזרה
+        </button>
+        <div className="font-black italic text-lg">הגדרות</div>
+      </div>
+
+      {/* profile */}
+      <div className="glass rounded-3xl p-5 space-y-2.5">
+        <div className="font-bold text-white/70 text-sm">פרופיל 👤</div>
+        <div>
+          <label className="lbl">שם (לברכה בדשבורד)</label>
+          <input className="inp" placeholder="נועם" value={state.settings.name} onChange={e => updSettings({ name: e.target.value })}/>
+        </div>
+        <div>
+          <label className="lbl">גובה (ס"מ) — לחישוב BMI</label>
+          <input className="inp text-center font-bold" inputMode="numeric" placeholder="178" value={state.settings.height} onChange={e => updSettings({ height: e.target.value })}/>
+        </div>
+        <div className="text-[10px] text-white/30">שקילות ותמונות התקדמות נמצאות בטאב «התקדמות».</div>
+      </div>
+
+      {/* strava */}
+      <div className="glass rounded-3xl p-5">
+        <div className="flex items-center justify-between">
+          <div className="font-black italic text-lg flex items-center gap-2">
+            <span className="w-7 h-7 rounded-xl bg-strava flex items-center justify-center text-white font-black text-sm">S</span>
+            Strava
+          </div>
+          {sv.refreshToken
+            ? <span className="text-xs font-bold text-volt">מחובר ✓ {sv.athlete || ''}</span>
+            : <span className="text-xs font-bold text-white/40">לא מחובר</span>}
+        </div>
+        {stravaUi.msg && <div className={'mt-2 text-xs rounded-xl px-3 py-2 border ' + (stravaUi.status === 'error' ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-volt bg-volt/10 border-volt/20')}>{stravaUi.msg}</div>}
+
+        {!sv.refreshToken ? (
+          <div className="mt-3 space-y-2">
+            <div className="text-xs text-white/50 leading-relaxed">
+              חיבור חד־פעמי (2 דקות): צור אפליקציית API אישית בחשבון הסטרבה שלך —{' '}
+              <a className="text-strava underline font-bold" href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>.
+              <br/>ב־<b>Authorization Callback Domain</b> רשום את הדומיין של האפליקציה (למשל <b dir="ltr">localhost</b> או <b dir="ltr">שלך.github.io</b>), והעתק לכאן:
+            </div>
+            <input className="inp" dir="ltr" inputMode="numeric" placeholder="Client ID" value={sv.clientId || ''} onChange={e => updStrava({ clientId: e.target.value.trim() })}/>
+            <input className="inp" dir="ltr" type="password" placeholder="Client Secret" value={sv.clientSecret || ''} onChange={e => updStrava({ clientSecret: e.target.value.trim() })}/>
+            <button onClick={stravaConnect} disabled={!(sv.clientId && sv.clientSecret)}
+                    className="w-full py-3 rounded-2xl bg-strava text-white font-black active:scale-[.98] transition disabled:opacity-30">
+              התחבר ל-Strava →
+            </button>
+            <div className="text-[10px] text-white/30">הריצות יימשכו אוטומטית (כולל מרחק, זמן וקצב) בכל פתיחת אפליקציה. ה-Secret נשמר רק אצלך (מכשיר + ג׳יסט פרטי).</div>
+          </div>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <div className="text-xs text-white/50">ייבוא אוטומטי רץ בכל פתיחה. אפשר גם ידנית:</div>
+            <div className="flex gap-2">
+              <button onClick={() => stravaImport(false)} className="flex-1 py-2.5 rounded-2xl bg-strava/15 text-strava border border-strava/25 font-bold active:scale-[.98] transition">
+                {stravaUi.status === 'syncing' ? 'מייבא...' : 'ייבא ריצות עכשיו'}
+              </button>
+              <button onClick={stravaDisconnect} className="px-4 rounded-2xl bg-white/5 border border-white/10 text-white/50 font-bold text-xs active:scale-95 transition">נתק</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* gist sync */}
       <div className="glass rounded-3xl p-5">
         <div className="flex items-center justify-between">
           <div className="font-black italic text-lg flex items-center gap-2">
             <Icon d={I.refresh} className={'w-5 h-5 text-volt ' + (sync.status === 'syncing' ? 'spin' : '')}/>
-            סנכרון בין מכשירים
+            סנכרון מק ↔ אייפון
           </div>
           <div className="flex items-center gap-2">
             <span className={'w-2.5 h-2.5 rounded-full ' + statusInfo.c}></span>
@@ -991,24 +1796,18 @@ function SettingsTab({ state, sync, syncNow, replaceState }){
             <div className="text-[10px] text-white/30 pt-1" dir="ltr">Gist: {state.settings.gistId}</div>
           )}
         </div>
-      </div>
-
-      <div className="glass rounded-3xl p-5 text-sm leading-relaxed">
-        <div className="font-bold mb-2 text-volt">איך מחברים? (פעם אחת לכל מכשיר)</div>
-        <ol className="space-y-2 text-white/60 text-xs list-decimal ps-4">
+        <ol className="mt-3 space-y-1.5 text-white/50 text-xs list-decimal ps-4 leading-relaxed">
           <li>
-            צור טוקן בגיטהאב:{' '}
-            <a className="text-volt underline font-bold" href="https://github.com/settings/tokens/new?scopes=gist&description=ATHLETICS%20Sync" target="_blank" rel="noopener">
-              לחץ כאן
-            </a>{' '}
-            (Generate new token · classic) — הרשאת <b dir="ltr">gist</b> כבר מסומנת. בחר Expiration ארוך ולחץ Generate.
+            צור טוקן:{' '}
+            <a className="text-volt underline font-bold" href="https://github.com/settings/tokens/new?scopes=gist&description=ATHLETICS%20Sync" target="_blank" rel="noopener">לחץ כאן</a>{' '}
+            (classic · הרשאת gist כבר מסומנת) → Generate.
           </li>
-          <li>העתק את הטוקן והדבק אותו למעלה, ולחץ <b>התחבר</b>.</li>
-          <li>חזור על אותו תהליך באייפון עם <b>אותו טוקן</b> — האפליקציה תמצא את הג׳יסט הפרטי אוטומטית והכל יתמזג.</li>
+          <li>הדבק כאן ולחץ <b>התחבר</b>.</li>
+          <li>חזור על זה באייפון עם <b>אותו טוקן</b> — הכל מתמזג אוטומטית.</li>
         </ol>
-        <div className="mt-3 text-[10px] text-white/30">הנתונים נשמרים בג׳יסט פרטי בחשבון הגיטהאב שלך. הטוקן נשמר רק על המכשיר הזה. סנכרון רץ אוטומטית אחרי כל שינוי ובכל פתיחה של האפליקציה.</div>
       </div>
 
+      {/* iphone install */}
       <div className="glass rounded-3xl p-5">
         <div className="font-bold mb-3 text-white/70 text-sm">התקנה באייפון 📱</div>
         <ol className="space-y-1.5 text-white/50 text-xs list-decimal ps-4 leading-relaxed">
@@ -1018,6 +1817,7 @@ function SettingsTab({ state, sync, syncNow, replaceState }){
         </ol>
       </div>
 
+      {/* backup */}
       <div className="glass rounded-3xl p-5 space-y-2">
         <div className="font-bold text-white/70 text-sm mb-1">גיבוי מקומי</div>
         <div className="flex gap-2">
@@ -1041,10 +1841,11 @@ function SettingsTab({ state, sync, syncNow, replaceState }){
 function App(){
   const [state, setState] = useState(load);
   const stateRef = useRef(state); stateRef.current = state;
-  const [tab, setTab] = useState('workouts');
+  const [tab, setTab] = useState('home');
   const [week, setWeek] = useState(() => weekStartISO(new Date()));
   const [openTpl, setOpenTpl] = useState(null);
   const [sync, setSync] = useState({ status: localStorage.getItem(TOKEN_KEY) ? 'ok' : 'off', msg:'', at:0 });
+  const [stravaUi, setStravaUi] = useState({ status:'idle', msg:'' });
   const pushTimer = useRef(null);
   const syncingRef = useRef(false);
   const lastSyncRef = useRef(0);
@@ -1062,16 +1863,19 @@ function App(){
     const t = Date.now();
     if (stamp === 'templates') d.stamps.templates = t;
     else if (stamp === 'meals') d.stamps.meals = t;
+    else if (stamp === 'settings') d.stamps.settings = t;
     else if (Array.isArray(stamp) && stamp[0] === 'week') d.stamps.weeks[stamp[1]] = t;
     stateRef.current = d; persist(d); setState(d); schedulePush();
   }, [schedulePush]);
 
   const replaceState = useCallback(d => {
     d = normalize(clone(d));
-    d.stamps.templates = Date.now(); d.stamps.meals = Date.now();
+    const t = Date.now();
+    d.stamps.templates = t; d.stamps.meals = t; d.stamps.settings = t;
     stateRef.current = d; persist(d); setState(d); schedulePush();
   }, [schedulePush]);
 
+  /* ---------- github gist sync ---------- */
   async function gh(path, opts){
     opts = opts || {};
     const token = localStorage.getItem(TOKEN_KEY);
@@ -1083,6 +1887,19 @@ function App(){
       throw new Error('GitHub ' + res.status + (t ? ' · ' + t : ''));
     }
     return res.status === 204 ? null : res.json();
+  }
+
+  async function uploadPendingPhotos(st){
+    for (const p of st.photos) {
+      if (p.gistId) continue;
+      try {
+        const full = await idb.get(p.id);
+        if (!full) continue;
+        const created = await gh('/gists', { method:'POST', body: JSON.stringify({ description:'ATHLETICS_PHOTO ' + p.id, public:false, files:{ [PHOTO_FILE]:{ content: full } } }) });
+        p.gistId = created.id;
+        p.updatedAt = Date.now();
+      } catch (e) {}
+    }
   }
 
   async function syncNow(silent){
@@ -1100,10 +1917,11 @@ function App(){
         if (found) gid = found.id;
       }
       if (!gid) {
-        const created = await gh('/gists', { method:'POST', body: JSON.stringify({ description: GIST_DESC, public:false, files:{ [GIST_FILE]:{ content: JSON.stringify(st) } } }) });
-        gid = created.id;
-        const d = clone(stateRef.current); d.settings.gistId = gid;
-        stateRef.current = d; persist(d); setState(d);
+        const withPhotos = clone(stateRef.current);
+        await uploadPendingPhotos(withPhotos);
+        const created = await gh('/gists', { method:'POST', body: JSON.stringify({ description: GIST_DESC, public:false, files:{ [GIST_FILE]:{ content: JSON.stringify(withPhotos) } } }) });
+        withPhotos.settings.gistId = created.id;
+        stateRef.current = withPhotos; persist(withPhotos); setState(withPhotos);
       } else {
         const g = await gh('/gists/' + gid);
         let remote = null;
@@ -1115,6 +1933,7 @@ function App(){
         }
         let merged = remote ? mergeStates(stateRef.current, remote) : clone(stateRef.current);
         merged.settings.gistId = gid;
+        await uploadPendingPhotos(merged);
         stateRef.current = merged; persist(merged); setState(merged);
         await gh('/gists/' + gid, { method:'PATCH', body: JSON.stringify({ files:{ [GIST_FILE]:{ content: JSON.stringify(merged) } } }) });
       }
@@ -1127,8 +1946,131 @@ function App(){
     }
   }
 
+  /* ---------- photos ---------- */
+  async function addPhoto(file){
+    try {
+      const full = await fileToDataUrl(file, 1000, .72);
+      const thumb = await shrinkDataUrl(full, 260, .6);
+      const id = uid();
+      await idb.set(id, full).catch(() => {});
+      mutate(d => { d.photos.push({ id, date: toISO(new Date()), thumb, gistId: null, updatedAt: Date.now() }); });
+    } catch (e) { alert('שגיאה בטעינת התמונה'); }
+  }
+  async function loadPhoto(p){
+    const local = await idb.get(p.id).catch(() => null);
+    if (local) return local;
+    if (p.gistId && localStorage.getItem(TOKEN_KEY)) {
+      const g = await gh('/gists/' + p.gistId);
+      const f = g.files && g.files[PHOTO_FILE];
+      if (f) {
+        let c = f.content;
+        if (f.truncated) c = await (await fetch(f.raw_url)).text();
+        idb.set(p.id, c).catch(() => {});
+        return c;
+      }
+    }
+    return null;
+  }
+  function delPhoto(p){
+    if (!confirm('למחוק את התמונה?')) return;
+    mutate(d => { d.photos = d.photos.filter(x => x.id !== p.id); if (d.deletedPhotos.indexOf(p.id) < 0) d.deletedPhotos.push(p.id); });
+    idb.del(p.id).catch(() => {});
+    if (p.gistId && localStorage.getItem(TOKEN_KEY)) gh('/gists/' + p.gistId, { method:'DELETE' }).catch(() => {});
+  }
+
+  /* ---------- strava ---------- */
+  async function stravaTokenReq(body){
+    const r = await fetch('https://www.strava.com/api/v3/oauth/token', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) { let m = ''; try { m = JSON.stringify(await r.json()).slice(0, 120); } catch (e) {} throw new Error('Strava ' + r.status + ' ' + m); }
+    return r.json();
+  }
+  function stravaConnect(){
+    const sv = stateRef.current.settings.strava || {};
+    if (!sv.clientId || !sv.clientSecret) { alert('מלא Client ID ו-Client Secret'); return; }
+    const redirect = location.origin + location.pathname;
+    localStorage.setItem('athletics.strava.pending', '1');
+    location.href = 'https://www.strava.com/oauth/authorize?client_id=' + encodeURIComponent(sv.clientId)
+      + '&redirect_uri=' + encodeURIComponent(redirect)
+      + '&response_type=code&approval_prompt=auto&scope=activity:read_all';
+  }
+  function stravaDisconnect(){
+    if (!confirm('לנתק את סטרבה? (הריצות שכבר יובאו יישארו)')) return;
+    mutate(d => { d.settings.strava = { clientId: (d.settings.strava || {}).clientId || '', clientSecret: (d.settings.strava || {}).clientSecret || '' }; }, 'settings');
+    setStravaUi({ status:'idle', msg:'' });
+  }
+  async function ensureStravaToken(){
+    const sv = stateRef.current.settings.strava;
+    if (!sv || !sv.refreshToken) return null;
+    if ((sv.expiresAt || 0) * 1000 - 60000 > Date.now()) return sv.accessToken;
+    const j = await stravaTokenReq({ client_id: sv.clientId, client_secret: sv.clientSecret, grant_type:'refresh_token', refresh_token: sv.refreshToken });
+    mutate(d => { d.settings.strava = Object.assign({}, d.settings.strava, { accessToken: j.access_token, refreshToken: j.refresh_token || sv.refreshToken, expiresAt: j.expires_at }); }, 'settings');
+    return j.access_token;
+  }
+  async function stravaImport(silent){
+    if (!silent) setStravaUi({ status:'syncing', msg:'מייבא ריצות מסטרבה...' });
+    try {
+      const at = await ensureStravaToken();
+      if (!at) { if (!silent) setStravaUi({ status:'error', msg:'לא מחובר לסטרבה' }); return; }
+      const dead = new Set(stateRef.current.deletedRuns);
+      const have = new Set(stateRef.current.runs.map(r => r.id));
+      const news = [];
+      let page = 1;
+      while (page <= 3) {
+        const r = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=100&page=' + page, { headers:{ Authorization:'Bearer ' + at } });
+        if (!r.ok) throw new Error('Strava ' + r.status);
+        const acts = await r.json();
+        acts.forEach(a => {
+          const t = String(a.sport_type || a.type || '');
+          if (!/run/i.test(t)) return;
+          const id = 'sv' + a.id;
+          if (have.has(id) || dead.has(id)) return;
+          const date = String(a.start_date_local || a.start_date || '').slice(0, 10);
+          if (!date) return;
+          news.push({ id, date, title: a.name || 'Strava Run', km: Math.round(a.distance / 10) / 100, sec: Math.round(a.moving_time || 0), src:'strava', updatedAt: Date.now() });
+        });
+        if (acts.length < 100) break;
+        page++;
+      }
+      if (news.length) mutate(d => { d.runs = news.concat(d.runs); });
+      localStorage.setItem('athletics.strava.last', String(Date.now()));
+      setStravaUi({ status:'ok', msg: news.length ? ('יובאו ' + news.length + ' ריצות חדשות ✓') : 'הכל מעודכן — אין ריצות חדשות ✓' });
+    } catch (e) {
+      setStravaUi({ status:'error', msg: String(e.message || e).slice(0, 160) });
+    }
+  }
+
+  /* ---------- lifecycle ---------- */
   useEffect(() => {
     if (localStorage.getItem(TOKEN_KEY)) syncNow(true);
+    const q = new URLSearchParams(location.search);
+    const code = q.get('code');
+    if (code && localStorage.getItem('athletics.strava.pending')) {
+      localStorage.removeItem('athletics.strava.pending');
+      history.replaceState({}, '', location.pathname);
+      setTab('settings');
+      (async () => {
+        try {
+          const sv = stateRef.current.settings.strava || {};
+          const j = await stravaTokenReq({ client_id: sv.clientId, client_secret: sv.clientSecret, code, grant_type:'authorization_code' });
+          mutate(d => {
+            d.settings.strava = Object.assign({}, d.settings.strava, {
+              accessToken: j.access_token, refreshToken: j.refresh_token, expiresAt: j.expires_at,
+              athlete: j.athlete ? ((j.athlete.firstname || '') + ' ' + (j.athlete.lastname || '')).trim() : ''
+            });
+          }, 'settings');
+          setStravaUi({ status:'ok', msg:'סטרבה חוברה בהצלחה ✓ מייבא ריצות...' });
+          stravaImport(false);
+        } catch (e) {
+          setStravaUi({ status:'error', msg:'החיבור נכשל: ' + String(e.message || e).slice(0, 120) });
+        }
+      })();
+    } else if (code) {
+      history.replaceState({}, '', location.pathname);
+    } else {
+      const sv = stateRef.current.settings.strava;
+      const last = Number(localStorage.getItem('athletics.strava.last') || 0);
+      if (sv && sv.refreshToken && Date.now() - last > 6 * 3600 * 1000) stravaImport(true);
+    }
     const onVis = () => {
       if (document.visibilityState === 'visible' && localStorage.getItem(TOKEN_KEY) && Date.now() - lastSyncRef.current > 15000) syncNow(true);
     };
@@ -1138,12 +2080,14 @@ function App(){
 
   const isCur = week === weekStartISO(new Date());
   const dotColor = { off:'bg-white/20', pending:'bg-ember', syncing:'bg-ember', ok:'bg-volt', error:'bg-red-500' }[sync.status] || 'bg-white/20';
+  const showWeekBar = tab === 'workouts' || tab === 'runs' || tab === 'food';
 
   const TABS = [
-    { id:'workouts', label:'אימונים', icon:I.dumbbell },
-    { id:'runs',     label:'ריצה',    icon:I.activity },
-    { id:'food',     label:'תזונה',   icon:I.clipboard },
-    { id:'settings', label:'סנכרון',  icon:I.refresh },
+    { id:'home',     label:'בית',      icon:I.home },
+    { id:'workouts', label:'אימונים',  icon:I.dumbbell },
+    { id:'runs',     label:'ריצה',     icon:I.activity },
+    { id:'food',     label:'תזונה',    icon:I.clipboard },
+    { id:'progress', label:'התקדמות', icon:I.trend },
   ];
 
   return (
@@ -1156,50 +2100,56 @@ function App(){
       <header className="sticky top-0 z-40 bg-obsidian/85 border-b border-white/5" style={{ paddingTop:'env(safe-area-inset-top)', backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)' }}>
         <div className="max-w-xl mx-auto px-4 pt-3 pb-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+            <button onClick={() => setTab('home')} className="flex items-center gap-2.5 active:scale-[.98] transition">
               <div className="w-9 h-9 rounded-xl bg-volt flex items-center justify-center glow-volt">
                 <Icon d={I.bolt} className="w-5 h-5 text-obsidian" filled/>
               </div>
-              <div>
+              <div className="text-start">
                 <div className="font-black italic text-xl tracking-tight leading-none">ATHLETICS</div>
                 <div className="text-[9px] text-white/35 tracking-[.35em] font-bold mt-0.5">LEAN BULK ENGINE</div>
               </div>
-            </div>
-            <button onClick={() => setTab('settings')} className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full ps-2.5 pe-3 py-1.5 active:scale-95 transition">
-              <span className={'w-2 h-2 rounded-full ' + dotColor + (sync.status === 'syncing' || sync.status === 'pending' ? ' animate-pulse' : '')}></span>
-              <span className="text-[10px] font-bold text-white/50">{sync.status === 'ok' ? 'מסונכרן' : sync.status === 'error' ? 'שגיאה' : sync.status === 'off' ? 'מקומי' : 'מסנכרן'}</span>
+            </button>
+            <button onClick={() => setTab('settings')} className="relative w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center active:scale-90 transition">
+              <Icon d={I.gear} className={'w-5 h-5 ' + (tab === 'settings' ? 'text-volt' : 'text-white/50')}/>
+              <span className={'absolute top-1 end-1 w-2 h-2 rounded-full ' + dotColor + (sync.status === 'syncing' || sync.status === 'pending' ? ' animate-pulse' : '')}></span>
             </button>
           </div>
 
-          <div className="mt-3 flex items-center justify-between glass rounded-2xl px-2 py-1.5">
-            <button onClick={() => { setWeek(addDays(week, -7)); }} className="w-10 h-10 rounded-xl bg-white/5 active:scale-90 transition flex items-center justify-center">
-              <Icon d={I.chevR} className="w-5 h-5 text-white/60"/>
-            </button>
-            <button onClick={() => setWeek(weekStartISO(new Date()))} className="text-center active:scale-95 transition px-2">
-              <div className="font-black text-lg leading-none">
-                שבוע {weekNum(week)}
-                {!isCur && <span className="text-ember text-xs font-bold ms-1.5">· ארכיון</span>}
-              </div>
-              <div className="text-[10px] text-white/40 mt-1">
-                {weekRangeLabel(week)}{!isCur && ' · לחץ לחזרה להיום'}
-              </div>
-            </button>
-            <button onClick={() => { setWeek(addDays(week, 7)); }} className="w-10 h-10 rounded-xl bg-white/5 active:scale-90 transition flex items-center justify-center">
-              <Icon d={I.chevL} className="w-5 h-5 text-white/60"/>
-            </button>
-          </div>
+          {showWeekBar && (
+            <div className="mt-3 flex items-center justify-between glass rounded-2xl px-2 py-1.5">
+              <button onClick={() => setWeek(addDays(week, -7))} className="w-10 h-10 rounded-xl bg-white/5 active:scale-90 transition flex items-center justify-center">
+                <Icon d={I.chevR} className="w-5 h-5 text-white/60"/>
+              </button>
+              <button onClick={() => setWeek(weekStartISO(new Date()))} className="text-center active:scale-95 transition px-2">
+                <div className="font-black text-lg leading-none">
+                  שבוע {weekNum(week)}
+                  {!isCur && <span className="text-ember text-xs font-bold ms-1.5">· ארכיון</span>}
+                </div>
+                <div className="text-[10px] text-white/40 mt-1">
+                  {weekRangeLabel(week)}{!isCur && ' · לחץ לחזרה להיום'}
+                </div>
+              </button>
+              <button onClick={() => setWeek(addDays(week, 7))} className="w-10 h-10 rounded-xl bg-white/5 active:scale-90 transition flex items-center justify-center">
+                <Icon d={I.chevL} className="w-5 h-5 text-white/60"/>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       <main className="max-w-xl mx-auto px-4 pt-4" style={{ paddingBottom:'calc(110px + env(safe-area-inset-bottom))' }}>
+        {tab === 'home' && <Dashboard state={state} setTab={setTab} setOpenTpl={setOpenTpl} setWeek={setWeek}/>}
         {tab === 'workouts' && <WorkoutsTab state={state} week={week} mutate={mutate} openTpl={openTpl} setOpenTpl={setOpenTpl}/>}
-        {tab === 'runs' && <RunsTab state={state} week={week} mutate={mutate}/>}
+        {tab === 'runs' && <RunsTab state={state} week={week} mutate={mutate} stravaConnected={!!(state.settings.strava && state.settings.strava.refreshToken)} onOpenSettings={() => setTab('settings')}/>}
         {tab === 'food' && <NutritionTab state={state} week={week} mutate={mutate}/>}
-        {tab === 'settings' && <SettingsTab state={state} sync={sync} syncNow={syncNow} replaceState={replaceState}/>}
+        {tab === 'progress' && <ProgressTab state={state} mutate={mutate} loadPhoto={loadPhoto} addPhoto={addPhoto} delPhoto={delPhoto}/>}
+        {tab === 'settings' && <SettingsTab state={state} sync={sync} syncNow={syncNow} replaceState={replaceState} mutate={mutate}
+                                            stravaUi={stravaUi} stravaConnect={stravaConnect} stravaDisconnect={stravaDisconnect} stravaImport={stravaImport}
+                                            onBack={() => setTab('home')}/>}
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-obsidian/90 border-t border-white/5" style={{ backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)' }}>
-        <div className="max-w-xl mx-auto grid grid-cols-4 px-2 pt-1.5" style={{ paddingBottom:'max(env(safe-area-inset-bottom), 10px)' }}>
+        <div className="max-w-xl mx-auto grid grid-cols-5 px-1 pt-1.5" style={{ paddingBottom:'max(env(safe-area-inset-bottom), 10px)' }}>
           {TABS.map(t => {
             const active = tab === t.id;
             return (
