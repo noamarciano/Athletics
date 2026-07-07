@@ -2227,6 +2227,18 @@ function App(){
 
   /* ---------- lifecycle ---------- */
   useEffect(() => {
+    /* one-tap token handoff: opening the app with #gh=<token> stores the sync
+       token on this device and immediately cleans it out of the address bar.
+       The token itself never lives in this file or in the repo. */
+    try {
+      if (location.hash && location.hash.indexOf('gh=') !== -1) {
+        const m = location.hash.match(/gh=([A-Za-z0-9_-]+)/);
+        if (m) {
+          localStorage.setItem(TOKEN_KEY, m[1]);
+          history.replaceState({}, '', location.pathname + location.search);
+        }
+      }
+    } catch (e) {}
     if (localStorage.getItem(TOKEN_KEY)) syncNow(true);
     const q = new URLSearchParams(location.search);
     const code = q.get('code');
