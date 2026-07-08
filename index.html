@@ -75,53 +75,56 @@ const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
 const PHOTO_FILE = 'photo.b64.txt';
+const ROUTINE_V = 2;
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
 
 const DEFAULT_TEMPLATES = [
-  { id:'push-a', icon:'🏋️', name:'Push A', sub:"סבב א' · יום 1", exercises:[
-    { id:'pa1', muscle:'חזה (שטוח)',            name:'לחיצת חזה שטוחה (מוט או מכונה)',          sets:4, reps:'6-8' },
-    { id:'pa2', muscle:'חזה (עליון)',            name:'לחיצת חזה בשיפוע חיובי (משקולות)',        sets:3, reps:'8-10' },
-    { id:'pa3', muscle:'כתפיים (קדמית)',         name:'לחיצת כתפיים בישיבה (דאמבלים)',           sets:3, reps:'8-10' },
-    { id:'pa4', muscle:'כתפיים (צדית)',          name:'הרחקת זרועות לצדדים (דאמבלים)',           sets:4, reps:'10-12' },
-    { id:'pa5', muscle:'יד אחורית (בידוד)',      name:'פשיטת מרפקים בכבל (חבל קצר)',             sets:4, reps:'10-12' },
-    { id:'pa6', muscle:'יד אחורית (ראש ארוך)',   name:'פשיטת מרפקים בכבל מאחורי הראש',           sets:3, reps:'10-12' },
-    { id:'pa7', muscle:'רגליים (ארבע-ראשי)',     name:'לחיצת רגליים כבדה (Leg Press)',            sets:4, reps:'6-8' },
-    { id:'pa8', muscle:'רגליים (עזר/חיזוק)',     name:"לאנץ' בולגרי (כנגד דאמבלים)",             sets:3, reps:'8-10' },
-    { id:'pa9', muscle:'רגליים (תאומים)',        name:'תאומים במדרגה (עם משקולת)',               sets:3, reps:'15' },
+  { id:'push-a', icon:'🏋️', name:'Push A', sub:'יום 1 · דחיפה', exercises:[
+    { id:'pa2', muscle:'חזה (עליון)',                       name:'לחיצת חזה בשיפוע חיובי (משקולות)',                sets:4, reps:'6-8' },
+    { id:'pa1', muscle:'חזה (שטוח)',                        name:'לחיצת חזה שטוחה',                                  sets:3, reps:'8-10', variants:['מוט','מכונה'] },
+    { id:'pa3', muscle:'כתפיים (קדמית)',                    name:'לחיצת כתפיים בישיבה (משקולות)',                    sets:3, reps:'8-10' },
+    { id:'pa4', muscle:'כתפיים (צדית)',                     name:'הרחקת זרועות לצדדים (משקולות)',                    sets:4, reps:'10-12' },
+    { id:'pa5', muscle:'יד אחורית (בידוד)',                 name:'פשיטת מרפקים בכבל (חבל קצר)',                      sets:4, reps:'10-12' },
+    { id:'pa6', muscle:'יד אחורית (ראש ארוך)',              name:'פשיטת מרפקים בכבל מאחורי הראש',                    sets:3, reps:'10-12' },
+    { id:'pa7', muscle:'רגליים (ארבע-ראשי · כוח מבני)',     name:'לחיצת רגליים כבדה (Leg Press)',                     sets:3, reps:'6-8' },
+    { id:'pa8', muscle:'רגליים (יציבות חד-רגל)',            name:"לאנץ' בולגרי (דגש ברך קדימה)",                     sets:3, reps:'8-10' },
+    { id:'pa9', muscle:'רגליים (תאומים/גיד אכילס)',         name:'תאומים במדרגה (עם משקולת)',                        sets:3, reps:'15' },
   ]},
-  { id:'pull-a', icon:'🌪️', name:'Pull A', sub:"סבב א' · יום 3", exercises:[
-    { id:'la1', muscle:'גב (רוחב)',              name:'מתח רחב עם משקל (או פולי עליון)',          sets:4, reps:'6-8' },
-    { id:'la2', muscle:'גב (עובי)',              name:'חתירה במכונה או כבל (אחיזה רחבה)',        sets:4, reps:'8-10' },
-    { id:'la3', muscle:'כתפיים (אחורית)',        name:'פייס-פולס (Face Pulls) כנגד כבל',          sets:4, reps:'12-15' },
-    { id:'la4', muscle:'יד קדמית (מתיחה)',       name:'כפיפת מרפקים בשיפוע חיובי (משקולות)',     sets:4, reps:'10-12' },
-    { id:'la5', muscle:'יד קדמית (עובי)',        name:'כפיפות פטישים (Hammer Curls)',             sets:3, reps:'10-12' },
-    { id:'la6', muscle:'רגליים (המסטרינגס)',     name:'דדליפט רומני (RDL) עם מוט',                sets:4, reps:'8-10' },
-    { id:'la7', muscle:'בטן (עליונה)',           name:'כפיפות בטן במכונה כנגד משקל כבד',         sets:4, reps:'10-12' },
-    { id:'la8', muscle:'בטן (תחתונה)',           name:'הרמות רגליים בתלייה או במקבילים',         sets:4, reps:'12-15' },
+  { id:'pull-a', icon:'🌪️', name:'Pull A', sub:'יום 2 · משיכה + בלוק בטן', exercises:[
+    { id:'la1', muscle:'גב (רוחב/כנפיים)',                  name:'מתח רחב עם משקל',                                   sets:4, reps:'6-8', variants:['מתח','פולי עליון'] },
+    { id:'la2', muscle:'גב (עובי/מרכז הגב)',                name:'חתירה (אחיזה רחבה)',                                sets:4, reps:'8-10', variants:['מכונה','כבל'] },
+    { id:'la3', muscle:'כתפיים (אחורית)',                   name:'פייס-פולס (Face Pulls) כנגד כבל',                   sets:4, reps:'12-15' },
+    { id:'la4', muscle:'יד קדמית (מתיחה)',                  name:'כפיפת מרפקים בשיפוע חיובי (משקולות)',              sets:4, reps:'10-12' },
+    { id:'la5', muscle:'יד קדמית (עובי)',                   name:'כפיפות פטישים (Hammer Curls)',                      sets:3, reps:'10-12' },
+    { id:'la6', muscle:'רגליים (המסטרינגס · פשיטה)',        name:'דדליפט רומני (RDL) עם מוט',                         sets:3, reps:'8-10' },
+    { id:'la9', muscle:'רגליים (המסטרינגס · כפיפה)',        name:'כפיפת ברכיים במכונה (שכיבה/ישיבה)',                sets:2, reps:'10-12' },
+    { id:'la7', muscle:'בטן (עליונה)',                      name:'כפיפות בטן במכונה כנגד משקל כבד',                  sets:4, reps:'10-12' },
+    { id:'la8', muscle:'בטן (תחתונה)',                      name:'הרמות רגליים בתלייה או במקבילים',                  sets:4, reps:'12-15' },
   ]},
-  { id:'push-b', icon:'🏋️', name:'Push B', sub:"סבב ב' · יום 2", exercises:[
-    { id:'pb1', muscle:'חזה (עליון - ראשון!)',   name:"לחיצת חזה בשיפוע חיובי (בנץ' מוט)",       sets:4, reps:'6-8' },
-    { id:'pb2', muscle:'חזה (שטוח)',             name:'לחיצת חזה שטוחה במכונה או דאמבלים',       sets:3, reps:'8-10' },
-    { id:'pb3', muscle:'חזה (בידוד)',            name:'פרפר במכונה או כבלים (Flyes)',             sets:3, reps:'12-15' },
-    { id:'pb4', muscle:'כתפיים (קדמית)',         name:'משיכת חבל קדימה כנגד כבל',                sets:3, reps:'10-12' },
-    { id:'pb5', muscle:'כתפיים (צדית)',          name:'הרחקת זרועות בכבלים (יד-יד)',              sets:4, reps:'12-15' },
-    { id:'pb6', muscle:'יד אחורית (בידוד)',      name:'פשיטת מרפקים בכבל (חבל ארוך)',            sets:4, reps:'10-12' },
-    { id:'pb7', muscle:'יד אחורית/חזה תחתון',    name:'מקבילים (משקל גוף/מכונה בהטיה קלה)',      sets:3, reps:'8-10' },
-    { id:'pb8', muscle:'רגליים (ארבע-ראשי)',     name:"סקוואט (מוט חופשי או בסמית')",             sets:4, reps:'6-8' },
-    { id:'pb9', muscle:'רגליים (חיזוק לריצה)',   name:'מדרגת פטריק (Patrick Step)',               sets:3, reps:'12' },
+  { id:'push-b', icon:'🏋️', name:'Push B', sub:'יום 3 · דחיפה', exercises:[
+    { id:'pb1', muscle:'חזה (עליון)',                       name:'לחיצת חזה בשיפוע חיובי (מוט)',                     sets:4, reps:'6-8' },
+    { id:'pb2', muscle:'חזה (שטוח)',                        name:'לחיצת חזה שטוחה',                                  sets:3, reps:'8-10', variants:['מכונה','משקולות'] },
+    { id:'pb3', muscle:'חזה (בידוד)',                       name:'פרפר (Flyes)',                                      sets:3, reps:'12-15', variants:['מכונה','כבלים'] },
+    { id:'pb4', muscle:'כתפיים (קדמית)',                    name:'משיכת חבל קדימה כנגד כבל',                         sets:3, reps:'10-12' },
+    { id:'pb5', muscle:'כתפיים (צדית)',                     name:'הרחקת זרועות בכבלים (עבודה יד-יד)',                sets:4, reps:'12-15' },
+    { id:'pb6', muscle:'יד אחורית (בידוד)',                 name:'פשיטת מרפקים בכבל (חבל ארוך)',                     sets:4, reps:'10-12' },
+    { id:'pb7', muscle:'יד אחורית/חזה תחתון',               name:'מקבילים (בהטיה קלה קדימה)',                        sets:3, reps:'8-10', variants:['משקל גוף','מכונה'] },
+    { id:'pb8', muscle:'רגליים (ארבע-ראשי · כוח במכונה)',   name:'סקוואט במכונה (רוחב כתפיים, פנים קדימה)',          sets:3, reps:'6-8' },
+    { id:'pb10', muscle:'רגליים (יציבות וליבה)',            name:'סקוואט על רגל אחת לקופסה (Single-Leg Box Squat)',  sets:3, reps:'8-10' },
+    { id:'pb9', muscle:'רגליים (חיזוק גיד הפיקה)',          name:'מדרגת פטריק (Patrick Step)',                        sets:3, reps:'12' },
   ]},
-  { id:'pull-b', icon:'🌪️', name:'Pull B', sub:"סבב ב' · יום 4", exercises:[
-    { id:'lb1', muscle:'גב (עובי)',              name:'חתירה צרה במכונה או פולי תחתון',          sets:4, reps:'8-10' },
-    { id:'lb2', muscle:'גב (רוחב)',              name:'פולי עליון אחיזה צרה (V-Bar)',             sets:4, reps:'10-12' },
-    { id:'lb3', muscle:'כתפיים (אחורית)',        name:'פרפר אחורי במכונה ייעודית',               sets:4, reps:'12-15' },
-    { id:'lb4', muscle:'יד קדמית (מתיחה)',       name:'כפיפת מרפקים בשיפוע חיובי (משקולות)',     sets:4, reps:'10-12' },
-    { id:'lb5', muscle:'יד קדמית (עובי)',        name:'כפיפות פטישים במכונה',                     sets:3, reps:'10-12' },
-    { id:'lb6', muscle:'רגליים (המסטרינגס)',     name:'כפיפת ברכיים במכונה',                      sets:4, reps:'10-12' },
-    { id:'lb7', muscle:'רגליים/ליבה',            name:'Copenhagen Plank (פלאנק קופנהגן)',         sets:3, reps:'30-45 שנ׳' },
-    { id:'lb8', muscle:'בטן (עליונה)',           name:'כפיפות בטן במכונה כנגד משקל כבד',         sets:4, reps:'10-12' },
-    { id:'lb9', muscle:'בטן (תחתונה)',           name:'הרמות רגליים בתלייה או במקבילים',         sets:4, reps:'12-15' },
+  { id:'pull-b', icon:'🌪️', name:'Pull B', sub:'יום 4 · משיכה + בלוק בטן', exercises:[
+    { id:'lb1', muscle:'גב (עובי/לטיסימוס תחתון)',          name:'חתירה צרה',                                         sets:4, reps:'8-10', variants:['מכונה','פולי תחתון'] },
+    { id:'lb2', muscle:'גב (רוחב/זווית מתיחה)',             name:'פולי עליון אחיזה צרה (V-Bar)',                      sets:4, reps:'10-12' },
+    { id:'lb3', muscle:'כתפיים (אחורית)',                   name:'פרפר אחורי במכונה ייעודית',                        sets:4, reps:'12-15' },
+    { id:'lb4', muscle:'יד קדמית (מתיחה)',                  name:'כפיפת מרפקים בשיפוע חיובי (משקולות)',              sets:4, reps:'10-12' },
+    { id:'lb5', muscle:'יד קדמית (עובי)',                   name:'כפיפות פטישים במכונה',                              sets:3, reps:'10-12' },
+    { id:'lb10', muscle:'רגליים (המסטרינגס/ישבן · חד-רגל)', name:'דדליפט רומני על רגל אחת (Single-Leg RDL עם דאמבל)', sets:3, reps:'10-12' },
+    { id:'lb11', muscle:'רגליים (מקרבים · יציבות אגן)',     name:'מכונת מקרבים (סגירת רגליים)',                       sets:3, reps:'10-12' },
+    { id:'lb8', muscle:'בטן (עליונה)',                      name:'כפיפות בטן במכונה כנגד משקל כבד',                  sets:4, reps:'10-12' },
+    { id:'lb9', muscle:'בטן (תחתונה)',                      name:'הרמות רגליים בתלייה או במקבילים',                  sets:4, reps:'12-15' },
   ]},
   { id:'friday', icon:'🏃', name:'בלוק שישי', sub:'ריצה ושחרור · קבוע', exercises:[
     { id:'fr1', muscle:'אירובי קבוע',            name:'30 דקות ריצה קלה (קצב התאוששות)',         sets:1, reps:'30 דק׳' },
@@ -250,6 +253,7 @@ const idb = {
 function seed(){
   return {
     version:1,
+    routineVersion: ROUTINE_V,
     templates: clone(DEFAULT_TEMPLATES),
     meals: clone(DEFAULT_MEALS),
     logs:{}, runs:[], deletedRuns:[],
@@ -268,12 +272,56 @@ function normalize(s){
   out.logs = s.logs || {}; out.runs = s.runs || []; out.deletedRuns = s.deletedRuns || [];
   out.weights = s.weights || []; out.deletedWeights = s.deletedWeights || [];
   out.photos = s.photos || []; out.deletedPhotos = s.deletedPhotos || [];
-  return out;
+  out.routineVersion = s.routineVersion || 1;
+  return normalizeLogKeys(out);
+}
+
+/* For exercises that define equipment variants, workout-log entries are keyed
+   "exId::variant". Older logs (or logs arriving from a device on older code)
+   use the plain exId — this idempotently re-keys them onto the exercise's
+   default (first) variant so no logged set ever disappears. */
+function normalizeLogKeys(s){
+  const defs = {};
+  (s.templates || []).forEach(t => (t.exercises || []).forEach(ex => {
+    if (ex.variants && ex.variants.length) defs[t.id + '|' + ex.id] = ex.id + '::' + ex.variants[0];
+  }));
+  Object.keys(s.logs || {}).forEach(wk => {
+    const wo = (s.logs[wk] || {}).workouts;
+    if (!wo) return;
+    Object.keys(wo).forEach(tplId => {
+      const m = wo[tplId];
+      Object.keys(m).forEach(k => {
+        if (k.indexOf('::') !== -1) return;
+        const nk = defs[tplId + '|' + k];
+        if (nk && !m[nk]) { m[nk] = m[k]; delete m[k]; }
+      });
+    });
+  });
+  return s;
+}
+
+/* One-time routine upgrade: swaps the four split templates for the current
+   program while leaving custom templates (e.g. the Friday block) and ALL
+   logged history untouched. Matching movements keep their exercise ids, so
+   this week's checked-off sets and prior-week ghost values carry over. */
+function migrateRoutine(s){
+  if ((s.routineVersion || 1) >= ROUTINE_V) return s;
+  const four = { 'push-a':1, 'pull-a':1, 'push-b':1, 'pull-b':1 };
+  const kept = (s.templates || []).filter(t => !four[t.id]);
+  s.templates = DEFAULT_TEMPLATES.filter(t => four[t.id]).map(t => clone(t)).concat(kept);
+  s.routineVersion = ROUTINE_V;
+  s.stamps.templates = Date.now();
+  return normalizeLogKeys(s);
 }
 function load(){
   try {
     const s = JSON.parse(localStorage.getItem(LS_KEY));
-    if (s && s.version === 1) return normalize(s);
+    if (s && s.version === 1) {
+      const wasV = s.routineVersion || 1;
+      const m = migrateRoutine(normalize(s));
+      if (m.routineVersion !== wasV) persist(m);
+      return m;
+    }
   } catch (e) {}
   return seed();
 }
@@ -316,32 +364,65 @@ function mergeStates(local, remote){
   const deadP = new Set((out.deletedPhotos || []).concat(remote.deletedPhotos || []));
   out.photos = unionById(out.photos || [], remote.photos || [], deadP).sort((a, b) => a.date < b.date ? 1 : -1);
   out.deletedPhotos = Array.from(deadP).slice(-300);
-  return out;
+  return normalizeLogKeys(out);
 }
 
 /* ============================== log getters ============================== */
-function getSets(state, week, tplId, ex){
-  const wk = state.logs[week] || {};
-  const arr = ((wk.workouts || {})[tplId] || {})[ex.id] || [];
-  const n = Math.max(ex.sets, arr.length);
+function exKey(ex, variant){
+  return (ex.variants && ex.variants.length) ? ex.id + '::' + (variant || ex.variants[0]) : ex.id;
+}
+/* Active equipment variant for an exercise in a given week:
+   explicit choice this week → variant that already has data this week →
+   most recently chosen in a past week → the exercise's default (first). */
+function getActiveVariant(state, week, tplId, ex){
+  if (!ex.variants || !ex.variants.length) return null;
+  const vk = tplId + '|' + ex.id;
+  const cur = ((state.logs[week] || {}).variants || {})[vk];
+  if (cur && ex.variants.indexOf(cur) !== -1) return cur;
+  const m = ((state.logs[week] || {}).workouts || {})[tplId] || {};
+  for (let i = 0; i < ex.variants.length; i++) {
+    const a = m[ex.id + '::' + ex.variants[i]];
+    if (a && a.some(s => s && (s.done || (s.w !== '' && s.w != null) || (s.r !== '' && s.r != null)))) return ex.variants[i];
+  }
+  const weeks = Object.keys(state.logs).filter(w => w < week).sort();
+  for (let i = weeks.length - 1; i >= 0; i--) {
+    const v = ((state.logs[weeks[i]] || {}).variants || {})[vk];
+    if (v && ex.variants.indexOf(v) !== -1) return v;
+  }
+  return ex.variants[0];
+}
+function getSetsByKey(state, week, tplId, key, minLen){
+  const arr = (((state.logs[week] || {}).workouts || {})[tplId] || {})[key] || [];
+  const n = Math.max(minLen || 0, arr.length);
   return Array.from({ length: n }, (_, i) => arr[i] || { w:'', r:'', done:false });
 }
-function prevSets(state, week, tplId, exId){
-  const keys = Object.keys(state.logs).filter(k => k < week).sort();
-  for (let i = keys.length - 1; i >= 0; i--) {
-    const a = (((state.logs[keys[i]] || {}).workouts || {})[tplId] || {})[exId];
-    if (a && a.some(s => (s.w !== '' && s.w != null) || (s.r !== '' && s.r != null))) return { week: keys[i], sets: a };
+function prevSetsByKey(state, week, tplId, key){
+  const weeks = Object.keys(state.logs).filter(k => k < week).sort();
+  for (let i = weeks.length - 1; i >= 0; i--) {
+    const a = (((state.logs[weeks[i]] || {}).workouts || {})[tplId] || {})[key];
+    if (a && a.some(s => (s.w !== '' && s.w != null) || (s.r !== '' && s.r != null))) return { week: weeks[i], sets: a };
   }
   return null;
 }
+/* every logged array belonging to an exercise, across all its variants */
+function exAllArrs(state, week, tplId, ex){
+  const m = ((state.logs[week] || {}).workouts || {})[tplId] || {};
+  return Object.keys(m).filter(k => k === ex.id || k.indexOf(ex.id + '::') === 0).map(k => m[k] || []);
+}
 function tplProgress(state, week, tpl){
   let done = 0, total = 0;
-  tpl.exercises.forEach(ex => { const sets = getSets(state, week, tpl.id, ex); total += sets.length; done += sets.filter(s => s.done).length; });
+  tpl.exercises.forEach(ex => {
+    const act = getSetsByKey(state, week, tpl.id, exKey(ex, getActiveVariant(state, week, tpl.id, ex)), ex.sets);
+    total += act.length;
+    exAllArrs(state, week, tpl.id, ex).forEach(arr => { done += arr.filter(s => s && s.done).length; });
+  });
   return { done, total };
 }
 function tonnage(state, week, tpl){
   let t = 0;
-  tpl.exercises.forEach(ex => { getSets(state, week, tpl.id, ex).forEach(s => { t += numOr0(s.w) * numOr0(s.r); }); });
+  tpl.exercises.forEach(ex => {
+    exAllArrs(state, week, tpl.id, ex).forEach(arr => { arr.forEach(s => { if (s) t += numOr0(s.w) * numOr0(s.r); }); });
+  });
   return Math.round(t);
 }
 
@@ -354,9 +435,9 @@ function todayStats(state){
   const perTpl = [];
   state.templates.forEach(tpl => {
     let s = 0, t = 0;
-    tpl.exercises.forEach(ex => {
-      const arr = (((wk.workouts || {})[tpl.id]) || {})[ex.id] || [];
-      arr.forEach(x => { if (x.done && x.t === today) { s++; t += numOr0(x.w) * numOr0(x.r); } });
+    const exMap = (wk.workouts || {})[tpl.id] || {};
+    Object.keys(exMap).forEach(k => {
+      (exMap[k] || []).forEach(x => { if (x && x.done && x.t === today) { s++; t += numOr0(x.w) * numOr0(x.r); } });
     });
     if (s > 0) perTpl.push({ tpl, sets: s, ton: Math.round(t) });
     sets += s; ton += t;
@@ -371,10 +452,9 @@ function dayActive(state, iso){
   const wkk = weekStartISO(fromISO(iso));
   const wk = state.logs[wkk] || {};
   const dayIdx = fromISO(iso).getDay();
-  const hasSet = state.templates.some(tpl => tpl.exercises.some(ex => {
-    const arr = ((wk.workouts || {})[tpl.id] || {})[ex.id] || [];
-    return arr.some(x => x.done && x.t === iso);
-  }));
+  const wo = wk.workouts || {};
+  const hasSet = Object.keys(wo).some(tplId => Object.keys(wo[tplId] || {}).some(k =>
+    (wo[tplId][k] || []).some(x => x && x.done && x.t === iso)));
   if (hasSet) return true;
   if (state.runs.some(r => r.date === iso)) return true;
   const n = (wk.nutrition || {})[dayIdx] || {};
@@ -390,23 +470,30 @@ function streak(state){
   }
   return s;
 }
-function exerciseHistory(state, tplId, exId){
+function exerciseHistory(state, tplId, key){
   return Object.keys(state.logs).sort().map(wk => {
-    const arr = (((state.logs[wk] || {}).workouts || {})[tplId] || {})[exId] || [];
+    const arr = (((state.logs[wk] || {}).workouts || {})[tplId] || {})[key] || [];
     let maxW = 0, vol = 0;
     arr.forEach(s => { const w = numOr0(s.w); if (w > maxW) maxW = w; vol += numOr0(s.w) * numOr0(s.r); });
     return { week: wk, maxW, vol: Math.round(vol) };
   }).filter(p => p.maxW > 0 || p.vol > 0);
 }
+function exOptions(ex){
+  return (ex.variants && ex.variants.length)
+    ? ex.variants.map(v => ({ key: ex.id + '::' + v, label: ex.name + ' · ' + v }))
+    : [{ key: ex.id, label: ex.name }];
+}
 function findPRs(state){
   const out = [];
   state.templates.forEach(tpl => tpl.exercises.forEach(ex => {
-    const h = exerciseHistory(state, tpl.id, ex.id);
-    if (h.length >= 2) {
-      const last = h[h.length - 1];
-      const bestPrev = Math.max.apply(null, h.slice(0, -1).map(p => p.maxW));
-      if (last.maxW > bestPrev && bestPrev > 0) out.push({ icon:'🏋️', text: ex.name, from: bestPrev + ' ק"ג', to: last.maxW + ' ק"ג', week: last.week });
-    }
+    exOptions(ex).forEach(o => {
+      const h = exerciseHistory(state, tpl.id, o.key);
+      if (h.length >= 2) {
+        const last = h[h.length - 1];
+        const bestPrev = Math.max.apply(null, h.slice(0, -1).map(p => p.maxW));
+        if (last.maxW > bestPrev && bestPrev > 0) out.push({ icon:'🏋️', text: o.label, from: bestPrev + ' ק"ג', to: last.maxW + ' ק"ג', week: last.week });
+      }
+    });
   }));
   return out.sort((a, b) => a.week < b.week ? 1 : -1).slice(0, 8);
 }
@@ -685,9 +772,11 @@ function SetRow({ s, i, prev, onField, onToggle }){
   );
 }
 
-function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, moveEx, idx, count }){
-  const sets = getSets(state, week, tpl.id, ex);
-  const prev = prevSets(state, week, tpl.id, ex.id);
+function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, setVariant, moveEx, idx, count }){
+  const active = getActiveVariant(state, week, tpl.id, ex);
+  const key = exKey(ex, active);
+  const sets = getSetsByKey(state, week, tpl.id, key, ex.sets);
+  const prev = prevSetsByKey(state, week, tpl.id, key);
   const prevSumm = useMemo(() => {
     if (!prev) return null;
     const best = prev.sets.reduce((b, s) => numOr0(s.w) > numOr0(b.w) ? s : b, prev.sets[0]);
@@ -711,6 +800,8 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, m
         </button>
       </div>
       <input className="inp text-xs" value={ex.muscle} placeholder="קבוצת שריר / קטגוריה" onChange={e => updEx(ex.id, { muscle: e.target.value })}/>
+      <input className="inp text-xs" value={(ex.variants || []).join(', ')} placeholder="וריאציות ציוד מופרדות בפסיק (למשל: מוט, מכונה) — ריק = ללא"
+             onChange={e => updEx(ex.id, { variants: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })}/>
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1 bg-black/30 rounded-xl p-1 border border-white/10">
           <button onClick={() => updEx(ex.id, { sets: Math.max(1, ex.sets - 1) })} className="w-9 h-9 rounded-lg bg-white/5 font-black text-lg active:scale-90 transition">−</button>
@@ -735,11 +826,22 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, m
           {prevSumm && <div className="text-[10px] text-white/35 mt-1.5 whitespace-nowrap">שבוע קודם · {prevSumm}</div>}
         </div>
       </div>
+      {ex.variants && ex.variants.length > 1 && (
+        <div className="flex gap-1.5 mt-2.5 flex-wrap">
+          {ex.variants.map(v => (
+            <button key={v} onClick={() => setVariant(ex, v)}
+                    className={'px-3 py-1 rounded-full text-[11px] font-bold border transition active:scale-95 ' +
+                      (v === active ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'bg-white/5 text-white/40 border-white/10')}>
+              {v}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-3 space-y-1.5">
         {sets.map((s, i) => (
-          <SetRow key={i} s={s} i={i} prev={prev}
-                  onField={(idx, f, v) => setSetField(ex, idx, f, v)}
-                  onToggle={idx => setSetField(ex, idx, 'done')}/>
+          <SetRow key={key + i} s={s} i={i} prev={prev}
+                  onField={(idx, f, v) => setSetField(key, idx, f, v)}
+                  onToggle={idx => setSetField(key, idx, 'done')}/>
         ))}
       </div>
     </div>
@@ -752,17 +854,23 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
   const ton = tonnage(state, week, tpl);
   const pct = prog.total ? prog.done / prog.total : 0;
 
-  const setSetField = (ex, idx, field, val) => mutate(d => {
+  const setSetField = (key, idx, field, val) => mutate(d => {
     const wk = (d.logs[week] = d.logs[week] || {});
     const wo = (wk.workouts = wk.workouts || {});
     const t = (wo[tpl.id] = wo[tpl.id] || {});
-    const arr = (t[ex.id] = t[ex.id] || []);
+    const arr = (t[key] = t[key] || []);
     while (arr.length <= idx) arr.push({ w:'', r:'', done:false });
     if (field === 'done') {
       arr[idx].done = !arr[idx].done;
       if (arr[idx].done) arr[idx].t = toISO(new Date());
       else delete arr[idx].t;
     } else arr[idx][field] = val;
+  }, ['week', week]);
+
+  const setVariant = (ex, v) => mutate(d => {
+    const wk = (d.logs[week] = d.logs[week] || {});
+    const vm = (wk.variants = wk.variants || {});
+    vm[tpl.id + '|' + ex.id] = v;
   }, ['week', week]);
 
   const updTpl = patch => mutate(d => { Object.assign(d.templates.find(x => x.id === tpl.id), patch); }, 'templates');
@@ -865,7 +973,7 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
 
       {tpl.exercises.map((ex, i) => (
         <ExerciseCard key={ex.id} state={state} week={week} tpl={tpl} ex={ex} edit={edit}
-                      updEx={updEx} delEx={delEx} setSetField={setSetField}
+                      updEx={updEx} delEx={delEx} setSetField={setSetField} setVariant={setVariant}
                       moveEx={moveEx} idx={i} count={tpl.exercises.length}/>
       ))}
 
@@ -1475,14 +1583,16 @@ function PhotoViewer({ photo, onClose, onDelete, loadPhoto }){
 function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
   const flat = useMemo(() => {
     const arr = [];
-    state.templates.forEach(tpl => tpl.exercises.forEach(ex => arr.push({ tpl, ex })));
+    state.templates.forEach(tpl => tpl.exercises.forEach(ex => {
+      exOptions(ex).forEach(o => arr.push({ tpl, ex, key: o.key, label: o.label }));
+    }));
     return arr;
   }, [state.templates]);
   const firstWithData = useMemo(() => {
-    const f = flat.find(p => exerciseHistory(state, p.tpl.id, p.ex.id).length > 0);
+    const f = flat.find(p => exerciseHistory(state, p.tpl.id, p.key).length > 0);
     return f || flat[0];
   }, []);
-  const [selEx, setSelEx] = useState(firstWithData ? firstWithData.tpl.id + '|' + firstWithData.ex.id : '');
+  const [selEx, setSelEx] = useState(firstWithData ? firstWithData.tpl.id + '|' + firstWithData.key : '');
   const [kg, setKg] = useState('');
   const [viewPhoto, setViewPhoto] = useState(null);
   const fileRef = useRef(null);
@@ -1491,8 +1601,8 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
   const ri = useMemo(() => runningInsights(state), [state.runs]);
 
   const pair = selEx ? selEx.split('|') : null;
-  const selPair = pair ? flat.find(p => p.tpl.id === pair[0] && p.ex.id === pair[1]) : null;
-  const hist = selPair ? exerciseHistory(state, selPair.tpl.id, selPair.ex.id) : [];
+  const selPair = pair ? flat.find(p => p.tpl.id === pair[0] && p.key === pair[1]) : null;
+  const hist = selPair ? exerciseHistory(state, selPair.tpl.id, selPair.key) : [];
   const strengthData = hist.slice(-16).map(h => ({ label:'ש' + weekNum(h.week), a: h.maxW, b: h.vol }));
 
   const weightData = state.weights.slice().sort((a, b) => a.date < b.date ? -1 : 1).slice(-20)
@@ -1559,7 +1669,7 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
         <select className="inp mb-2" value={selEx} onChange={e => setSelEx(e.target.value)}>
           {state.templates.map(tpl => (
             <optgroup key={tpl.id} label={tpl.name}>
-              {tpl.exercises.map(ex => <option key={ex.id} value={tpl.id + '|' + ex.id}>{ex.name}</option>)}
+              {flat.filter(p => p.tpl.id === tpl.id).map(p => <option key={p.key} value={tpl.id + '|' + p.key}>{p.label}</option>)}
             </optgroup>
           ))}
         </select>
