@@ -75,14 +75,14 @@ const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
 const PHOTO_FILE = 'photo.b64.txt';
-const ROUTINE_V = 2;
+const ROUTINE_V = 3;
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
 
 const DEFAULT_TEMPLATES = [
   { id:'push-a', icon:'🏋️', name:'Push A', sub:'יום 1 · דחיפה', exercises:[
-    { id:'pa2', muscle:'חזה (עליון)',                       name:'לחיצת חזה בשיפוע חיובי (משקולות)',                sets:4, reps:'6-8' },
+    { id:'pa2', muscle:'חזה (עליון)',                       name:'לחיצת חזה בשיפוע חיובי',                           sets:4, reps:'6-8', variants:['משקולות','מכונה'] },
     { id:'pa1', muscle:'חזה (שטוח)',                        name:'לחיצת חזה שטוחה',                                  sets:3, reps:'8-10', variants:['מוט','מכונה'] },
     { id:'pa3', muscle:'כתפיים (קדמית)',                    name:'לחיצת כתפיים בישיבה (משקולות)',                    sets:3, reps:'8-10' },
     { id:'pa4', muscle:'כתפיים (צדית)',                     name:'הרחקת זרועות לצדדים (משקולות)',                    sets:4, reps:'10-12' },
@@ -305,11 +305,28 @@ function normalizeLogKeys(s){
    logged history untouched. Matching movements keep their exercise ids, so
    this week's checked-off sets and prior-week ghost values carry over. */
 function migrateRoutine(s){
-  if ((s.routineVersion || 1) >= ROUTINE_V) return s;
-  const four = { 'push-a':1, 'pull-a':1, 'push-b':1, 'pull-b':1 };
-  const kept = (s.templates || []).filter(t => !four[t.id]);
-  s.templates = DEFAULT_TEMPLATES.filter(t => four[t.id]).map(t => clone(t)).concat(kept);
-  s.routineVersion = ROUTINE_V;
+  let v = s.routineVersion || 1;
+  if (v >= ROUTINE_V) return s;
+  if (v < 2) {
+    /* v2: the 4-day split rework — swap the four split templates wholesale,
+       keep custom templates (Friday block etc.) and all history */
+    const four = { 'push-a':1, 'pull-a':1, 'push-b':1, 'pull-b':1 };
+    const kept = (s.templates || []).filter(t => !four[t.id]);
+    s.templates = DEFAULT_TEMPLATES.filter(t => four[t.id]).map(t => clone(t)).concat(kept);
+    v = 2;
+  }
+  if (v < 3) {
+    /* v3: surgical patch only — add equipment variants to the incline press
+       (pa2) without disturbing any other user customization */
+    const t = (s.templates || []).find(x => x.id === 'push-a');
+    const ex = t && (t.exercises || []).find(e => e.id === 'pa2');
+    if (ex && !(ex.variants && ex.variants.length)) {
+      ex.variants = ['משקולות', 'מכונה'];
+      if (ex.name === 'לחיצת חזה בשיפוע חיובי (משקולות)') ex.name = 'לחיצת חזה בשיפוע חיובי';
+    }
+    v = 3;
+  }
+  s.routineVersion = v;
   s.stamps.templates = Date.now();
   return normalizeLogKeys(s);
 }
