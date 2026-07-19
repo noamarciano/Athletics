@@ -5,7 +5,7 @@ Premium dark (Nike Training Club style) fitness & nutrition tracker. Single-file
 **Features**
 
 - 🏠 Daily dashboard — greeting, streak counter, everything you did today (sets, tonnage, runs, meals), quick actions, latest weight & photo
-- 🏋️ Full Push/Pull A+B routine + Friday run/mobility block — every workout, exercise, set count, rep target **and order** is editable in-app (add/remove/rename/reorder anything)
+- 🏋️ Full Push/Pull A+B routine + Friday run day (auto-completes from the run log) — every workout, exercise, set count, rep target **and order** is editable in-app (add/remove/rename/reorder anything)
 - 📈 Set-by-set weight/rep logging with last-week ghost values (progressive overload at a glance) + weekly tonnage
 - ⏱️ Rest timer (1:00 / 1:30 / 2:00 / 3:00) — loud boxing-bell alarm + vibration + "time's up" banner (audio pre-unlocked for iOS)
 - 🏃 Run tracker: unlimited runs per week, auto pace, distance + pace trend chart

@@ -75,7 +75,7 @@ const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
 const PHOTO_FILE = 'photo.b64.txt';
-const ROUTINE_V = 3;
+const ROUTINE_V = 4;
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
@@ -126,9 +126,8 @@ const DEFAULT_TEMPLATES = [
     { id:'lb8', muscle:'בטן (עליונה)',                      name:'כפיפות בטן במכונה כנגד משקל כבד',                  sets:4, reps:'10-12' },
     { id:'lb9', muscle:'בטן (תחתונה)',                      name:'הרמות רגליים בתלייה או במקבילים',                  sets:4, reps:'12-15' },
   ]},
-  { id:'friday', icon:'🏃', name:'בלוק שישי', sub:'ריצה ושחרור · קבוע', exercises:[
-    { id:'fr1', muscle:'אירובי קבוע',            name:'30 דקות ריצה קלה (קצב התאוששות)',         sets:1, reps:'30 דק׳' },
-    { id:'fr2', muscle:'שחרור עמוד שדרה',        name:'תלייה פסיבית על מתח',                      sets:1, reps:'דקה אחת' },
+  { id:'friday', icon:'🏃', name:'ריצת שישי', sub:'אירובי קבוע · שישי', exercises:[
+    { id:'fr1', muscle:'אירובי קבוע',            name:'30 דקות ריצה קלה (קצב התאוששות)',         sets:1, reps:'30 דק׳', check:true, runLinked:true },
   ]},
 ];
 
@@ -326,6 +325,19 @@ function migrateRoutine(s){
     }
     v = 3;
   }
+  if (v < 4) {
+    /* v4: "בלוק שישי" becomes "ריצת שישי" — drop the dead hang, and flag the
+       run as a check-style item that auto-completes from the run log */
+    const t = (s.templates || []).find(x => x.id === 'friday');
+    if (t) {
+      if (t.name === 'בלוק שישי') t.name = 'ריצת שישי';
+      if (t.sub === 'ריצה ושחרור · קבוע') t.sub = 'אירובי קבוע · שישי';
+      t.exercises = (t.exercises || []).filter(e => e.id !== 'fr2');
+      const fr1 = (t.exercises || []).find(e => e.id === 'fr1');
+      if (fr1) { fr1.check = true; fr1.runLinked = true; }
+    }
+    v = 4;
+  }
   s.routineVersion = v;
   s.stamps.templates = Date.now();
   return normalizeLogKeys(s);
@@ -426,9 +438,25 @@ function exAllArrs(state, week, tplId, ex){
   const m = ((state.logs[week] || {}).workouts || {})[tplId] || {};
   return Object.keys(m).filter(k => k === ex.id || k.indexOf(ex.id + '::') === 0).map(k => m[k] || []);
 }
+/* the run logged on this week's Friday, if any — run-linked check items
+   (ריצת שישי) complete themselves from the run log, current AND past weeks */
+function fridayRunOf(state, week){
+  const fri = addDays(week, 5);
+  return state.runs.find(r => r.date === fri) || null;
+}
+function isCheckExDone(state, week, tplId, ex){
+  if (ex.runLinked && fridayRunOf(state, week)) return true;
+  const arr = (((state.logs[week] || {}).workouts || {})[tplId] || {})[ex.id] || [];
+  return !!(arr[0] && arr[0].done);
+}
 function tplProgress(state, week, tpl){
   let done = 0, total = 0;
   tpl.exercises.forEach(ex => {
+    if (ex.check) {
+      total += 1;
+      if (isCheckExDone(state, week, tpl.id, ex)) done += 1;
+      return;
+    }
     const act = getSetsByKey(state, week, tpl.id, exKey(ex, getActiveVariant(state, week, tpl.id, ex)), ex.sets);
     total += act.length;
     exAllArrs(state, week, tpl.id, ex).forEach(arr => { done += arr.filter(s => s && s.done).length; });
@@ -503,6 +531,7 @@ function exOptions(ex){
 function findPRs(state){
   const out = [];
   state.templates.forEach(tpl => tpl.exercises.forEach(ex => {
+    if (ex.check) return;
     exOptions(ex).forEach(o => {
       const h = exerciseHistory(state, tpl.id, o.key);
       if (h.length >= 2) {
@@ -831,6 +860,42 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
       </div>
     </div>
   );
+  if (ex.check) {
+    const run = ex.runLinked ? fridayRunOf(state, week) : null;
+    const manualArr = (((state.logs[week] || {}).workouts || {})[tpl.id] || {})[ex.id] || [];
+    const manualDone = !!(manualArr[0] && manualArr[0].done);
+    const done = !!run || manualDone;
+    return (
+      <div className={'rounded-3xl p-4 border transition ' + (done ? 'bg-volt/10 border-volt/25' : 'glass border-transparent')}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="inline-block text-[10px] font-bold text-volt bg-volt/10 border border-volt/20 rounded-full px-2 py-0.5">{ex.muscle}</span>
+            <h3 className="font-bold mt-1.5 leading-snug">{ex.name}</h3>
+          </div>
+          <div className="text-end shrink-0 font-black text-lg leading-none whitespace-nowrap">{ex.reps}</div>
+        </div>
+        {run ? (
+          <div className="mt-3 flex items-center gap-3 bg-black/25 border border-volt/20 rounded-2xl p-3">
+            <span className="text-2xl">🏃</span>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-sm truncate">{run.title}</div>
+              <div className="text-[10px] text-white/40">{run.km} ק"מ · {fmtDur(run.sec)} · {fmtPace(run.sec / Math.max(run.km, .01))} דק'/ק"מ</div>
+            </div>
+            <span className="text-[9px] font-black text-obsidian bg-volt rounded-full px-2 py-1 glow-volt shrink-0">הושלם אוטומטית ✓</span>
+          </div>
+        ) : (
+          <React.Fragment>
+            <button onClick={() => setSetField(ex.id, 0, 'done')}
+                    className={'mt-3 w-full py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition active:scale-[.98] ' +
+                      (manualDone ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 border border-white/10 text-white/60')}>
+              <Icon d={I.check} className="w-5 h-5"/>{manualDone ? 'בוצע! 🔥' : 'סמן כבוצע'}
+            </button>
+            <div className="mt-2 text-[10px] text-white/30 text-center">טיפ: רשום את הריצה בטאב «ריצה» ביום שישי — והיא תסומן כאן אוטומטית</div>
+          </React.Fragment>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="glass rounded-3xl p-4">
       <div className="flex items-start justify-between gap-3">
@@ -1601,15 +1666,25 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
   const flat = useMemo(() => {
     const arr = [];
     state.templates.forEach(tpl => tpl.exercises.forEach(ex => {
+      if (ex.check) return;
       exOptions(ex).forEach(o => arr.push({ tpl, ex, key: o.key, label: o.label }));
     }));
     return arr;
   }, [state.templates]);
-  const firstWithData = useMemo(() => {
-    const f = flat.find(p => exerciseHistory(state, p.tpl.id, p.key).length > 0);
-    return f || flat[0];
+  const chartTpls = useMemo(() => state.templates.filter(t => (t.exercises || []).some(e => !e.check)), [state.templates]);
+  const initial = useMemo(() => {
+    const f = flat.find(p => exerciseHistory(state, p.tpl.id, p.key).length > 0) || flat[0];
+    return f ? { tpl: f.tpl.id, key: f.key } : { tpl: chartTpls[0] ? chartTpls[0].id : '', key: '' };
   }, []);
-  const [selEx, setSelEx] = useState(firstWithData ? firstWithData.tpl.id + '|' + firstWithData.key : '');
+  const [selTpl, setSelTpl] = useState(initial.tpl);
+  const [selKey, setSelKey] = useState(initial.key);
+  const tplOptions = flat.filter(p => p.tpl.id === selTpl);
+  const pickTpl = id => {
+    setSelTpl(id);
+    const opts = flat.filter(p => p.tpl.id === id);
+    const withData = opts.find(p => exerciseHistory(state, id, p.key).length > 0);
+    setSelKey((withData || opts[0]) ? (withData || opts[0]).key : '');
+  };
   const [kg, setKg] = useState('');
   const [viewPhoto, setViewPhoto] = useState(null);
   const fileRef = useRef(null);
@@ -1617,9 +1692,7 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
   const prs = useMemo(() => findPRs(state), [state.logs, state.templates]);
   const ri = useMemo(() => runningInsights(state), [state.runs]);
 
-  const pair = selEx ? selEx.split('|') : null;
-  const selPair = pair ? flat.find(p => p.tpl.id === pair[0] && p.key === pair[1]) : null;
-  const hist = selPair ? exerciseHistory(state, selPair.tpl.id, selPair.key) : [];
+  const hist = (selTpl && selKey) ? exerciseHistory(state, selTpl, selKey) : [];
   const strengthData = hist.slice(-16).map(h => ({ label:'ש' + weekNum(h.week), a: h.maxW, b: h.vol }));
 
   const weightData = state.weights.slice().sort((a, b) => a.date < b.date ? -1 : 1).slice(-20)
@@ -1683,12 +1756,17 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
       {/* ---- strength ---- */}
       <div className="glass rounded-3xl p-4">
         <div className="font-black italic mb-2.5">התקדמות בכוח 🏋️</div>
-        <select className="inp mb-2" value={selEx} onChange={e => setSelEx(e.target.value)}>
-          {state.templates.map(tpl => (
-            <optgroup key={tpl.id} label={tpl.name}>
-              {flat.filter(p => p.tpl.id === tpl.id).map(p => <option key={p.key} value={tpl.id + '|' + p.key}>{p.label}</option>)}
-            </optgroup>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 mb-2">
+          {chartTpls.map(t => (
+            <button key={t.id} onClick={() => pickTpl(t.id)}
+                    className={'px-3.5 py-2 rounded-2xl text-xs font-bold border transition active:scale-95 whitespace-nowrap shrink-0 flex items-center gap-1.5 ' +
+                      (selTpl === t.id ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'glass text-white/50 border-white/10')}>
+              <span>{t.icon}</span>{t.name}
+            </button>
           ))}
+        </div>
+        <select className="inp mb-2" value={selKey} onChange={e => setSelKey(e.target.value)}>
+          {tplOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
         </select>
         <div className="flex gap-3 text-[10px] font-bold mb-1">
           <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> משקל שיא (ק"ג)</span>
