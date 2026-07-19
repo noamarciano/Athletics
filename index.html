@@ -196,6 +196,18 @@ function parseDur(str){
   if (p.length === 2) return Math.round(p[0] * 60 + p[1]);
   return Math.round(p[0] * 3600 + p[1] * 60 + p[2]);
 }
+/* stopwatch-style time entry: digits fill from the right and the colon is
+   inserted automatically, so a plain iOS number pad can enter 32:20 (no ":" key needed) */
+function fmtTimeInput(raw){
+  let d = String(raw == null ? '' : raw).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  if (d === '') return '';
+  if (d.length > 6) d = d.slice(-6);
+  const ss = d.slice(-2).padStart(2, '0');
+  const rest = d.slice(0, -2);
+  if (rest === '') return '0:' + ss;
+  const mm = rest.slice(-2), hh = rest.slice(0, -2);
+  return (hh === '' ? mm : hh + ':' + mm.padStart(2, '0')) + ':' + ss;
+}
 function greet(){
   const h = new Date().getHours();
   if (h >= 5 && h < 11) return 'בוקר טוב';
@@ -835,7 +847,7 @@ function SplitsEditor({ splits, setSplits, onApplySum }){
           <div key={i} className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded-md bg-white/10 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
             <input className="inp text-center font-bold py-1.5" inputMode="decimal" placeholder='ק"מ' value={s.km} onChange={e => upd(i, 'km', e.target.value)} style={{ maxWidth:'70px' }}/>
-            <input className="inp text-center font-bold py-1.5 flex-1 min-w-0" inputMode="numeric" placeholder="זמן (5:20)" value={s.dur} onChange={e => upd(i, 'dur', e.target.value)}/>
+            <input className="inp text-center font-bold py-1.5 flex-1 min-w-0" inputMode="numeric" placeholder="זמן (5:20)" value={s.dur} onChange={e => upd(i, 'dur', fmtTimeInput(e.target.value))}/>
             <span className="text-[10px] font-black text-ember w-14 text-center shrink-0">{pace}</span>
             <button type="button" onClick={() => del(i)} className="w-7 h-7 rounded-lg text-white/25 flex items-center justify-center shrink-0 active:scale-90 transition"><Icon d={I.trash} className="w-3.5 h-3.5"/></button>
           </div>
@@ -1149,11 +1161,12 @@ function FridayRunBlock({ state, week, tpl, mutate }){
     }
     setMode(null);
   };
+  const reset = () => setF(Object.assign({}, blank, { date: addDays(week, 5) }));
   const del = () => {
     if (!run) return;
     if (!confirm('למחוק את ריצת שישי (' + run.km + ' ק"מ)? תוכל לרשום חדשה מיד.')) return;
     mutate(d => { d.runs = d.runs.filter(x => x.id !== run.id); if (d.deletedRuns.indexOf(run.id) < 0) d.deletedRuns.push(run.id); });
-    setMode(null);
+    reset(); setMode(null);
   };
   const saveGoal = () => {
     const g = goalEdit; if (!g) return;
@@ -1170,7 +1183,7 @@ function FridayRunBlock({ state, week, tpl, mutate }){
           </span>
           {mode === 'edit' ? 'עריכת ריצת שישי' : 'רשום את ריצת שישי'}
         </div>
-        {run && <button onClick={() => setMode(null)} className="text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 active:scale-95 transition">בטל ✕</button>}
+        {run && <button onClick={() => { reset(); setMode(null); }} className="text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 active:scale-95 transition">בטל ✕</button>}
       </div>
       <div><label className="lbl">סגנון ריצה</label><StylePills value={f.type} onPick={pickStyle}/></div>
       <input className="inp" placeholder="שם הריצה (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
@@ -1178,7 +1191,7 @@ function FridayRunBlock({ state, week, tpl, mutate }){
         <div><label className="lbl">מרחק (ק"מ)</label>
           <input className="inp text-center font-bold" inputMode="decimal" placeholder="5.0" value={f.km} onChange={e => setF({ ...f, km: e.target.value })}/></div>
         <div><label className="lbl">זמן (דק:שנ)</label>
-          <input className="inp text-center font-bold" inputMode="numeric" placeholder="30:00" value={f.dur} onChange={e => setF({ ...f, dur: e.target.value })}/></div>
+          <input className="inp text-center font-bold" inputMode="numeric" placeholder="30:00" value={f.dur} onChange={e => setF({ ...f, dur: fmtTimeInput(e.target.value) })}/></div>
         <div><label className="lbl">תאריך</label>
           <input type="date" className="inp text-center" value={f.date} onChange={e => setF({ ...f, date: e.target.value })}/></div>
       </div>
@@ -1688,7 +1701,7 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
           <div><label className="lbl">מרחק (ק"מ)</label>
             <input className="inp text-center font-bold" inputMode="decimal" placeholder="5.0" value={f.km} onChange={e => setF({ ...f, km: e.target.value })}/></div>
           <div><label className="lbl">זמן (דק:שנ)</label>
-            <input className="inp text-center font-bold" inputMode="numeric" placeholder="30:00" value={f.dur} onChange={e => setF({ ...f, dur: e.target.value })}/></div>
+            <input className="inp text-center font-bold" inputMode="numeric" placeholder="30:00" value={f.dur} onChange={e => setF({ ...f, dur: fmtTimeInput(e.target.value) })}/></div>
           <div><label className="lbl">תאריך</label>
             <input type="date" className="inp text-center" value={f.date} onChange={e => setF({ ...f, date: e.target.value })}/></div>
         </div>
