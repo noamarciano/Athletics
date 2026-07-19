@@ -566,6 +566,45 @@ function runningInsights(state){
   return { weeks, fastest, longest, paceDelta, recentPace, total: runs.reduce((a, r) => a + r.km, 0) };
 }
 
+/* total strength volume per week — the zero-click progress headline */
+function weeklyVolumes(state, n){
+  const cur = weekStartISO(new Date());
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const ws = addDays(cur, -7 * i);
+    let vol = 0;
+    const wk = state.logs[ws];
+    if (wk && wk.workouts) Object.keys(wk.workouts).forEach(tplId => {
+      const m = wk.workouts[tplId] || {};
+      Object.keys(m).forEach(k => (m[k] || []).forEach(s => { if (s) vol += numOr0(s.w) * numOr0(s.r); }));
+    });
+    out.push({ week: ws, label: 'ש' + weekNum(ws), a: Math.round(vol) });
+  }
+  return out;
+}
+/* auto status per exercise (latest max weight, delta vs previous week, mini history)
+   — the whole picture without clicking anything */
+function exerciseStatus(state){
+  const rows = [];
+  state.templates.forEach(tpl => tpl.exercises.forEach(ex => {
+    if (ex.check) return;
+    exOptions(ex).forEach(o => {
+      const h = exerciseHistory(state, tpl.id, o.key);
+      if (!h.length) return;
+      const last = h[h.length - 1];
+      if (!(last.maxW > 0)) return;
+      const prev = h.length > 1 ? h[h.length - 2] : null;
+      rows.push({
+        key: tpl.id + '|' + o.key, label: o.label, tplName: tpl.name, week: last.week, maxW: last.maxW,
+        delta: (prev && prev.maxW > 0) ? Math.round((last.maxW - prev.maxW) * 10) / 10 : null,
+        hist: h.map(p => p.maxW).slice(-8)
+      });
+    });
+  }));
+  rows.sort((a, b) => a.week < b.week ? 1 : a.week > b.week ? -1 : 0);
+  return rows;
+}
+
 /* ============================== icons & atoms ============================== */
 const I = {
   chevR:'M9 18l6-6-6-6', chevL:'M15 18l-6-6 6-6',
@@ -712,6 +751,21 @@ function GlassSelect({ value, options, onChange, placeholder }){
         </div>
       )}
     </div>
+  );
+}
+
+/* tiny inline trend line for at-a-glance exercise status */
+function Sparkline({ points }){
+  if (!points || points.length < 2) return <svg width="56" height="20" className="shrink-0"></svg>;
+  const W = 56, H = 20;
+  const min = Math.min.apply(null, points), max = Math.max.apply(null, points);
+  const span = (max - min) || 1;
+  const pts = points.map((v, i) => (2 + i * (W - 4) / (points.length - 1)) + ',' + (H - 3 - (v - min) / span * (H - 6))).join(' ');
+  const up = points[points.length - 1] >= points[0];
+  return (
+    <svg width={W} height={H} dir="ltr" className="shrink-0">
+      <polyline points={pts} fill="none" stroke={up ? '#CCFF00' : '#FF5A1F'} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+    </svg>
   );
 }
 
@@ -1339,7 +1393,8 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
   const inWeek = todayISO >= week && todayISO <= addDays(week, 6);
   const [f, setF] = useState({ title:'', km:'', dur:'', date: inWeek ? todayISO : week });
   const [showAll, setShowAll] = useState(false);
-  useEffect(() => { setF(x => Object.assign({}, x, { date: (todayISO >= week && todayISO <= addDays(week, 6)) ? todayISO : week })); }, [week]);
+  const [editing, setEditing] = useState(null);
+  useEffect(() => { if (!editing) setF(x => Object.assign({}, x, { date: (todayISO >= week && todayISO <= addDays(week, 6)) ? todayISO : week })); }, [week]);
 
   const all = useMemo(() => state.runs.slice().sort((a, b) => a.date < b.date ? 1 : -1), [state.runs]);
   const weekRuns = all.filter(r => r.date >= week && r.date <= addDays(week, 6));
@@ -1349,15 +1404,33 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
   const bestPace = state.runs.length ? Math.min.apply(null, state.runs.map(r => r.sec / Math.max(r.km, .01))) : 0;
 
   const kmNum = numOr0(f.km), secNum = parseDur(f.dur);
-  const addRun = () => {
+  const saveRun = () => {
     if (!(kmNum > 0)) { alert('הכנס מרחק בק"מ (למשל 5.0)'); return; }
     if (!(secNum > 0)) { alert('הכנס זמן ריצה (למשל 30:00)'); return; }
     if (!f.date) { alert('בחר תאריך'); return; }
-    mutate(d => { d.runs.unshift({ id: uid(), date: f.date, title: f.title.trim() || 'ריצה', km: kmNum, sec: secNum, updatedAt: Date.now() }); });
+    if (editing) {
+      mutate(d => {
+        const r = d.runs.find(x => x.id === editing);
+        if (r) { r.title = f.title.trim() || r.title || 'ריצה'; r.km = kmNum; r.sec = secNum; r.date = f.date; r.updatedAt = Date.now(); }
+      });
+      setEditing(null);
+    } else {
+      mutate(d => { d.runs.unshift({ id: uid(), date: f.date, title: f.title.trim() || 'ריצה', km: kmNum, sec: secNum, updatedAt: Date.now() }); });
+    }
     setF({ title:'', km:'', dur:'', date: f.date });
   };
+  const startEdit = r => {
+    setEditing(r.id);
+    setF({ title: r.title, km: String(r.km), dur: fmtDur(r.sec), date: r.date });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const cancelEdit = () => {
+    setEditing(null);
+    setF({ title:'', km:'', dur:'', date: inWeek ? todayISO : week });
+  };
   const delRun = r => {
-    if (!confirm('למחוק את "' + r.title + '" (' + r.km + ' ק"מ)?')) return;
+    if (!confirm('למחוק את "' + r.title + '" (' + r.km + ' ק"מ)? אפשר גם לערוך במקום למחוק — כפתור העיפרון.')) return;
+    if (editing === r.id) cancelEdit();
     mutate(d => { d.runs = d.runs.filter(x => x.id !== r.id); if (d.deletedRuns.indexOf(r.id) < 0) d.deletedRuns.push(r.id); });
   };
 
@@ -1385,9 +1458,14 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
         <div><div className="font-black text-ember text-sm">{fmtPace(r.sec / Math.max(r.km, .01))}</div><div className="text-[8px] text-white/40">קצב</div></div>
         <div><div className="font-black text-sm">{fmtDur(r.sec)}</div><div className="text-[8px] text-white/40">זמן</div></div>
       </div>
-      <button onClick={() => delRun(r)} className="w-8 h-8 rounded-lg text-white/25 flex items-center justify-center active:scale-90 transition shrink-0">
-        <Icon d={I.trash} className="w-3.5 h-3.5"/>
-      </button>
+      <div className="flex flex-col gap-1 shrink-0">
+        <button onClick={() => startEdit(r)} className="w-8 h-7 rounded-lg text-volt/60 bg-volt/5 flex items-center justify-center active:scale-90 transition">
+          <Icon d={I.pencil} className="w-3.5 h-3.5"/>
+        </button>
+        <button onClick={() => delRun(r)} className="w-8 h-7 rounded-lg text-white/25 flex items-center justify-center active:scale-90 transition">
+          <Icon d={I.trash} className="w-3.5 h-3.5"/>
+        </button>
+      </div>
     </div>
   );
 
@@ -1396,13 +1474,17 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
       <div className="glass rounded-3xl p-4 space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="font-bold flex items-center gap-2">
-            <span className="w-7 h-7 rounded-xl bg-ember/20 text-ember flex items-center justify-center"><Icon d={I.plus} className="w-4 h-4"/></span>
-            ריצה חדשה
-            <span className="text-[10px] text-white/30 font-normal">אין הגבלה — כמה שבא לך 🔥</span>
+            <span className={'w-7 h-7 rounded-xl flex items-center justify-center ' + (editing ? 'bg-volt/20 text-volt' : 'bg-ember/20 text-ember')}>
+              <Icon d={editing ? I.pencil : I.plus} className="w-4 h-4"/>
+            </span>
+            {editing ? 'עריכת ריצה' : 'ריצה חדשה'}
+            {!editing && <span className="text-[10px] text-white/30 font-normal">אין הגבלה — כמה שבא לך 🔥</span>}
           </div>
-          {!stravaConnected && (
+          {editing ? (
+            <button onClick={cancelEdit} className="text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 active:scale-95 transition">בטל עריכה ✕</button>
+          ) : (!stravaConnected && (
             <button onClick={onOpenSettings} className="text-[10px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-2.5 py-1 active:scale-95 transition">חבר STRAVA</button>
-          )}
+          ))}
         </div>
         <input className="inp" placeholder="כותרת (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
         <div className="grid grid-cols-3 gap-2">
@@ -1417,9 +1499,9 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
           <span className="text-xs text-white/40">קצב מחושב</span>
           <span className="font-black text-xl text-volt text-glow">{(kmNum > 0 && secNum > 0) ? fmtPace(secNum / kmNum) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
         </div>
-        <button onClick={addRun}
+        <button onClick={saveRun}
                 className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">
-          הוסף ריצה ⚡
+          {editing ? 'עדכן ריצה 💾' : 'הוסף ריצה ⚡'}
         </button>
       </div>
 
@@ -1795,6 +1877,17 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
   }, []);
   const [selTpl, setSelTpl] = useState(initial.tpl);
   const [selKey, setSelKey] = useState(initial.key);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showAllEx, setShowAllEx] = useState(false);
+  const volData = useMemo(() => {
+    const v = weeklyVolumes(state, 12);
+    while (v.length > 2 && v[0].a === 0) v.shift();
+    return v.some(x => x.a > 0) ? v : [];
+  }, [state.logs]);
+  const curVol = volData.length ? volData[volData.length - 1].a : 0;
+  const prevVol = volData.length > 1 ? volData[volData.length - 2].a : 0;
+  const volDeltaPct = prevVol > 0 ? Math.round((curVol - prevVol) / prevVol * 100) : null;
+  const statusRows = useMemo(() => exerciseStatus(state), [state.logs, state.templates]);
   const tplOptions = flat.filter(p => p.tpl.id === selTpl);
   const pickTpl = id => {
     setSelTpl(id);
@@ -1870,27 +1963,90 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
         )}
       </div>
 
-      {/* ---- strength ---- */}
+      {/* ---- strength: summary first, zero clicks ---- */}
       <div className="glass rounded-3xl p-4">
         <div className="font-black italic mb-2.5">התקדמות בכוח 🏋️</div>
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 mb-2">
-          {chartTpls.map(t => (
-            <button key={t.id} onClick={() => pickTpl(t.id)}
-                    className={'px-3.5 py-2 rounded-2xl text-xs font-bold border transition active:scale-95 whitespace-nowrap shrink-0 flex items-center gap-1.5 ' +
-                      (selTpl === t.id ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'glass text-white/50 border-white/10')}>
-              <span>{t.icon}</span>{t.name}
-            </button>
-          ))}
+
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="bg-black/25 rounded-2xl py-2.5 text-center border border-white/5">
+            <div className="font-black text-volt">{curVol >= 1000 ? (Math.round(curVol / 100) / 10) + 'K' : curVol}</div>
+            <div className="text-[9px] text-white/40 mt-0.5">ק"ג נפח השבוע</div>
+          </div>
+          <div className="bg-black/25 rounded-2xl py-2.5 text-center border border-white/5">
+            <div className={'font-black ' + (volDeltaPct == null ? 'text-white/40' : volDeltaPct >= 0 ? 'text-volt' : 'text-ember')}>
+              {volDeltaPct == null ? '—' : (volDeltaPct >= 0 ? '+' : '') + volDeltaPct + '%'}
+            </div>
+            <div className="text-[9px] text-white/40 mt-0.5">מול שבוע שעבר</div>
+          </div>
+          <div className="bg-black/25 rounded-2xl py-2.5 text-center border border-white/5">
+            <div className="font-black">{prs.length}</div>
+            <div className="text-[9px] text-white/40 mt-0.5">שיאים אחרונים</div>
+          </div>
         </div>
-        <div className="mb-2">
-          <GlassSelect value={selKey} options={tplOptions.map(p => ({ key: p.key, label: p.label }))}
-                       onChange={setSelKey} placeholder="בחר תרגיל"/>
-        </div>
-        <div className="flex gap-3 text-[10px] font-bold mb-1">
-          <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> משקל שיא (ק"ג)</span>
-          <span className="flex items-center gap-1 text-ember"><span className="w-2.5 h-0.5 bg-ember inline-block rounded-full"></span> נפח שבועי</span>
-        </div>
-        <TrendChart data={strengthData} unitA={'ק"ג'} unitB={'ק"ג נפח'}/>
+
+        {volData.length >= 2 ? (
+          <React.Fragment>
+            <div className="text-[10px] font-bold text-white/40 mb-1">נפח כולל לפי שבוע</div>
+            <TrendChart data={volData} unitA={'ק"ג נפח'} fmtA={v => v >= 1000 ? (Math.round(v / 100) / 10) + 'K' : String(Math.round(v))}/>
+          </React.Fragment>
+        ) : (
+          <div className="text-white/25 text-xs text-center py-3">רשום סטים עם משקלים — וגרף הנפח יופיע כאן</div>
+        )}
+
+        <div className="text-[10px] font-bold text-white/40 mt-3 mb-1">מצב התרגילים · מתעדכן אוטומטית</div>
+        {statusRows.length === 0 ? (
+          <div className="text-white/25 text-xs text-center py-3">עוד אין נתוני משקלים</div>
+        ) : (
+          <React.Fragment>
+            {statusRows.slice(0, showAllEx ? 999 : 6).map(r => (
+              <div key={r.key} className="flex items-center gap-2.5 py-2 border-b border-white/5 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold truncate">{r.label}</div>
+                  <div className="text-[9px] text-white/35">{r.tplName} · שבוע {weekNum(r.week)}</div>
+                </div>
+                <Sparkline points={r.hist}/>
+                <div className="text-end shrink-0" style={{ minWidth:'64px' }}>
+                  <div className="font-black">{r.maxW} <span className="text-[9px] text-white/40 font-normal">ק"ג</span></div>
+                  {r.delta != null && r.delta !== 0
+                    ? <div className={'text-[10px] font-black ' + (r.delta > 0 ? 'text-volt' : 'text-ember')}>{r.delta > 0 ? '+' + r.delta + ' ↑' : r.delta + ' ↓'}</div>
+                    : <div className="text-[10px] text-white/30 font-bold">{r.delta === 0 ? 'ללא שינוי' : 'חדש'}</div>}
+                </div>
+              </div>
+            ))}
+            {statusRows.length > 6 && (
+              <button onClick={() => setShowAllEx(!showAllEx)} className="w-full py-2 text-volt text-xs font-bold active:scale-[.98] transition">
+                {showAllEx ? 'הצג פחות' : 'הצג את כל ה-' + statusRows.length + ' תרגילים'}
+              </button>
+            )}
+          </React.Fragment>
+        )}
+
+        <button onClick={() => setShowDetail(!showDetail)}
+                className="w-full mt-3 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/50 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[.98] transition">
+          גרף מפורט לתרגיל ספציפי <Icon d={showDetail ? I.chevUp : I.chevDown} className="w-3.5 h-3.5"/>
+        </button>
+        {showDetail && (
+          <div className="mt-3 fadein">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 mb-2">
+              {chartTpls.map(t => (
+                <button key={t.id} onClick={() => pickTpl(t.id)}
+                        className={'px-3.5 py-2 rounded-2xl text-xs font-bold border transition active:scale-95 whitespace-nowrap shrink-0 flex items-center gap-1.5 ' +
+                          (selTpl === t.id ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'glass text-white/50 border-white/10')}>
+                  <span>{t.icon}</span>{t.name}
+                </button>
+              ))}
+            </div>
+            <div className="mb-2">
+              <GlassSelect value={selKey} options={tplOptions.map(p => ({ key: p.key, label: p.label }))}
+                           onChange={setSelKey} placeholder="בחר תרגיל"/>
+            </div>
+            <div className="flex gap-3 text-[10px] font-bold mb-1">
+              <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> משקל שיא (ק"ג)</span>
+              <span className="flex items-center gap-1 text-ember"><span className="w-2.5 h-0.5 bg-ember inline-block rounded-full"></span> נפח שבועי</span>
+            </div>
+            <TrendChart data={strengthData} unitA={'ק"ג'} unitB={'ק"ג נפח'}/>
+          </div>
+        )}
       </div>
 
       {/* ---- running ---- */}
