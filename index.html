@@ -144,6 +144,16 @@ const DEFAULT_MEALS = [
     desc:'150-200 גרם חלבון (פרגיות/בשר טחון/דג) + צלחת אורז (כוס וחצי מבושל) + סלט גדול עם כפית עד כף שטוחה של שמן זית' },
 ];
 
+const RUN_STYLES = [
+  { id:'easy',     emoji:'🟢', label:'קלה',        title:'ריצה קלה' },
+  { id:'recovery', emoji:'💧', label:'התאוששות',   title:'ריצת התאוששות' },
+  { id:'tempo',    emoji:'🔥', label:'טמפו',       title:'ריצת טמפו' },
+  { id:'interval', emoji:'⚡', label:'אינטרוולים', title:'אינטרוולים' },
+  { id:'long',     emoji:'🏔️', label:'ארוכה',      title:'ריצה ארוכה' },
+  { id:'race',     emoji:'🏁', label:'מרוץ',       title:'מרוץ' },
+];
+const styleOf = id => RUN_STYLES.find(s => s.id === id) || null;
+
 /* ============================== utils ============================== */
 const clone = o => (typeof structuredClone === 'function' ? structuredClone(o) : JSON.parse(JSON.stringify(o)));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -785,6 +795,82 @@ function Sparkline({ points }){
   );
 }
 
+/* run-style quick-pick pills (fills title unless the user typed a custom one) */
+function StylePills({ value, onPick }){
+  return (
+    <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
+      {RUN_STYLES.map(st => (
+        <button key={st.id} type="button" onClick={() => onPick(st)}
+                className={'px-3 py-1.5 rounded-full text-xs font-bold border transition active:scale-95 whitespace-nowrap shrink-0 flex items-center gap-1 ' +
+                  (value === st.id ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'bg-white/5 text-white/50 border-white/10')}>
+          <span>{st.emoji}</span>{st.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function sumSplits(splits){
+  let km = 0, sec = 0;
+  (splits || []).forEach(s => { km += numOr0(s.km); sec += parseDur(s.dur); });
+  return { km: Math.round(km * 100) / 100, sec };
+}
+
+/* per-segment splits editor (זמן לכל ק"מ) — used for tempo / intervals */
+function SplitsEditor({ splits, setSplits, onApplySum }){
+  const rows = splits || [];
+  const add = () => setSplits(rows.concat([{ km:'1', dur:'' }]));
+  const upd = (i, k, v) => { const c = rows.slice(); c[i] = Object.assign({}, c[i], { [k]: v }); setSplits(c); };
+  const del = i => setSplits(rows.filter((_, j) => j !== i));
+  const sum = sumSplits(rows);
+  return (
+    <div className="bg-black/20 rounded-2xl p-3 border border-white/5 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold text-white/50">⏱️ ספליטים — זמן לכל קטע</span>
+        {rows.length > 0 && <span className="text-[10px] text-white/35">סה"כ {sum.km} ק"מ · {fmtDur(sum.sec)}</span>}
+      </div>
+      {rows.map((s, i) => {
+        const pace = numOr0(s.km) > 0 && parseDur(s.dur) > 0 ? fmtPace(parseDur(s.dur) / numOr0(s.km)) : '—';
+        return (
+          <div key={i} className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-md bg-white/10 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+            <input className="inp text-center font-bold py-1.5" inputMode="decimal" placeholder='ק"מ' value={s.km} onChange={e => upd(i, 'km', e.target.value)} style={{ maxWidth:'70px' }}/>
+            <input className="inp text-center font-bold py-1.5 flex-1 min-w-0" inputMode="numeric" placeholder="זמן (5:20)" value={s.dur} onChange={e => upd(i, 'dur', e.target.value)}/>
+            <span className="text-[10px] font-black text-ember w-14 text-center shrink-0">{pace}</span>
+            <button type="button" onClick={() => del(i)} className="w-7 h-7 rounded-lg text-white/25 flex items-center justify-center shrink-0 active:scale-90 transition"><Icon d={I.trash} className="w-3.5 h-3.5"/></button>
+          </div>
+        );
+      })}
+      <div className="flex gap-2">
+        <button type="button" onClick={add} className="flex-1 py-1.5 rounded-xl bg-white/5 border border-white/10 text-volt text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition">
+          <Icon d={I.plus} className="w-3.5 h-3.5"/> הוסף קטע
+        </button>
+        {rows.length > 0 && onApplySum && (
+          <button type="button" onClick={() => onApplySum(sum)} className="px-3 py-1.5 rounded-xl bg-volt/10 border border-volt/25 text-volt text-xs font-bold active:scale-95 transition">מלא מרחק+זמן ↑</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* read-only splits breakdown for completed-run cards / rows */
+function SplitsList({ splits }){
+  if (!splits || !splits.length) return null;
+  return (
+    <div className="mt-2 space-y-1">
+      {splits.map((s, i) => (
+        <div key={i} className="flex items-center gap-2 bg-black/25 rounded-xl px-3 py-1.5">
+          <span className="w-5 h-5 rounded-md bg-white/10 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+          <span className="text-xs text-white/50">{s.km} ק"מ</span>
+          <span className="text-white/25 text-xs">·</span>
+          <span className="text-xs font-bold">{fmtDur(s.sec)}</span>
+          <span className="flex-1 text-end text-xs font-black text-ember">{fmtPace(s.sec / Math.max(s.km, .01))}<span className="text-[9px] text-white/30 font-normal"> /ק"מ</span></span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BarChart({ items, unit }){
   const max = Math.max.apply(null, items.map(i => i.v).concat([1]));
   return (
@@ -1037,21 +1123,29 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
 function FridayRunBlock({ state, week, tpl, mutate }){
   const run = fridayRunOf(state, week);
   const fri = addDays(week, 5);
+  const blank = { title:'', km:'', dur:'', date: fri, type:'', splits:[] };
   const [mode, setMode] = useState(null); // null = view, 'add' | 'edit' = form
-  const [f, setF] = useState({ title:'', km:'', dur:'', date: fri });
-  useEffect(() => { setMode(null); setF({ title:'', km:'', dur:'', date: addDays(week, 5) }); }, [week]);
-  const kmNum = numOr0(f.km), secNum = parseDur(f.dur);
+  const [f, setF] = useState(blank);
+  const [goalEdit, setGoalEdit] = useState(null); // { id, name } while editing a goal line
+  useEffect(() => { setMode(null); setGoalEdit(null); setF(Object.assign({}, blank, { date: addDays(week, 5) })); }, [week]);
+  const eff = (numOr0(f.km) > 0 || parseDur(f.dur) > 0) ? { km: numOr0(f.km), sec: parseDur(f.dur) } : sumSplits(f.splits);
   const goals = tpl.exercises.filter(e => e.check);
 
-  const startAdd = () => { setF({ title:'', km:'', dur:'', date: fri }); setMode('add'); };
-  const startEdit = () => { setF({ title: run.title, km: String(run.km), dur: fmtDur(run.sec), date: run.date }); setMode('edit'); };
+  const startEdit = () => { setF({ title: run.title, km: String(run.km), dur: fmtDur(run.sec), date: run.date, type: run.type || '', splits: (run.splits || []).map(s => ({ km: String(s.km), dur: fmtDur(s.sec) })) }); setMode('edit'); };
+  const pickStyle = st => setF(x => {
+    const isDefaultTitle = !x.title || RUN_STYLES.some(s => s.title === x.title);
+    return Object.assign({}, x, { type: st.id, title: isDefaultTitle ? st.title : x.title });
+  });
+  const validSplits = () => (f.splits || []).map(s => ({ km: numOr0(s.km), sec: parseDur(s.dur) })).filter(s => s.km > 0 && s.sec > 0);
   const save = () => {
-    if (!(kmNum > 0)) { alert('הכנס מרחק בק"מ (למשל 5.0)'); return; }
-    if (!(secNum > 0)) { alert('הכנס זמן ריצה (למשל 30:00)'); return; }
+    if (!(eff.km > 0)) { alert('הכנס מרחק בק"מ (או הוסף ספליטים)'); return; }
+    if (!(eff.sec > 0)) { alert('הכנס זמן ריצה (או הוסף ספליטים)'); return; }
+    const sp = validSplits();
+    const patch = { title: (f.title.trim() || (styleOf(f.type) || {}).title || 'ריצת שישי'), km: eff.km, sec: eff.sec, date: f.date || fri, type: f.type || '', splits: sp };
     if (mode === 'edit' && run) {
-      mutate(d => { const r = d.runs.find(x => x.id === run.id); if (r) { r.title = f.title.trim() || r.title || 'ריצת שישי'; r.km = kmNum; r.sec = secNum; r.date = f.date || fri; r.updatedAt = Date.now(); } });
+      mutate(d => { const r = d.runs.find(x => x.id === run.id); if (r) { Object.assign(r, patch, { updatedAt: Date.now() }); } });
     } else {
-      mutate(d => { d.runs.unshift({ id: uid(), date: f.date || fri, title: f.title.trim() || 'ריצת שישי', km: kmNum, sec: secNum, updatedAt: Date.now() }); });
+      mutate(d => { d.runs.unshift(Object.assign({ id: uid() }, patch, { updatedAt: Date.now() })); });
     }
     setMode(null);
   };
@@ -1060,6 +1154,11 @@ function FridayRunBlock({ state, week, tpl, mutate }){
     if (!confirm('למחוק את ריצת שישי (' + run.km + ' ק"מ)? תוכל לרשום חדשה מיד.')) return;
     mutate(d => { d.runs = d.runs.filter(x => x.id !== run.id); if (d.deletedRuns.indexOf(run.id) < 0) d.deletedRuns.push(run.id); });
     setMode(null);
+  };
+  const saveGoal = () => {
+    const g = goalEdit; if (!g) return;
+    mutate(d => { const t = d.templates.find(x => x.id === tpl.id); const ex = t && t.exercises.find(e => e.id === g.id); if (ex) ex.name = g.name.trim() || ex.name; }, 'templates');
+    setGoalEdit(null);
   };
 
   const form = (
@@ -1073,7 +1172,8 @@ function FridayRunBlock({ state, week, tpl, mutate }){
         </div>
         {run && <button onClick={() => setMode(null)} className="text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 active:scale-95 transition">בטל ✕</button>}
       </div>
-      <input className="inp" placeholder="כותרת (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
+      <div><label className="lbl">סגנון ריצה</label><StylePills value={f.type} onPick={pickStyle}/></div>
+      <input className="inp" placeholder="שם הריצה (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
       <div className="grid grid-cols-3 gap-2">
         <div><label className="lbl">מרחק (ק"מ)</label>
           <input className="inp text-center font-bold" inputMode="decimal" placeholder="5.0" value={f.km} onChange={e => setF({ ...f, km: e.target.value })}/></div>
@@ -1082,35 +1182,49 @@ function FridayRunBlock({ state, week, tpl, mutate }){
         <div><label className="lbl">תאריך</label>
           <input type="date" className="inp text-center" value={f.date} onChange={e => setF({ ...f, date: e.target.value })}/></div>
       </div>
+      <SplitsEditor splits={f.splits} setSplits={sp => setF(x => Object.assign({}, x, { splits: sp }))}
+                    onApplySum={sum => setF(x => Object.assign({}, x, { km: sum.km ? String(sum.km) : x.km, dur: sum.sec ? fmtDur(sum.sec) : x.dur }))}/>
       <div className="flex items-center justify-between bg-black/25 rounded-2xl px-4 py-2.5 border border-white/5">
         <span className="text-xs text-white/40">קצב מחושב</span>
-        <span className="font-black text-xl text-volt text-glow">{(kmNum > 0 && secNum > 0) ? fmtPace(secNum / kmNum) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
+        <span className="font-black text-xl text-volt text-glow">{(eff.km > 0 && eff.sec > 0) ? fmtPace(eff.sec / eff.km) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
       </div>
       <button onClick={save} className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">{mode === 'edit' ? 'עדכן ריצה 💾' : 'שמור ריצה ⚡'}</button>
       {mode !== 'edit' && <div className="text-[10px] text-white/30 text-center">נשמר ישירות ליומן הריצות — והשבוע מסומן כהושלם אוטומטית</div>}
     </div>
   );
 
+  const st = styleOf(run && run.type);
   return (
     <React.Fragment>
       {goals.length > 0 && (
         <div className="glass rounded-3xl p-4">
           <div className="text-[10px] font-bold text-white/40 mb-1">היעד הקבוע</div>
           {goals.map(g => (
-            <div key={g.id} className="flex items-center justify-between gap-2 py-1">
-              <span className="font-bold text-sm">{g.name}</span>
-              <span className="text-volt text-xs font-black shrink-0">{g.reps}</span>
-            </div>
+            goalEdit && goalEdit.id === g.id ? (
+              <div key={g.id} className="flex gap-2 py-1">
+                <input className="inp flex-1 min-w-0 font-bold" value={goalEdit.name} autoFocus onChange={e => setGoalEdit({ id: g.id, name: e.target.value })}/>
+                <button onClick={saveGoal} className="px-3 rounded-xl bg-volt text-obsidian font-black active:scale-95 transition"><Icon d={I.check} className="w-4 h-4"/></button>
+                <button onClick={() => setGoalEdit(null)} className="px-3 rounded-xl bg-white/5 border border-white/10 text-white/50 active:scale-95 transition"><Icon d={I.x} className="w-4 h-4"/></button>
+              </div>
+            ) : (
+              <div key={g.id} className="flex items-center justify-between gap-2 py-1">
+                <button onClick={() => setGoalEdit({ id: g.id, name: g.name })} className="flex items-center gap-1.5 text-start active:scale-[.98] transition min-w-0">
+                  <Icon d={I.pencil} className="w-3.5 h-3.5 text-white/30 shrink-0"/>
+                  <span className="font-bold text-sm">{g.name}</span>
+                </button>
+                <span className="text-volt text-xs font-black shrink-0">{g.reps}</span>
+              </div>
+            )
           ))}
         </div>
       )}
       {(run && mode !== 'edit') ? (
         <div className="rounded-3xl p-4 bg-volt/10 border border-volt/25 fadein">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🏃</span>
+            <span className="text-3xl">{st ? st.emoji : '🏃'}</span>
             <div className="flex-1 min-w-0">
               <div className="font-bold truncate">{run.title}</div>
-              <div className="text-[11px] text-white/40">{heDate(run.date)}</div>
+              <div className="text-[11px] text-white/40">{heDate(run.date)}{st ? ' · ' + st.label : ''}</div>
             </div>
             <span className="text-[9px] font-black text-obsidian bg-volt rounded-full px-2.5 py-1 glow-volt shrink-0">הושלם ✓</span>
           </div>
@@ -1119,6 +1233,12 @@ function FridayRunBlock({ state, week, tpl, mutate }){
             <div className="bg-black/25 rounded-2xl py-2.5"><div className="font-black text-xl text-ember">{fmtPace(run.sec / Math.max(run.km, .01))}</div><div className="text-[10px] text-white/40 mt-0.5">דק'/ק"מ</div></div>
             <div className="bg-black/25 rounded-2xl py-2.5"><div className="font-black text-xl">{fmtDur(run.sec)}</div><div className="text-[10px] text-white/40 mt-0.5">זמן</div></div>
           </div>
+          {run.splits && run.splits.length > 0 && (
+            <React.Fragment>
+              <div className="text-[10px] font-bold text-white/40 mt-3 mb-1">ספליטים</div>
+              <SplitsList splits={run.splits}/>
+            </React.Fragment>
+          )}
           <div className="flex gap-2 mt-3">
             <button onClick={startEdit} className="flex-1 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/80 font-bold text-sm flex items-center justify-center gap-2 active:scale-[.98] transition">
               <Icon d={I.pencil} className="w-4 h-4 text-volt"/> ערוך ריצה
@@ -1450,9 +1570,10 @@ function RunChart({ runs }){
 function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
   const todayISO = toISO(new Date());
   const inWeek = todayISO >= week && todayISO <= addDays(week, 6);
-  const [f, setF] = useState({ title:'', km:'', dur:'', date: inWeek ? todayISO : week });
+  const [f, setF] = useState({ title:'', km:'', dur:'', date: inWeek ? todayISO : week, type:'', splits:[] });
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [openSplits, setOpenSplits] = useState(null);
   useEffect(() => { if (!editing) setF(x => Object.assign({}, x, { date: (todayISO >= week && todayISO <= addDays(week, 6)) ? todayISO : week })); }, [week]);
 
   const all = useMemo(() => state.runs.slice().sort((a, b) => a.date < b.date ? 1 : -1), [state.runs]);
@@ -1462,31 +1583,32 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
   const avgPace = totKm > 0 ? totSec / totKm : 0;
   const bestPace = state.runs.length ? Math.min.apply(null, state.runs.map(r => r.sec / Math.max(r.km, .01))) : 0;
 
-  const kmNum = numOr0(f.km), secNum = parseDur(f.dur);
+  const eff = (numOr0(f.km) > 0 || parseDur(f.dur) > 0) ? { km: numOr0(f.km), sec: parseDur(f.dur) } : sumSplits(f.splits);
+  const pickStyle = st => setF(x => {
+    const isDefaultTitle = !x.title || RUN_STYLES.some(s => s.title === x.title);
+    return Object.assign({}, x, { type: st.id, title: isDefaultTitle ? st.title : x.title });
+  });
+  const resetForm = () => setF({ title:'', km:'', dur:'', date: (todayISO >= week && todayISO <= addDays(week, 6)) ? todayISO : week, type:'', splits:[] });
   const saveRun = () => {
-    if (!(kmNum > 0)) { alert('הכנס מרחק בק"מ (למשל 5.0)'); return; }
-    if (!(secNum > 0)) { alert('הכנס זמן ריצה (למשל 30:00)'); return; }
+    if (!(eff.km > 0)) { alert('הכנס מרחק בק"מ (או הוסף ספליטים)'); return; }
+    if (!(eff.sec > 0)) { alert('הכנס זמן ריצה (או הוסף ספליטים)'); return; }
     if (!f.date) { alert('בחר תאריך'); return; }
+    const sp = (f.splits || []).map(s => ({ km: numOr0(s.km), sec: parseDur(s.dur) })).filter(s => s.km > 0 && s.sec > 0);
+    const patch = { title: (f.title.trim() || (styleOf(f.type) || {}).title || 'ריצה'), km: eff.km, sec: eff.sec, date: f.date, type: f.type || '', splits: sp };
     if (editing) {
-      mutate(d => {
-        const r = d.runs.find(x => x.id === editing);
-        if (r) { r.title = f.title.trim() || r.title || 'ריצה'; r.km = kmNum; r.sec = secNum; r.date = f.date; r.updatedAt = Date.now(); }
-      });
+      mutate(d => { const r = d.runs.find(x => x.id === editing); if (r) Object.assign(r, patch, { updatedAt: Date.now() }); });
       setEditing(null);
     } else {
-      mutate(d => { d.runs.unshift({ id: uid(), date: f.date, title: f.title.trim() || 'ריצה', km: kmNum, sec: secNum, updatedAt: Date.now() }); });
+      mutate(d => { d.runs.unshift(Object.assign({ id: uid() }, patch, { updatedAt: Date.now() })); });
     }
-    setF({ title:'', km:'', dur:'', date: f.date });
+    resetForm();
   };
   const startEdit = r => {
     setEditing(r.id);
-    setF({ title: r.title, km: String(r.km), dur: fmtDur(r.sec), date: r.date });
+    setF({ title: r.title, km: String(r.km), dur: fmtDur(r.sec), date: r.date, type: r.type || '', splits: (r.splits || []).map(s => ({ km: String(s.km), dur: fmtDur(s.sec) })) });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const cancelEdit = () => {
-    setEditing(null);
-    setF({ title:'', km:'', dur:'', date: inWeek ? todayISO : week });
-  };
+  const cancelEdit = () => { setEditing(null); resetForm(); };
   const delRun = r => {
     if (!confirm('למחוק את "' + r.title + '" (' + r.km + ' ק"מ)? אפשר גם לערוך במקום למחוק — כפתור העיפרון.')) return;
     if (editing === r.id) cancelEdit();
@@ -1500,33 +1622,48 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
     </div>
   );
 
-  const RunRow = ({ r }) => (
-    <div className="glass rounded-2xl p-3 flex items-center gap-3">
-      <div className={'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ' + (r.src === 'strava' ? 'bg-strava/15 text-strava' : 'bg-ember/15 text-ember')}>
-        <Icon d={I.activity} className="w-4 h-4"/>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-bold text-sm truncate">{r.title}</span>
-          {r.src === 'strava' && <span className="text-[8px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-1.5 py-0.5 shrink-0">STRAVA</span>}
+  const RunRow = ({ r }) => {
+    const st = styleOf(r.type);
+    const hasSplits = r.splits && r.splits.length > 0;
+    const isOpen = openSplits === r.id;
+    return (
+      <div className="glass rounded-2xl p-3">
+        <div className="flex items-center gap-3">
+          <div className={'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base ' + (r.src === 'strava' ? 'bg-strava/15 text-strava' : 'bg-ember/15 text-ember')}>
+            {st ? st.emoji : <Icon d={I.activity} className="w-4 h-4"/>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-sm truncate">{r.title}</span>
+              {r.src === 'strava' && <span className="text-[8px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-1.5 py-0.5 shrink-0">STRAVA</span>}
+            </div>
+            <div className="text-[10px] text-white/40 flex items-center gap-1.5">
+              {heDate(r.date)}
+              {hasSplits && (
+                <button onClick={() => setOpenSplits(isOpen ? null : r.id)} className="text-volt font-bold inline-flex items-center gap-0.5 active:scale-95 transition">
+                  · ⏱️ {r.splits.length} ספליטים <Icon d={isOpen ? I.chevUp : I.chevDown} className="w-3 h-3"/>
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-3 text-center shrink-0">
+            <div><div className="font-black text-volt text-sm">{r.km}</div><div className="text-[8px] text-white/40">ק"מ</div></div>
+            <div><div className="font-black text-ember text-sm">{fmtPace(r.sec / Math.max(r.km, .01))}</div><div className="text-[8px] text-white/40">קצב</div></div>
+            <div><div className="font-black text-sm">{fmtDur(r.sec)}</div><div className="text-[8px] text-white/40">זמן</div></div>
+          </div>
+          <div className="flex flex-col gap-1 shrink-0">
+            <button onClick={() => startEdit(r)} className="w-8 h-7 rounded-lg text-volt/60 bg-volt/5 flex items-center justify-center active:scale-90 transition">
+              <Icon d={I.pencil} className="w-3.5 h-3.5"/>
+            </button>
+            <button onClick={() => delRun(r)} className="w-8 h-7 rounded-lg text-white/25 flex items-center justify-center active:scale-90 transition">
+              <Icon d={I.trash} className="w-3.5 h-3.5"/>
+            </button>
+          </div>
         </div>
-        <div className="text-[10px] text-white/40">{heDate(r.date)}</div>
+        {hasSplits && isOpen && <SplitsList splits={r.splits}/>}
       </div>
-      <div className="flex gap-3 text-center shrink-0">
-        <div><div className="font-black text-volt text-sm">{r.km}</div><div className="text-[8px] text-white/40">ק"מ</div></div>
-        <div><div className="font-black text-ember text-sm">{fmtPace(r.sec / Math.max(r.km, .01))}</div><div className="text-[8px] text-white/40">קצב</div></div>
-        <div><div className="font-black text-sm">{fmtDur(r.sec)}</div><div className="text-[8px] text-white/40">זמן</div></div>
-      </div>
-      <div className="flex flex-col gap-1 shrink-0">
-        <button onClick={() => startEdit(r)} className="w-8 h-7 rounded-lg text-volt/60 bg-volt/5 flex items-center justify-center active:scale-90 transition">
-          <Icon d={I.pencil} className="w-3.5 h-3.5"/>
-        </button>
-        <button onClick={() => delRun(r)} className="w-8 h-7 rounded-lg text-white/25 flex items-center justify-center active:scale-90 transition">
-          <Icon d={I.trash} className="w-3.5 h-3.5"/>
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="fadein space-y-3">
@@ -1545,7 +1682,8 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
             <button onClick={onOpenSettings} className="text-[10px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-2.5 py-1 active:scale-95 transition">חבר STRAVA</button>
           ))}
         </div>
-        <input className="inp" placeholder="כותרת (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
+        <div><label className="lbl">סגנון ריצה</label><StylePills value={f.type} onPick={pickStyle}/></div>
+        <input className="inp" placeholder="שם הריצה (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
         <div className="grid grid-cols-3 gap-2">
           <div><label className="lbl">מרחק (ק"מ)</label>
             <input className="inp text-center font-bold" inputMode="decimal" placeholder="5.0" value={f.km} onChange={e => setF({ ...f, km: e.target.value })}/></div>
@@ -1554,9 +1692,11 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
           <div><label className="lbl">תאריך</label>
             <input type="date" className="inp text-center" value={f.date} onChange={e => setF({ ...f, date: e.target.value })}/></div>
         </div>
+        <SplitsEditor splits={f.splits} setSplits={sp => setF(x => Object.assign({}, x, { splits: sp }))}
+                      onApplySum={sum => setF(x => Object.assign({}, x, { km: sum.km ? String(sum.km) : x.km, dur: sum.sec ? fmtDur(sum.sec) : x.dur }))}/>
         <div className="flex items-center justify-between bg-black/25 rounded-2xl px-4 py-2.5 border border-white/5">
           <span className="text-xs text-white/40">קצב מחושב</span>
-          <span className="font-black text-xl text-volt text-glow">{(kmNum > 0 && secNum > 0) ? fmtPace(secNum / kmNum) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
+          <span className="font-black text-xl text-volt text-glow">{(eff.km > 0 && eff.sec > 0) ? fmtPace(eff.sec / eff.km) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
         </div>
         <button onClick={saveRun}
                 className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">
