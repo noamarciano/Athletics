@@ -2221,7 +2221,6 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   const [scanning, setScanning] = useState(false);
   const [scanErr, setScanErr] = useState('');
   const [bcManual, setBcManual] = useState('');
-  const scanRef = useRef(null);
   const [nf, setNf] = useState({ name:'', per:'unit', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc:'' });
   const cat = foodCatalog(state);
   const list = q.trim() ? cat.filter(fd => fd.name.indexOf(q.trim()) !== -1) : cat;
@@ -2232,6 +2231,11 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   const [toast, setToast] = useState(null);
   const [showManual, setShowManual] = useState(false);
   const [lookup, setLookup] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const readerRef = useRef(null);
+  const photoRef = useRef(null);
   const handledRef = useRef(false);
   const audioRef = useRef(null);
   const toastTimer = useRef(null);
@@ -2241,14 +2245,20 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     toastTimer.current = setTimeout(() => setToast(null), 2400);
   };
   const stopScan = () => {
-    const h = scanRef.current;
-    scanRef.current = null;
-    if (h) { try { h.stop().then(() => { try { h.clear(); } catch (e) {} }).catch(() => {}); } catch (e) {} }
+    try { if (readerRef.current) readerRef.current.reset(); } catch (e) {}
+    readerRef.current = null;
+    const st = streamRef.current;
+    streamRef.current = null;
+    if (st) { try { st.getTracks().forEach(t => t.stop()); } catch (e) {} }
+    const v = videoRef.current;
+    if (v) { try { v.pause(); v.srcObject = null; } catch (e) {} }
     setScanning(false);
   };
   useEffect(() => () => {
     clearTimeout(toastTimer.current);
-    const h = scanRef.current; if (h) { try { h.stop().catch(() => {}); } catch (e) {} }
+    try { if (readerRef.current) readerRef.current.reset(); } catch (e) {}
+    const st = streamRef.current;
+    if (st) { try { st.getTracks().forEach(t => t.stop()); } catch (e) {} }
   }, []);
   const close = () => { stopScan(); onClose(); };
   /* beep + haptic the instant a barcode pattern is read (audio pre-unlocked on
@@ -2302,12 +2312,43 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     }
   };
   const loadScanner = () => new Promise((res, rej) => {
-    if (window.Html5Qrcode) return res();
+    if (window.ZXing) return res();
     const sc = document.createElement('script');
-    sc.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+    sc.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
     sc.onload = res; sc.onerror = () => rej(new Error('scanner load failed'));
     document.head.appendChild(sc);
   });
+  /* one reader config for both the live stream and the still-photo fallback */
+  const makeReader = () => {
+    const Z = window.ZXing, F = Z.BarcodeFormat, hints = new Map();
+    hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF]);
+    hints.set(Z.DecodeHintType.TRY_HARDER, true);
+    return new Z.BrowserMultiFormatReader(hints, 250);
+  };
+  /* decode a photo the user took/picked — iOS supports this 100% of the time
+     even when live getUserMedia is blocked */
+  const onPhoto = async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    stopScan(); setScanErr(''); setPhotoBusy(true);
+    let url = null;
+    try {
+      await loadScanner();
+      url = URL.createObjectURL(file);
+      const result = await makeReader().decodeFromImageUrl(url);
+      const txt = result && result.getText ? String(result.getText()).trim() : '';
+      if (!txt) throw new Error('empty');
+      setPhotoBusy(false);
+      handleCode(txt);
+    } catch (err) {
+      setPhotoBusy(false);
+      setShowManual(true);
+      setScanErr('לא זוהה ברקוד בתמונה — נסה שוב מקרוב וביישור, או הזן את המספר ידנית:');
+    } finally {
+      if (url) setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e2) {} }, 3000);
+    }
+  };
   const startScan = async () => {
     setScanErr(''); setScanning(true);
     /* unlock audio inside the user gesture so the read-beep works on iOS */
@@ -2315,38 +2356,53 @@ function FoodPicker({ state, mutate, onPick, onClose }){
       if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)();
       if (audioRef.current.state === 'suspended') audioRef.current.resume();
     } catch (e) {}
+    /* let the scanner frame paint before touching the camera, so the video
+       element definitely exists (rAF is throttled in background tabs — race it
+       against a timer so this can never hang) */
+    await new Promise(r => {
+      let done = false;
+      const go = () => { if (!done) { done = true; r(); } };
+      try { requestAnimationFrame(() => setTimeout(go, 0)); } catch (e) {}
+      setTimeout(go, 120);
+    });
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no mediaDevices');
       await loadScanner();
-      await new Promise(r => setTimeout(r, 80));
-      const F = window.Html5QrcodeSupportedFormats;
-      const opts = F ? { verbose: false, formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_39, F.CODE_128, F.ITF] } : { verbose: false };
-      const h = new window.Html5Qrcode('bc-scan-box', opts);
-      scanRef.current = h;
-      const cfg = {
-        fps: 20,
-        /* wide, short window — product barcodes are long and flat */
-        qrbox: (vw, vh) => ({ width: Math.floor(Math.min(vw, 420) * 0.88), height: Math.max(120, Math.min(190, Math.floor(vh * 0.42))) }),
-        disableFlip: true,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-      };
-      /* iOS Safari rejects hard `exact` facingMode on many devices — always try
-         soft constraints first, then degrade all the way to any camera */
-      const attempts = [
-        { facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        { facingMode:'environment' },
-        { width: { ideal: 1280 }, height: { ideal: 720 } },
-        true
+      for (let i = 0; i < 40 && !videoRef.current; i++) await new Promise(r => setTimeout(r, 50));
+      const v = videoRef.current;
+      if (!v) throw new Error('no video element');
+      /* iOS Safari refuses to render a live camera stream without these */
+      v.setAttribute('playsinline', 'true');
+      v.setAttribute('webkit-playsinline', 'true');
+      v.setAttribute('autoplay', 'true');
+      v.setAttribute('muted', 'true');
+      v.playsInline = true; v.muted = true; v.autoplay = true;
+
+      /* soft constraints first, degrading to literally any camera */
+      const ladder = [
+        { video: { facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        { video: { facingMode:'environment' }, audio: false },
+        { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        { video: true, audio: false }
       ];
-      let started = false, lastErr = null;
-      for (let i = 0; i < attempts.length && !started; i++) {
-        try {
-          await h.start(attempts[i], cfg, txt => { handleCode(String(txt).trim()); }, () => {});
-          started = true;
-        } catch (e) { lastErr = e; }
+      let stream = null, lastErr = null;
+      for (let i = 0; i < ladder.length && !stream; i++) {
+        try { stream = await navigator.mediaDevices.getUserMedia(ladder[i]); } catch (err) { lastErr = err; }
       }
-      if (!started) throw (lastErr || new Error('camera start failed'));
-      /* keep continuous autofocus on so a product held ~15-20cm away locks in */
-      try { await h.applyVideoConstraints({ advanced: [{ focusMode:'continuous' }] }); } catch (e) {}
+      if (!stream) throw (lastErr || new Error('getUserMedia failed'));
+      streamRef.current = stream;
+      v.srcObject = stream;
+      try { await v.play(); } catch (e) {}
+      /* continuous autofocus so a product held ~15-20cm away locks in */
+      try {
+        const tr = stream.getVideoTracks()[0];
+        if (tr && tr.applyConstraints) await tr.applyConstraints({ advanced: [{ focusMode:'continuous' }] });
+      } catch (e) {}
+
+      const reader = makeReader();
+      readerRef.current = reader;
+      reader.decodeFromStream(stream, v, result => { if (result) handleCode(String(result.getText()).trim()); })
+            .catch(() => {}); /* resolves only when scanning stops */
     } catch (e) {
       stopScan();
       setShowManual(true);
@@ -2374,6 +2430,14 @@ function FoodPicker({ state, mutate, onPick, onClose }){
           <div className="font-black italic">הוספת מאכל 🍽️</div>
           <button onClick={close} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60"><Icon d={I.x} className="w-4 h-4"/></button>
         </div>
+        {/* native camera/gallery capture — always mounted so both views can use it */}
+        <input ref={photoRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto}/>
+        {photoBusy && (
+          <div className="flex items-center justify-center gap-2 py-3 fadein">
+            <Icon d={I.refresh} className="w-5 h-5 text-volt spin"/>
+            <span className="text-sm font-bold text-white/60">מפענח את התמונה…</span>
+          </div>
+        )}
         {toast && (
           <div className={'rounded-2xl px-3.5 py-2.5 text-sm font-black text-center fadein border ' +
             (toast.kind === 'ok' ? 'bg-volt/15 text-volt border-volt/40 glow-volt'
@@ -2390,7 +2454,8 @@ function FoodPicker({ state, mutate, onPick, onClose }){
         {scanning && (
           <div className="space-y-2 fadein">
             <div className="relative rounded-2xl overflow-hidden border border-volt/30" style={{ background:'#000' }}>
-              <div id="bc-scan-box" style={{ minHeight:'260px' }}></div>
+              <video ref={videoRef} playsInline autoPlay muted
+                     style={{ width:'100%', height:'280px', objectFit:'cover', display:'block', background:'#000' }}></video>
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="relative" style={{ width:'82%', height:'150px' }}>
                   <span className="absolute top-0 start-0 w-7 h-7 border-t-2 border-s-2 border-volt"></span>
@@ -2402,6 +2467,7 @@ function FoodPicker({ state, mutate, onPick, onClose }){
               </div>
             </div>
             <div className="text-center text-[10px] text-white/40">יישר את הברקוד בתוך המסגרת — הזיהוי אוטומטי, תרגיש רטט/ביפ 📳</div>
+            <button onClick={() => photoRef.current && photoRef.current.click()} className="w-full py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt font-bold text-sm active:scale-[.98] transition">📸 צלם תמונה של הברקוד</button>
             <div className="flex gap-2">
               <button onClick={() => { stopScan(); setShowManual(true); }} className="flex-1 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 font-bold text-sm active:scale-[.98] transition">⌨️ הזן ברקוד ידנית</button>
               <button onClick={stopScan} className="px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/50 font-bold text-sm active:scale-[.98] transition">בטל ✕</button>
@@ -2414,6 +2480,7 @@ function FoodPicker({ state, mutate, onPick, onClose }){
               <input className="inp flex-1 min-w-0" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
               <button onClick={startScan} className="px-3 rounded-xl bg-volt/10 border border-volt/30 text-volt font-bold text-sm shrink-0 flex items-center gap-1 active:scale-95 transition whitespace-nowrap">📷 סרוק ברקוד</button>
             </div>
+            <button onClick={() => photoRef.current && photoRef.current.click()} className="w-full py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-[.98] transition">📸 צלם תמונה / בחר תמונה של הברקוד</button>
             <div className="flex gap-2">
               <button onClick={() => setShowManual(!showManual)} className={'flex-1 py-2.5 rounded-2xl border text-sm font-bold active:scale-[.98] transition ' + (showManual ? 'bg-sky-400/10 text-sky-300 border-sky-400/30' : 'bg-white/5 text-white/60 border-white/10')}>⌨️ הזן ברקוד ידנית</button>
               <button onClick={() => setCreating(true)} className="flex-1 py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי</button>
