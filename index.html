@@ -2254,11 +2254,15 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     if (v) { try { v.pause(); v.srcObject = null; } catch (e) {} }
     setScanning(false);
   };
-  useEffect(() => () => {
-    clearTimeout(toastTimer.current);
-    try { if (readerRef.current) readerRef.current.reset(); } catch (e) {}
-    const st = streamRef.current;
-    if (st) { try { st.getTracks().forEach(t => t.stop()); } catch (e) {} }
+  useEffect(() => {
+    /* warm the decoder up front so it never delays the camera later */
+    loadScanner().catch(() => {});
+    return () => {
+      clearTimeout(toastTimer.current);
+      try { if (readerRef.current) readerRef.current.reset(); } catch (e) {}
+      const st = streamRef.current;
+      if (st) { try { st.getTracks().forEach(t => t.stop()); } catch (e) {} }
+    };
   }, []);
   const close = () => { stopScan(); onClose(); };
   /* beep + haptic the instant a barcode pattern is read (audio pre-unlocked on
@@ -2349,26 +2353,45 @@ function FoodPicker({ state, mutate, onPick, onClose }){
       if (url) setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e2) {} }, 3000);
     }
   };
-  const startScan = async () => {
-    setScanErr(''); setScanning(true);
+  /* NOT async on purpose — see the getUserMedia note below */
+  const startScan = () => {
+    setScanErr('');
     /* unlock audio inside the user gesture so the read-beep works on iOS */
     try {
       if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)();
       if (audioRef.current.state === 'suspended') audioRef.current.resume();
     } catch (e) {}
-    /* let the scanner frame paint before touching the camera, so the video
-       element definitely exists (rAF is throttled in background tabs — race it
-       against a timer so this can never hang) */
-    await new Promise(r => {
-      let done = false;
-      const go = () => { if (!done) { done = true; r(); } };
-      try { requestAnimationFrame(() => setTimeout(go, 0)); } catch (e) {}
-      setTimeout(go, 120);
-    });
+
+    /* ⚠️ iOS Safari: getUserMedia MUST be invoked synchronously in the click
+       stack — any await first (script load, rAF, timer) strips user activation
+       and the request is silently blocked. So we fire it *now* and await later.
+       Dimensions are left unconstrained: on multi-lens iPhones an ideal
+       width/height alongside facingMode can trigger OverconstrainedError. */
+    let gum = null;
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no mediaDevices');
-      await loadScanner();
-      for (let i = 0; i < 40 && !videoRef.current; i++) await new Promise(r => setTimeout(r, 50));
+      gum = navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    } catch (e) {
+      setShowManual(true);
+      setScanErr('המצלמה לא זמינה בדפדפן הזה — צלם תמונה של הברקוד או הזן אותו ידנית:');
+      return;
+    }
+    setScanning(true);
+    gum.then(attachStream).catch(() => {
+      /* permission has already been resolved by now, so a looser retry is safe */
+      navigator.mediaDevices.getUserMedia({ video: true }).then(attachStream).catch(() => {
+        stopScan();
+        setShowManual(true);
+        setScanErr('לא הצלחתי לפתוח את המצלמה — בדוק הרשאת מצלמה, צלם תמונה, או הזן ידנית:');
+      });
+    });
+  };
+  /* everything that can safely happen *after* the gesture: mount checks,
+     attaching the stream to our video element, and loading the decoder */
+  const attachStream = async stream => {
+    try {
+      streamRef.current = stream;
+      for (let i = 0; i < 60 && !videoRef.current; i++) await new Promise(r => setTimeout(r, 30));
       const v = videoRef.current;
       if (!v) throw new Error('no video element');
       /* iOS Safari refuses to render a live camera stream without these */
@@ -2377,20 +2400,6 @@ function FoodPicker({ state, mutate, onPick, onClose }){
       v.setAttribute('autoplay', 'true');
       v.setAttribute('muted', 'true');
       v.playsInline = true; v.muted = true; v.autoplay = true;
-
-      /* soft constraints first, degrading to literally any camera */
-      const ladder = [
-        { video: { facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-        { video: { facingMode:'environment' }, audio: false },
-        { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-        { video: true, audio: false }
-      ];
-      let stream = null, lastErr = null;
-      for (let i = 0; i < ladder.length && !stream; i++) {
-        try { stream = await navigator.mediaDevices.getUserMedia(ladder[i]); } catch (err) { lastErr = err; }
-      }
-      if (!stream) throw (lastErr || new Error('getUserMedia failed'));
-      streamRef.current = stream;
       v.srcObject = stream;
       try { await v.play(); } catch (e) {}
       /* continuous autofocus so a product held ~15-20cm away locks in */
@@ -2398,7 +2407,8 @@ function FoodPicker({ state, mutate, onPick, onClose }){
         const tr = stream.getVideoTracks()[0];
         if (tr && tr.applyConstraints) await tr.applyConstraints({ advanced: [{ focusMode:'continuous' }] });
       } catch (e) {}
-
+      await loadScanner();
+      if (!streamRef.current) return; /* user cancelled while loading */
       const reader = makeReader();
       readerRef.current = reader;
       reader.decodeFromStream(stream, v, result => { if (result) handleCode(String(result.getText()).trim()); })
@@ -2406,7 +2416,7 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     } catch (e) {
       stopScan();
       setShowManual(true);
-      setScanErr('לא הצלחתי לפתוח את המצלמה — בדוק הרשאת מצלמה, או הזן את הברקוד ידנית למטה:');
+      setScanErr('לא הצלחתי להפעיל את הווידאו — צלם תמונה של הברקוד או הזן ידנית:');
     }
   };
 
