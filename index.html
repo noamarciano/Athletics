@@ -196,6 +196,230 @@ const FOOD_DB = [
   { id:'f_tahini',       name:'טחינה גולמית (כף)',       per:'unit', unitName:'כף',      kcal:89,  p:2.6,  c:3.2, f:8 },
   { id:'f_hummus',       name:'חומוס מוכן',              per:'100g',                     kcal:166, p:8,    c:14,  f:9.6 },
   { id:'f_dark_choc',    name:'שוקולד מריר (קובייה)',    per:'unit', unitName:'קובייה',  kcal:32,  p:0.4,  c:2.8, f:2.2 },
+  /* --- בשר, עוף ודגים --- */
+  { id:'f_chicken_thigh', name:'שוקיים עוף (מבושל)', per:'100g', kcal:209, p:26, c:0, f:11 },
+  { id:'f_chicken_wings', name:'כנפיים עוף', per:'100g', kcal:266, p:25, c:0, f:18 },
+  { id:'f_turkey_breast', name:'חזה הודו', per:'100g', kcal:135, p:29, c:0, f:1.7 },
+  { id:'f_turkey_ground', name:'הודו טחון רזה', per:'100g', kcal:150, p:28, c:0, f:4 },
+  { id:'f_schnitzel', name:'שניצל עוף מטוגן', per:'100g', kcal:250, p:18, c:15, f:13 },
+  { id:'f_shawarma_pan', name:'שווארמה עוף (מחבת)', per:'100g', kcal:180, p:26, c:1, f:8 },
+  { id:'f_entrecote', name:'אנטריקוט', per:'100g', kcal:250, p:26, c:0, f:16 },
+  { id:'f_sinta', name:'סינטה', per:'100g', kcal:200, p:28, c:0, f:9.5 },
+  { id:'f_beef_fillet', name:'פילה בקר', per:'100g', kcal:190, p:28, c:0, f:8 },
+  { id:'f_beef20', name:'בשר טחון 20%', per:'100g', kcal:254, p:17, c:0, f:20 },
+  { id:'f_lamb', name:'טלה', per:'100g', kcal:282, p:25, c:0, f:20 },
+  { id:'f_kebab', name:'קבב (יחידה)', per:'unit', unitName:'יחידה', kcal:250, p:14, c:3, f:20 },
+  { id:'f_chicken_liver', name:'כבד עוף (מבושל)', per:'100g', kcal:167, p:24.5, c:0.9, f:6.5 },
+  { id:'f_hotdog', name:'נקניקיית עוף', per:'unit', unitName:'יחידה', kcal:120, p:6, c:2, f:9 },
+  { id:'f_pastrami', name:'פסטרמה הודו (פרוסה)', per:'unit', unitName:'פרוסה', kcal:25, p:4.5, c:0.5, f:0.5 },
+  { id:'f_tuna_oil', name:'טונה בשמן (קופסה מסוננת)', per:'unit', unitName:'קופסה', kcal:150, p:20, c:0, f:8 },
+  { id:'f_tuna_fresh', name:'טונה טרייה', per:'100g', kcal:132, p:28, c:0, f:1.3 },
+  { id:'f_cod', name:'בקלה', per:'100g', kcal:82, p:18, c:0, f:0.7 },
+  { id:'f_lavrak', name:'לברק', per:'100g', kcal:124, p:23, c:0, f:3.5 },
+  { id:'f_musar', name:'מוסר ים', per:'100g', kcal:110, p:22, c:0, f:2.5 },
+  { id:'f_salmon_smoked', name:'סלמון מעושן', per:'100g', kcal:117, p:18, c:0, f:4.5 },
+  { id:'f_sardines', name:'סרדינים בשמן (קופסה)', per:'unit', unitName:'קופסה', kcal:190, p:22, c:0, f:11 },
+  { id:'f_herring', name:'הרינג/מטיאס', per:'100g', kcal:262, p:14, c:3, f:22 },
+  { id:'f_tofu', name:'טופו', per:'100g', kcal:76, p:8, c:1.9, f:4.8 },
+  { id:'f_seitan', name:'סייטן', per:'100g', kcal:120, p:21, c:4, f:2 },
+  { id:'f_soy_chunks', name:'נתחי סויה (מבושל)', per:'100g', kcal:130, p:15, c:8, f:4 },
+  { id:'f_edamame', name:'אדממה', per:'100g', kcal:121, p:11, c:9, f:5 },
+  { id:'f_lentils', name:'עדשים מבושלות', per:'100g', kcal:116, p:9, c:20, f:0.4 },
+  { id:'f_chickpeas', name:'גרגירי חומוס מבושלים', per:'100g', kcal:164, p:9, c:27, f:2.6 },
+  { id:'f_white_beans', name:'שעועית לבנה מבושלת', per:'100g', kcal:139, p:9.7, c:25, f:0.4 },
+  { id:'f_egg_liquid', name:'חלבון ביצים נוזלי (100 מ"ל)', per:'100g', kcal:48, p:10, c:0.7, f:0.2 },
+  /* --- מוצרי חלב --- */
+  { id:'f_cottage1', name:"קוטג' 1%", per:'100g', kcal:72, p:12, c:3.5, f:1 },
+  { id:'f_cottage3', name:"קוטג' 3%", per:'100g', kcal:84, p:11, c:3.5, f:3 },
+  { id:'f_white0', name:'גבינה לבנה 0%', per:'100g', kcal:60, p:12, c:3.5, f:0 },
+  { id:'f_white3', name:'גבינה לבנה 3%', per:'100g', kcal:80, p:11, c:3.5, f:3 },
+  { id:'f_white9', name:'גבינה לבנה 9%', per:'100g', kcal:116, p:10, c:3.5, f:9 },
+  { id:'f_yellow22', name:'גבינה צהובה 22% (פרוסה)', per:'unit', unitName:'פרוסה', kcal:78, p:5.5, c:0.5, f:6 },
+  { id:'f_yellow28', name:'גבינה צהובה 28% (פרוסה)', per:'unit', unitName:'פרוסה', kcal:90, p:5, c:0.5, f:7.5 },
+  { id:'f_bulgarit5', name:'בולגרית 5%', per:'100g', kcal:85, p:12, c:3, f:2.5 },
+  { id:'f_bulgarit16', name:'בולגרית 16%', per:'100g', kcal:195, p:13, c:2, f:15 },
+  { id:'f_bulgarit24', name:'בולגרית 24%', per:'100g', kcal:250, p:12, c:2, f:22 },
+  { id:'f_feta', name:'פטה כבשים', per:'100g', kcal:264, p:14, c:4, f:21 },
+  { id:'f_mozzarella', name:'מוצרלה', per:'100g', kcal:280, p:22, c:2.2, f:21 },
+  { id:'f_ricotta', name:'ריקוטה', per:'100g', kcal:174, p:11, c:3, f:13 },
+  { id:'f_cream_cheese', name:'גבינת שמנת לממרח', per:'100g', kcal:250, p:5.5, c:4, f:24 },
+  { id:'f_labane', name:'לאבנה 5%', per:'100g', kcal:90, p:8, c:4, f:5 },
+  { id:'f_yogurt15', name:'יוגורט 1.5% (גביע)', per:'unit', unitName:'גביע', kcal:75, p:6, c:7, f:2.3 },
+  { id:'f_yogurt3', name:'יוגורט 3% (גביע)', per:'unit', unitName:'גביע', kcal:95, p:6, c:7, f:4.5 },
+  { id:'f_greek0', name:'יוגורט יווני 0%', per:'100g', kcal:57, p:10, c:4, f:0.2 },
+  { id:'f_greek5', name:'יוגורט יווני 5%', per:'100g', kcal:85, p:9, c:4, f:5 },
+  { id:'f_greek10', name:'יוגורט יווני 10%', per:'100g', kcal:130, p:8, c:4, f:10 },
+  { id:'f_skyr', name:'סקיר (גביע)', per:'unit', unitName:'גביע', kcal:100, p:17, c:7, f:0.2 },
+  { id:'f_go_pudding', name:'מעדן GO חלבון', per:'unit', unitName:'מעדן', kcal:149, p:20, c:12, f:2 },
+  { id:'f_muller', name:'מולר חלבון', per:'unit', unitName:'גביע', kcal:155, p:20, c:15, f:1.5 },
+  { id:'f_milk1', name:'חלב 1% (כוס)', per:'unit', unitName:'כוס', kcal:105, p:8, c:12, f:2.5 },
+  { id:'f_milk3', name:'חלב 3% (כוס)', per:'unit', unitName:'כוס', kcal:146, p:8, c:12, f:7.8 },
+  { id:'f_soy_milk', name:'חלב סויה (כוס)', per:'unit', unitName:'כוס', kcal:90, p:7, c:4, f:4.5 },
+  { id:'f_almond_milk', name:'חלב שקדים (כוס)', per:'unit', unitName:'כוס', kcal:39, p:1, c:3.4, f:2.5 },
+  { id:'f_oat_milk', name:'חלב שיבולת שועל (כוס)', per:'unit', unitName:'כוס', kcal:120, p:3, c:16, f:5 },
+  { id:'f_choco_drink', name:'שוקו (כוס)', per:'unit', unitName:'כוס', kcal:160, p:6, c:26, f:3.5 },
+  { id:'f_casein', name:'קזאין (סקופ)', per:'unit', unitName:'סקופ', kcal:120, p:24, c:3.5, f:1 },
+  { id:'f_isolate', name:'איזולט (סקופ)', per:'unit', unitName:'סקופ', kcal:110, p:26, c:1, f:0.5 },
+  { id:'f_vegan_protein', name:'חלבון צמחי (סקופ)', per:'unit', unitName:'סקופ', kcal:120, p:21, c:5, f:2.5 },
+  /* --- פחמימות, לחמים ודגנים --- */
+  { id:'f_pita_reg', name:'פיתה רגילה', per:'unit', unitName:'פיתה', kcal:240, p:8, c:48, f:1.5 },
+  { id:'f_pita_whole', name:'פיתה מחיטה מלאה', per:'unit', unitName:'פיתה', kcal:220, p:9, c:42, f:2 },
+  { id:'f_lafa', name:'לאפה', per:'unit', unitName:'לאפה', kcal:330, p:10, c:64, f:3.5 },
+  { id:'f_tortilla', name:'טורטייה', per:'unit', unitName:'יחידה', kcal:170, p:5, c:28, f:4 },
+  { id:'f_roll', name:'לחמנייה', per:'unit', unitName:'יחידה', kcal:220, p:7, c:42, f:2.5 },
+  { id:'f_bread_white', name:'לחם לבן (פרוסה)', per:'unit', unitName:'פרוסה', kcal:75, p:2.5, c:14, f:1 },
+  { id:'f_bread_rye', name:'לחם שיפון (פרוסה)', per:'unit', unitName:'פרוסה', kcal:78, p:3, c:15, f:1 },
+  { id:'f_bread_light', name:'לחם קל (פרוסה)', per:'unit', unitName:'פרוסה', kcal:45, p:2.5, c:8.5, f:0.5 },
+  { id:'f_bread_spelt', name:'לחם כוסמין (פרוסה)', per:'unit', unitName:'פרוסה', kcal:85, p:3.5, c:16, f:1 },
+  { id:'f_bagel', name:'בייגל אמריקאי', per:'unit', unitName:'יחידה', kcal:260, p:9, c:50, f:1.5 },
+  { id:'f_pretzels', name:'בייגלה שברים', per:'100g', kcal:380, p:9, c:78, f:3.5 },
+  { id:'f_toast_cheese', name:'טוסט גבינה (יחידה)', per:'unit', unitName:'יחידה', kcal:320, p:14, c:30, f:16 },
+  { id:'f_rice_basmati', name:'אורז בסמטי מבושל', per:'100g', kcal:121, p:2.7, c:25.2, f:0.4 },
+  { id:'f_couscous', name:'קוסקוס מבושל', per:'100g', kcal:112, p:3.8, c:23, f:0.2 },
+  { id:'f_bulgur', name:'בורגול מבושל', per:'100g', kcal:83, p:3, c:18.6, f:0.2 },
+  { id:'f_quinoa', name:'קינואה מבושלת', per:'100g', kcal:120, p:4.4, c:21, f:1.9 },
+  { id:'f_buckwheat', name:'כוסמת מבושלת', per:'100g', kcal:92, p:3.4, c:19.9, f:0.6 },
+  { id:'f_ptitim', name:'פתיתים מבושלים', per:'100g', kcal:148, p:5, c:30, f:0.5 },
+  { id:'f_rice_noodles', name:'אטריות אורז מבושלות', per:'100g', kcal:109, p:0.9, c:25, f:0.2 },
+  { id:'f_granola', name:'גרנולה', per:'100g', kcal:471, p:10, c:64, f:20 },
+  { id:'f_cornflakes', name:'קורנפלקס', per:'100g', kcal:378, p:7, c:84, f:0.9 },
+  { id:'f_branflakes', name:'ברנפלקס', per:'100g', kcal:330, p:10, c:67, f:2 },
+  { id:'f_rice_cake', name:'פריכית אורז', per:'unit', unitName:'פריכית', kcal:35, p:0.7, c:7.5, f:0.3 },
+  { id:'f_corn_cake', name:'פריכית תירס', per:'unit', unitName:'פריכית', kcal:32, p:0.7, c:7, f:0.2 },
+  { id:'f_cracker', name:'קרקר', per:'unit', unitName:'יחידה', kcal:35, p:0.7, c:5.5, f:1.1 },
+  { id:'f_corn', name:'תירס גרגירים', per:'100g', kcal:86, p:3.3, c:19, f:1.2 },
+  { id:'f_corn_cob', name:'קלח תירס', per:'unit', unitName:'קלח', kcal:110, p:4, c:25, f:1.5 },
+  { id:'f_peas', name:'אפונה ירוקה', per:'100g', kcal:81, p:5.4, c:14, f:0.4 },
+  { id:'f_majadra', name:"מג'דרה", per:'100g', kcal:130, p:4.5, c:22, f:2.5 },
+  { id:'f_oatmeal_bowl', name:'דייסת שיבולת שועל בחלב (קערה)', per:'unit', unitName:'קערה', kcal:250, p:10, c:38, f:6 },
+  /* --- שומנים, אגוזים וגרעינים --- */
+  { id:'f_canola_tbsp', name:'שמן קנולה (כף)', per:'unit', unitName:'כף', kcal:119, p:0, c:0, f:13.5 },
+  { id:'f_coconut_oil', name:'שמן קוקוס (כף)', per:'unit', unitName:'כף', kcal:117, p:0, c:0, f:13.5 },
+  { id:'f_butter', name:'חמאה (כפית)', per:'unit', unitName:'כפית', kcal:36, p:0, c:0, f:4 },
+  { id:'f_mayo', name:'מיונז (כף)', per:'unit', unitName:'כף', kcal:90, p:0.1, c:0.3, f:10 },
+  { id:'f_peanut_butter', name:'חמאת בוטנים (כף)', per:'unit', unitName:'כף', kcal:94, p:4, c:3.5, f:8 },
+  { id:'f_tahini_ready', name:'טחינה מוכנה (כף)', per:'unit', unitName:'כף', kcal:60, p:1.7, c:2.5, f:5 },
+  { id:'f_cashew', name:'קשיו', per:'100g', kcal:553, p:18, c:30, f:44 },
+  { id:'f_peanuts', name:'בוטנים', per:'100g', kcal:567, p:26, c:16, f:49 },
+  { id:'f_pistachio', name:'פיסטוק קלוף', per:'100g', kcal:560, p:20, c:28, f:45 },
+  { id:'f_hazelnut', name:'אגוזי לוז', per:'100g', kcal:628, p:15, c:17, f:61 },
+  { id:'f_macadamia', name:'מקדמיה', per:'100g', kcal:718, p:8, c:14, f:76 },
+  { id:'f_brazil_nut', name:'אגוז ברזיל', per:'unit', unitName:'אגוז', kcal:33, p:0.7, c:0.6, f:3.3 },
+  { id:'f_sunflower_seeds', name:'גרעיני חמנייה קלופים', per:'100g', kcal:584, p:21, c:20, f:51 },
+  { id:'f_pumpkin_seeds', name:'גרעיני דלעת', per:'100g', kcal:559, p:30, c:11, f:49 },
+  { id:'f_chia', name:"צ'יה (כף)", per:'unit', unitName:'כף', kcal:58, p:2, c:5, f:3.7 },
+  { id:'f_flax', name:'פשתן טחון (כף)', per:'unit', unitName:'כף', kcal:37, p:1.3, c:2, f:3 },
+  { id:'f_olives10', name:'זיתים (10 יחידות)', per:'unit', unitName:'מנה', kcal:45, p:0.3, c:1, f:4.5 },
+  { id:'f_avocado100', name:'אבוקדו', per:'100g', kcal:160, p:2, c:8.5, f:14.7 },
+  /* --- פירות --- */
+  { id:'f_orange', name:'תפוז', per:'unit', unitName:'תפוז', kcal:62, p:1.2, c:15.4, f:0.2 },
+  { id:'f_clementine', name:'קלמנטינה', per:'unit', unitName:'יחידה', kcal:40, p:0.6, c:10, f:0.1 },
+  { id:'f_grapefruit', name:'אשכולית', per:'unit', unitName:'יחידה', kcal:52, p:0.9, c:13, f:0.2 },
+  { id:'f_pear', name:'אגס', per:'unit', unitName:'אגס', kcal:101, p:0.6, c:27, f:0.2 },
+  { id:'f_peach', name:'אפרסק', per:'unit', unitName:'יחידה', kcal:59, p:1.4, c:14, f:0.4 },
+  { id:'f_nectarine', name:'נקטרינה', per:'unit', unitName:'יחידה', kcal:62, p:1.5, c:15, f:0.4 },
+  { id:'f_plum', name:'שזיף', per:'unit', unitName:'יחידה', kcal:30, p:0.5, c:8, f:0.2 },
+  { id:'f_apricot', name:'משמש', per:'unit', unitName:'יחידה', kcal:17, p:0.5, c:3.9, f:0.1 },
+  { id:'f_grapes', name:'ענבים', per:'100g', kcal:69, p:0.7, c:18, f:0.2 },
+  { id:'f_watermelon', name:'אבטיח', per:'100g', kcal:30, p:0.6, c:7.6, f:0.2 },
+  { id:'f_melon', name:'מלון', per:'100g', kcal:34, p:0.8, c:8.2, f:0.2 },
+  { id:'f_mango', name:'מנגו', per:'100g', kcal:60, p:0.8, c:15, f:0.4 },
+  { id:'f_pineapple', name:'אננס', per:'100g', kcal:50, p:0.5, c:13, f:0.1 },
+  { id:'f_kiwi', name:'קיווי', per:'unit', unitName:'יחידה', kcal:42, p:0.8, c:10, f:0.4 },
+  { id:'f_strawberry', name:'תות שדה', per:'100g', kcal:32, p:0.7, c:7.7, f:0.3 },
+  { id:'f_blueberry', name:'אוכמניות', per:'100g', kcal:57, p:0.7, c:14.5, f:0.3 },
+  { id:'f_raspberry', name:'פטל', per:'100g', kcal:52, p:1.2, c:12, f:0.7 },
+  { id:'f_pomegranate', name:'גרעיני רימון', per:'100g', kcal:83, p:1.7, c:19, f:1.2 },
+  { id:'f_date_medjool', name:"תמר מג'הול", per:'unit', unitName:'תמר', kcal:66, p:0.4, c:18, f:0 },
+  { id:'f_fig', name:'תאנה', per:'unit', unitName:'יחידה', kcal:37, p:0.4, c:9.6, f:0.2 },
+  { id:'f_cherries', name:'דובדבנים', per:'100g', kcal:63, p:1.1, c:16, f:0.2 },
+  { id:'f_raisins', name:'צימוקים (כף)', per:'unit', unitName:'כף', kcal:27, p:0.3, c:7.2, f:0 },
+  { id:'f_cranberries', name:'חמוציות מיובשות (כף)', per:'unit', unitName:'כף', kcal:31, p:0, c:8.2, f:0.1 },
+  { id:'f_persimmon', name:'אפרסמון', per:'unit', unitName:'יחידה', kcal:118, p:1, c:31, f:0.3 },
+  /* --- ירקות --- */
+  { id:'f_pepper', name:'פלפל', per:'unit', unitName:'פלפל', kcal:24, p:1, c:6, f:0.2 },
+  { id:'f_carrot', name:'גזר', per:'unit', unitName:'גזר', kcal:25, p:0.6, c:6, f:0.1 },
+  { id:'f_onion', name:'בצל', per:'unit', unitName:'בצל', kcal:44, p:1.2, c:10, f:0.1 },
+  { id:'f_green_onion', name:'בצל ירוק (גבעול)', per:'unit', unitName:'גבעול', kcal:5, p:0.3, c:1, f:0 },
+  { id:'f_garlic', name:'שום (שן)', per:'unit', unitName:'שן', kcal:4, p:0.2, c:1, f:0 },
+  { id:'f_broccoli', name:'ברוקולי', per:'100g', kcal:34, p:2.8, c:7, f:0.4 },
+  { id:'f_cauliflower', name:'כרובית', per:'100g', kcal:25, p:1.9, c:5, f:0.3 },
+  { id:'f_cabbage', name:'כרוב', per:'100g', kcal:25, p:1.3, c:6, f:0.1 },
+  { id:'f_spinach', name:'תרד', per:'100g', kcal:23, p:2.9, c:3.6, f:0.4 },
+  { id:'f_lettuce', name:'חסה', per:'100g', kcal:15, p:1.4, c:2.9, f:0.2 },
+  { id:'f_zucchini', name:'קישוא', per:'100g', kcal:17, p:1.2, c:3.1, f:0.3 },
+  { id:'f_eggplant', name:'חציל', per:'100g', kcal:25, p:1, c:6, f:0.2 },
+  { id:'f_beet', name:'סלק', per:'100g', kcal:43, p:1.6, c:10, f:0.2 },
+  { id:'f_radish', name:'צנונית', per:'unit', unitName:'יחידה', kcal:1, p:0, c:0.2, f:0 },
+  { id:'f_mushrooms', name:'פטריות', per:'100g', kcal:22, p:3.1, c:3.3, f:0.3 },
+  { id:'f_asparagus', name:'אספרגוס', per:'100g', kcal:20, p:2.2, c:3.9, f:0.1 },
+  { id:'f_green_beans', name:'שעועית ירוקה', per:'100g', kcal:31, p:1.8, c:7, f:0.2 },
+  { id:'f_okra', name:'במיה', per:'100g', kcal:33, p:1.9, c:7.5, f:0.2 },
+  { id:'f_celery', name:'סלרי (גבעול)', per:'unit', unitName:'גבעול', kcal:6, p:0.3, c:1.2, f:0.1 },
+  { id:'f_fennel', name:'שומר', per:'100g', kcal:31, p:1.2, c:7.3, f:0.2 },
+  { id:'f_kohlrabi', name:'קולורבי', per:'100g', kcal:27, p:1.7, c:6.2, f:0.1 },
+  { id:'f_pumpkin', name:'דלעת', per:'100g', kcal:26, p:1, c:6.5, f:0.1 },
+  { id:'f_pickle', name:'מלפפון חמוץ', per:'unit', unitName:'יחידה', kcal:8, p:0.3, c:1.5, f:0.1 },
+  /* --- חטיפים ומתוקים --- */
+  { id:'f_bamba', name:'במבה (שקית 25 ג׳)', per:'unit', unitName:'שקית', kcal:134, p:3.5, c:11, f:8.5 },
+  { id:'f_bisli', name:'ביסלי', per:'100g', kcal:480, p:8, c:62, f:22 },
+  { id:'f_klik', name:'קליק עדשים (שקית 40 ג׳)', per:'unit', unitName:'שקית', kcal:210, p:2.5, c:26, f:10.5 },
+  { id:'f_milk_choc', name:'שוקולד חלב (קובייה)', per:'unit', unitName:'קובייה', kcal:27, p:0.4, c:3, f:1.5 },
+  { id:'f_petit_beurre', name:'פתי בר', per:'unit', unitName:'עוגייה', kcal:34, p:0.6, c:5.6, f:1 },
+  { id:'f_lotus', name:'עוגיית לוטוס', per:'unit', unitName:'עוגייה', kcal:31, p:0.3, c:4.9, f:1.2 },
+  { id:'f_oreo', name:'אוראו', per:'unit', unitName:'עוגייה', kcal:53, p:0.5, c:8, f:2.3 },
+  { id:'f_wafer', name:'וופל', per:'unit', unitName:'יחידה', kcal:45, p:0.4, c:6, f:2.2 },
+  { id:'f_krembo', name:'קרמבו', per:'unit', unitName:'יחידה', kcal:115, p:1, c:19, f:4.5 },
+  { id:'f_popsicle', name:'ארטיק קרח', per:'unit', unitName:'יחידה', kcal:60, p:0, c:15, f:0 },
+  { id:'f_icecream', name:'גלידה וניל (כדור)', per:'unit', unitName:'כדור', kcal:125, p:2, c:15, f:6.5 },
+  { id:'f_protein_bar', name:'חטיף חלבון (20 ג׳)', per:'unit', unitName:'חטיף', kcal:200, p:20, c:18, f:7 },
+  { id:'f_energy_bar', name:'חטיף גרנולה/אנרגיה', per:'unit', unitName:'חטיף', kcal:130, p:2, c:20, f:4.5 },
+  { id:'f_halva', name:'חלווה', per:'100g', kcal:516, p:12, c:55, f:30 },
+  { id:'f_potato_chips', name:'תפוציפס (שקית 50 ג׳)', per:'unit', unitName:'שקית', kcal:270, p:3, c:26, f:17 },
+  { id:'f_popcorn_cup', name:'פופקורן (כוס)', per:'unit', unitName:'כוס', kcal:55, p:1, c:6.5, f:3 },
+  /* --- מנות מוכנות --- */
+  { id:'f_burekas', name:'בורקס גבינה', per:'unit', unitName:'יחידה', kcal:250, p:6, c:22, f:15 },
+  { id:'f_jachnun', name:"ג'חנון", per:'unit', unitName:'יחידה', kcal:350, p:6, c:40, f:18 },
+  { id:'f_malawach', name:'מלאווח', per:'unit', unitName:'יחידה', kcal:420, p:7, c:44, f:24 },
+  { id:'f_falafel', name:'כדור פלאפל', per:'unit', unitName:'כדור', kcal:57, p:2.2, c:5.5, f:3 },
+  { id:'f_pizza', name:'משולש פיצה', per:'unit', unitName:'משולש', kcal:280, p:12, c:34, f:11 },
+  { id:'f_burger', name:'המבורגר (מנה)', per:'unit', unitName:'מנה', kcal:550, p:30, c:40, f:28 },
+  { id:'f_shawarma_pita', name:'שווארמה בפיתה (מנה)', per:'unit', unitName:'מנה', kcal:700, p:40, c:55, f:32 },
+  { id:'f_sushi', name:'סושי רול (8 יח׳)', per:'unit', unitName:'רול', kcal:300, p:9, c:55, f:4 },
+  { id:'f_fries', name:"צ'יפס מטוגן", per:'100g', kcal:312, p:3.4, c:41, f:15 },
+  { id:'f_sweet_potato_fries', name:'בטטה אפויה בתנור', per:'100g', kcal:150, p:2, c:32, f:2 },
+  { id:'f_shakshuka', name:'שקשוקה (מנה 2 ביצים)', per:'unit', unitName:'מנה', kcal:300, p:14, c:12, f:21 },
+  { id:'f_omelette', name:'חביתה (2 ביצים בשמן)', per:'unit', unitName:'מנה', kcal:190, p:13, c:1, f:15 },
+  { id:'f_tuna_salad', name:'סלט טונה (מנה)', per:'unit', unitName:'מנה', kcal:200, p:20, c:3, f:12 },
+  { id:'f_egg_salad', name:'סלט ביצים (כף)', per:'unit', unitName:'כף', kcal:60, p:3, c:0.5, f:5 },
+  { id:'f_coleslaw', name:'סלט כרוב (כף)', per:'unit', unitName:'כף', kcal:35, p:0.3, c:3, f:2.5 },
+  { id:'f_chicken_soup', name:'מרק עוף (קערה)', per:'unit', unitName:'קערה', kcal:120, p:9, c:9, f:5 },
+  /* --- ממרחים, רטבים ומשקאות --- */
+  { id:'f_matbucha', name:'מטבוחה (כף)', per:'unit', unitName:'כף', kcal:20, p:0.3, c:2.5, f:1 },
+  { id:'f_baba_ganoush', name:'חצילים בטחינה (כף)', per:'unit', unitName:'כף', kcal:35, p:0.7, c:2, f:2.8 },
+  { id:'f_guacamole', name:'גוואקמולי (כף)', per:'unit', unitName:'כף', kcal:25, p:0.3, c:1.5, f:2.2 },
+  { id:'f_ketchup', name:'קטשופ (כף)', per:'unit', unitName:'כף', kcal:17, p:0.2, c:4.5, f:0 },
+  { id:'f_mustard', name:'חרדל (כפית)', per:'unit', unitName:'כפית', kcal:5, p:0.3, c:0.5, f:0.2 },
+  { id:'f_sweet_chili', name:"צ'ילי מתוק (כף)", per:'unit', unitName:'כף', kcal:35, p:0, c:8.5, f:0 },
+  { id:'f_soy_sauce', name:'רוטב סויה (כף)', per:'unit', unitName:'כף', kcal:10, p:1.3, c:1, f:0 },
+  { id:'f_silan', name:'סילאן (כף)', per:'unit', unitName:'כף', kcal:60, p:0, c:15, f:0 },
+  { id:'f_jam', name:'ריבה (כפית)', per:'unit', unitName:'כפית', kcal:18, p:0, c:4.6, f:0 },
+  { id:'f_maple', name:'מייפל (כף)', per:'unit', unitName:'כף', kcal:52, p:0, c:13.4, f:0 },
+  { id:'f_sugar', name:'סוכר (כפית)', per:'unit', unitName:'כפית', kcal:16, p:0, c:4, f:0 },
+  { id:'f_cocoa', name:'אבקת קקאו (כף)', per:'unit', unitName:'כף', kcal:12, p:1, c:3, f:0.7 },
+  { id:'f_cola', name:'קולה (פחית)', per:'unit', unitName:'פחית', kcal:139, p:0, c:35, f:0 },
+  { id:'f_cola_zero', name:'קולה זירו (פחית)', per:'unit', unitName:'פחית', kcal:1, p:0, c:0, f:0 },
+  { id:'f_oj', name:'מיץ תפוזים (כוס)', per:'unit', unitName:'כוס', kcal:110, p:1.7, c:26, f:0.5 },
+  { id:'f_beer', name:'בירה (בקבוק 330)', per:'unit', unitName:'בקבוק', kcal:142, p:1.6, c:11, f:0 },
+  { id:'f_wine', name:'יין אדום (כוס)', per:'unit', unitName:'כוס', kcal:125, p:0.1, c:4, f:0 },
+  { id:'f_cappuccino', name:'קפה הפוך (כוס)', per:'unit', unitName:'כוס', kcal:80, p:4, c:6, f:4 },
+  { id:'f_espresso', name:'אספרסו', per:'unit', unitName:'כוס', kcal:2, p:0.1, c:0, f:0 },
+  { id:'f_black_coffee', name:'קפה שחור', per:'unit', unitName:'כוס', kcal:2, p:0.2, c:0, f:0 },
+  { id:'f_yellow_light', name:'גבינה צהובה לייט 9% (פרוסה)', per:'unit', unitName:'פרוסה', kcal:47, p:6.5, c:0.5, f:2 },
+  { id:'f_pasta_whole', name:'פסטה מקמח מלא מבושלת', per:'100g', kcal:124, p:5.3, c:26, f:0.5 },
+  { id:'f_noodles_dish', name:'נודלס מוקפץ (מנה)', per:'unit', unitName:'מנה', kcal:420, p:12, c:60, f:14 },
+  { id:'f_rice_paper', name:'דף אורז (ספרינג רול)', per:'unit', unitName:'דף', kcal:35, p:0.5, c:8, f:0 },
+  { id:'f_tea', name:'תה (כוס)', per:'unit', unitName:'כוס', kcal:1, p:0, c:0, f:0 },
 ];
 function calcMacros(food, qty){
   /* self-contained parse — this runs at module load (DEFAULT_MEAL_PLAN build),
@@ -1890,11 +2114,55 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   const [sel, setSel] = useState(null);
   const [qty, setQty] = useState('');
   const [creating, setCreating] = useState(false);
-  const [nf, setNf] = useState({ name:'', per:'unit', unitName:'יחידה', kcal:'', p:'', c:'', f:'' });
+  const [scanning, setScanning] = useState(false);
+  const [scanErr, setScanErr] = useState('');
+  const [bcManual, setBcManual] = useState('');
+  const scanRef = useRef(null);
+  const [nf, setNf] = useState({ name:'', per:'unit', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc:'' });
   const cat = foodCatalog(state);
   const list = q.trim() ? cat.filter(fd => fd.name.indexOf(q.trim()) !== -1) : cat;
   const pick = fd => { setSel(fd); setQty(fd.per === 'unit' ? '1' : '100'); };
   const macros = sel ? calcMacros(sel, qty) : null;
+
+  /* ---- barcode scanner (html5-qrcode, loaded lazily on demand) ---- */
+  const stopScan = () => {
+    const h = scanRef.current;
+    scanRef.current = null;
+    if (h) { try { h.stop().then(() => { try { h.clear(); } catch (e) {} }).catch(() => {}); } catch (e) {} }
+    setScanning(false);
+  };
+  useEffect(() => () => { const h = scanRef.current; if (h) { try { h.stop().catch(() => {}); } catch (e) {} } }, []);
+  const close = () => { stopScan(); onClose(); };
+  /* scanned/typed code → known product (built-in or custom) opens the portion
+     screen; unknown code opens a create-form permanently linked to it */
+  const handleCode = code => {
+    stopScan();
+    const hit = cat.find(fd => fd.bc && String(fd.bc) === String(code));
+    if (hit) { setScanErr(''); pick(hit); }
+    else { setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: String(code) }); setScanErr(''); setCreating(true); }
+  };
+  const loadScanner = () => new Promise((res, rej) => {
+    if (window.Html5Qrcode) return res();
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+    sc.onload = res; sc.onerror = () => rej(new Error('scanner load failed'));
+    document.head.appendChild(sc);
+  });
+  const startScan = async () => {
+    setScanErr(''); setScanning(true);
+    try {
+      await loadScanner();
+      await new Promise(r => setTimeout(r, 80));
+      const h = new window.Html5Qrcode('bc-scan-box');
+      scanRef.current = h;
+      await h.start({ facingMode:'environment' }, { fps: 10, qrbox: { width: 260, height: 140 } },
+        txt => { handleCode(String(txt).trim()); }, () => {});
+    } catch (e) {
+      stopScan();
+      setScanErr('לא הצלחתי לפתוח את המצלמה — בדוק הרשאה, או הקלד את הברקוד ידנית:');
+    }
+  };
+
   const addNow = () => {
     if (!sel || !(numOr0(qty) > 0)) { alert('הכנס כמות'); return; }
     onPick(Object.assign({ id: uid(), foodId: sel.id, name: sel.name, qty: String(qty), per: sel.per, unitName: sel.unitName || 'גרם', eaten: true }, calcMacros(sel, qty)));
@@ -1903,20 +2171,40 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     if (!nf.name.trim()) { alert('מלא שם למאכל'); return; }
     const fd = { id: 'cf' + uid(), name: nf.name.trim(), per: nf.per, unitName: nf.per === 'unit' ? (nf.unitName || 'יחידה') : undefined,
                  kcal: numOr0(nf.kcal), p: numOr0(nf.p), c: numOr0(nf.c), f: numOr0(nf.f), custom: true, updatedAt: Date.now() };
+    if (nf.bc) fd.bc = nf.bc;
     mutate(d => { d.foods.push(fd); }, 'meals');
     setCreating(false); pick(fd);
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose} style={{ background:'rgba(0,0,0,.75)' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={close} style={{ background:'rgba(0,0,0,.75)' }}>
       <div className="w-full max-w-xl rounded-t-3xl border border-white/10 p-4 space-y-2.5 fadein" onClick={e => e.stopPropagation()}
            style={{ background:'rgba(13,16,24,.98)', backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)', maxHeight:'82vh', overflowY:'auto', paddingBottom:'max(env(safe-area-inset-bottom), 16px)' }}>
         <div className="flex items-center justify-between">
           <div className="font-black italic">הוספת מאכל 🍽️</div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60"><Icon d={I.x} className="w-4 h-4"/></button>
+          <button onClick={close} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60"><Icon d={I.x} className="w-4 h-4"/></button>
         </div>
-        {!sel && !creating && (
+        {scanning && (
+          <div className="space-y-2 fadein">
+            <div id="bc-scan-box" className="rounded-2xl overflow-hidden border border-volt/30" style={{ minHeight:'240px', background:'#000' }}></div>
+            <div className="text-center text-[10px] text-white/40">כוון את המצלמה לברקוד שעל המוצר 📷</div>
+            <button onClick={stopScan} className="w-full py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-bold text-sm active:scale-[.98] transition">בטל סריקה ✕</button>
+          </div>
+        )}
+        {!sel && !creating && !scanning && (
           <React.Fragment>
-            <input className="inp" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
+            <div className="flex gap-2">
+              <input className="inp flex-1 min-w-0" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
+              <button onClick={startScan} className="px-3 rounded-xl bg-volt/10 border border-volt/30 text-volt font-bold text-sm shrink-0 flex items-center gap-1 active:scale-95 transition whitespace-nowrap">📷 סרוק ברקוד</button>
+            </div>
+            {scanErr && (
+              <div className="space-y-1.5 fadein">
+                <div className="text-xs text-ember bg-ember/10 border border-ember/25 rounded-xl px-3 py-2">{scanErr}</div>
+                <div className="flex gap-1.5">
+                  <input className="inp flex-1 min-w-0 text-center" dir="ltr" inputMode="numeric" placeholder="הקלד ברקוד ידנית" value={bcManual} onChange={e => setBcManual(e.target.value.replace(/\D/g, ''))}/>
+                  <button onClick={() => { if (bcManual.trim()) { handleCode(bcManual.trim()); setBcManual(''); } }} className="px-4 rounded-xl bg-volt text-obsidian font-black text-sm active:scale-95 transition">חפש</button>
+                </div>
+              </div>
+            )}
             <button onClick={() => setCreating(true)} className="w-full py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי (נשמר לתמיד)</button>
             <div className="space-y-1">
               {list.slice(0, 40).map(fd => (
@@ -1934,6 +2222,8 @@ function FoodPicker({ state, mutate, onPick, onClose }){
         )}
         {creating && (
           <div className="space-y-2 fadein">
+            <div className="font-bold text-sm">{nf.bc ? '🆕 מוצר חדש לברקוד ' : 'מאכל חדש'}{nf.bc && <span dir="ltr" className="text-volt">{nf.bc}</span>}</div>
+            {nf.bc && <div className="text-[10px] text-white/35">מלא פעם אחת לפי התווית (ל־100 גרם) — ובכל סריקה עתידית זה יזוהה אוטומטית ⚡</div>}
             <input className="inp font-bold" placeholder="שם המאכל" value={nf.name} onChange={e => setNf({ ...nf, name: e.target.value })}/>
             <div className="flex gap-1.5">
               <button onClick={() => setNf({ ...nf, per:'unit' })} className={'flex-1 py-2 rounded-xl text-xs font-bold border transition ' + (nf.per === 'unit' ? 'bg-volt/15 text-volt border-volt/40' : 'bg-white/5 text-white/40 border-white/10')}>ערכים ליחידה</button>
@@ -2024,6 +2314,11 @@ function NutritionTab({ state, week, mutate }){
     it.qty = q;
   });
   const delItem = (mi, ii) => withDay(dd => { (dd.meals[mi] || { items: [] }).items.splice(ii, 1); });
+  const toggleAllMeal = mi => withDay(dd => {
+    const m = dd.meals[mi]; if (!m) return;
+    const target = !((m.items || []).length && m.items.every(it => it.eaten));
+    (m.items || []).forEach(it => { it.eaten = target; });
+  });
   const addItemTo = (mi, item) => withDay(dd => { (dd.meals[mi] || { items: [] }).items.push(item); });
   const addWater = ml => withDay(dd => { dd.water = Math.max(0, numOr0(dd.water) + ml); });
   const setSleep = v => withDay(dd => { dd.sleep = v; });
@@ -2179,7 +2474,12 @@ function NutritionTab({ state, week, mutate }){
                     <div className={'font-bold ' + (allDone ? 'text-volt' : '')}>{m.title}</div>
                     <div className="text-[10px] text-white/40">{eaten}/{planned} קק"ל</div>
                   </div>
-                  {allDone && <span className="text-[9px] font-black text-obsidian bg-volt rounded-full px-2 py-1 glow-volt shrink-0">✓</span>}
+                  {items.length > 0 && (
+                    <button onClick={() => toggleAllMeal(mi)}
+                            className={'text-[10px] font-black rounded-full px-2.5 py-1.5 shrink-0 border transition active:scale-95 ' + (allDone ? 'bg-volt text-obsidian border-volt glow-volt' : 'bg-white/5 text-white/50 border-white/10')}>
+                      {allDone ? 'הכל ✓' : 'סמן הכל'}
+                    </button>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   {items.map((it, ii) => (
