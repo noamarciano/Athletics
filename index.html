@@ -974,6 +974,26 @@ function nutriTargets(state){
 function foodCatalog(state){
   return FOOD_DB.concat(state.foods || []);
 }
+/* A camera read can carry whitespace, symbology noise or zero padding
+   ("07290000066318"), while manual typing is already clean. Everything is
+   compared through one canonical key, and lookups try sensible variants. */
+function bcDigits(code){ return String(code == null ? '' : code).replace(/\D/g, ''); }
+function bcKey(code){
+  const d = bcDigits(code);
+  return d.replace(/^0+/, '') || d;
+}
+function bcCandidates(code){
+  const d = bcDigits(code), out = [];
+  const push = v => { if (v && out.indexOf(v) === -1) out.push(v); };
+  push(d);
+  push(d.replace(/^0+/, ''));
+  if (d.length === 12) push('0' + d);                      /* UPC-A → EAN-13 */
+  if (d.length === 13 && d.charAt(0) === '0') push(d.slice(1)); /* EAN-13 → UPC-A */
+  if (d.length === 14 && d.charAt(0) === '0') push(d.slice(1)); /* GTIN-14 → EAN-13 */
+  push(String(code == null ? '' : code).trim());           /* raw, last resort */
+  return out;
+}
+
 /* live barcode lookup against Open Food Facts (free, global, CORS-open).
    Returns a food object shaped like a FOOD_DB entry, or null when unknown. */
 async function fetchOffProduct(code){
@@ -2290,24 +2310,29 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     stopScan();
     setShowManual(false); setBcManual(''); setScanErr('');
     try {
-      const local = cat.find(fd => fd.bc && String(fd.bc) === String(code));
+      const key = bcKey(code);
+      const local = cat.find(fd => fd.bc && bcKey(fd.bc) === key);
       if (local) {
         flashToast('✅ מוצר נמצא: ' + local.name, 'ok');
         pick(local);
         return;
       }
-      setLookup(String(code));
+      setLookup(bcDigits(code) || String(code));
       flashToast('🔎 מחפש במאגר העולמי…', 'wait');
-      const prod = await fetchOffProduct(code);
+      /* try the cleaned code first, then padding/symbology variants */
+      let prod = null;
+      const cands = bcCandidates(code);
+      for (let i = 0; i < cands.length && !prod; i++) prod = await fetchOffProduct(cands[i]);
       setLookup(null);
       if (prod) {
         /* cache it forever so the next scan is instant + offline */
-        mutate(d => { if (!(d.foods || []).some(x => String(x.bc) === prod.bc)) d.foods.push(prod); }, 'meals');
+        mutate(d => { if (!(d.foods || []).some(x => x.bc && bcKey(x.bc) === bcKey(prod.bc))) d.foods.push(prod); }, 'meals');
         flashToast('✅ מוצר נמצא: ' + prod.name, 'ok');
         pick(prod);
       } else {
+        const clean = bcDigits(code) || String(code).trim();
         flashToast('🆕 ברקוד חדש - הוסף נתונים פעם אחת', 'new');
-        setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: String(code) });
+        setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: clean });
         setCreating(true);
       }
     } finally {
@@ -2464,8 +2489,10 @@ function FoodPicker({ state, mutate, onPick, onClose }){
         {scanning && (
           <div className="space-y-2 fadein">
             <div className="relative rounded-2xl overflow-hidden border border-volt/30" style={{ background:'#000' }}>
+              {/* cover crops (never stretches) so the barcode lines stay
+                  undistorted; the decoder reads the full native frame anyway */}
               <video ref={videoRef} playsInline autoPlay muted
-                     style={{ width:'100%', height:'280px', objectFit:'cover', display:'block', background:'#000' }}></video>
+                     style={{ width:'100%', height:'320px', objectFit:'cover', display:'block', background:'#000' }}></video>
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="relative" style={{ width:'82%', height:'150px' }}>
                   <span className="absolute top-0 start-0 w-7 h-7 border-t-2 border-s-2 border-volt"></span>
