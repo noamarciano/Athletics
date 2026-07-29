@@ -2252,6 +2252,8 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   const [showManual, setShowManual] = useState(false);
   const [lookup, setLookup] = useState(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [decoded, setDecoded] = useState(null);
+  const decodedTimer = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const readerRef = useRef(null);
@@ -2309,6 +2311,11 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     scanFeedback();
     stopScan();
     setShowManual(false); setBcManual(''); setScanErr('');
+    /* full transparency: show exactly what the image processor read */
+    const rawStr = String(code);
+    setDecoded({ raw: rawStr, clean: bcDigits(rawStr) });
+    clearTimeout(decodedTimer.current);
+    decodedTimer.current = setTimeout(() => setDecoded(null), 3200);
     try {
       const key = bcKey(code);
       const local = cat.find(fd => fd.bc && bcKey(fd.bc) === key);
@@ -2354,28 +2361,75 @@ function FoodPicker({ state, mutate, onPick, onClose }){
     hints.set(Z.DecodeHintType.TRY_HARDER, true);
     return new Z.BrowserMultiFormatReader(hints, 250);
   };
-  /* decode a photo the user took/picked — iOS supports this 100% of the time
-     even when live getUserMedia is blocked */
+  /* A real phone photo is large, sometimes rotated, and the barcode may sit
+     small in frame — so retry the decode across derived images instead of
+     giving up after a single pass. */
+  const decodePhoto = async file => {
+    await loadScanner();
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i); i.onerror = () => rej(new Error('img load'));
+        i.src = url;
+      });
+      const reader = makeReader();
+      const tryUrl = async u => {
+        try { const r = await reader.decodeFromImageUrl(u); const t = r && r.getText ? String(r.getText()).trim() : ''; return t || null; }
+        catch (e) { return null; }
+      };
+      let hit = await tryUrl(url);                          /* pass 1: as shot */
+      if (hit) return hit;
+
+      const mk = (w, h, draw) => {
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+        draw(c.getContext('2d'), c); return c;
+      };
+      const sc = Math.min(1, 1800 / Math.max(img.width, img.height));
+      const W = img.width * sc, H = img.height * sc;
+      const variants = [];
+      variants.push(mk(W, H, g => g.drawImage(img, 0, 0, W, H)));                 /* normalised */
+      variants.push(mk(W * 0.84, H * 0.5, (g, c) =>                                /* centre band — where people aim */
+        g.drawImage(img, img.width * 0.08, img.height * 0.25, img.width * 0.84, img.height * 0.5, 0, 0, c.width, c.height)));
+      variants.push(mk(H, W, g => {                                                /* rotated 90° */
+        g.translate(H / 2, W / 2); g.rotate(Math.PI / 2); g.drawImage(img, -W / 2, -H / 2, W, H);
+      }));
+      variants.push(mk(W * 1.5, H * 1.5, g => g.drawImage(img, 0, 0, W * 1.5, H * 1.5))); /* upscaled thin bars */
+      variants.push((() => {                                                       /* hard contrast */
+        const c = mk(W, H, g => g.drawImage(img, 0, 0, W, H));
+        const g = c.getContext('2d');
+        try {
+          const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
+          for (let i = 0; i < px.length; i += 4) {
+            const lum = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+            const v = lum < 110 ? 0 : (lum > 150 ? 255 : (lum - 110) * 6.375);
+            px[i] = px[i + 1] = px[i + 2] = v;
+          }
+          g.putImageData(d, 0, 0);
+        } catch (e) {}
+        return c;
+      })());
+
+      for (let i = 0; i < variants.length && !hit; i++) hit = await tryUrl(variants[i].toDataURL('image/png'));
+      return hit;
+    } finally {
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 4000);
+    }
+  };
+  /* photo path — the native iOS camera brings autofocus, flash and a sharp still */
   const onPhoto = async e => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
     stopScan(); setScanErr(''); setPhotoBusy(true);
-    let url = null;
-    try {
-      await loadScanner();
-      url = URL.createObjectURL(file);
-      const result = await makeReader().decodeFromImageUrl(url);
-      const txt = result && result.getText ? String(result.getText()).trim() : '';
-      if (!txt) throw new Error('empty');
-      setPhotoBusy(false);
-      handleCode(txt);
-    } catch (err) {
-      setPhotoBusy(false);
+    let txt = null;
+    try { txt = await decodePhoto(file); } catch (err) { txt = null; }
+    setPhotoBusy(false);
+    if (txt) handleCode(txt);
+    else {
       setShowManual(true);
-      setScanErr('לא זוהה ברקוד בתמונה — נסה שוב מקרוב וביישור, או הזן את המספר ידנית:');
-    } finally {
-      if (url) setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e2) {} }, 3000);
+      setScanErr('לא זוהה ברקוד בתמונה — צלם שוב מקרוב (שהברקוד ימלא את הרוחב, ישר ובתאורה טובה) או הזן ידנית:');
     }
   };
   /* NOT async on purpose — see the getUserMedia note below */
@@ -2473,6 +2527,15 @@ function FoodPicker({ state, mutate, onPick, onClose }){
             <span className="text-sm font-bold text-white/60">מפענח את התמונה…</span>
           </div>
         )}
+        {decoded && (
+          <div className="rounded-2xl px-3.5 py-2 border border-white/15 bg-black/40 fadein">
+            <div className="text-[10px] text-white/40 font-bold mb-0.5">🔍 המחרוזת שנקראה מהברקוד</div>
+            <div className="font-black text-volt" dir="ltr" style={{ fontSize:'17px', letterSpacing:'.06em' }}>{decoded.raw}</div>
+            {decoded.clean !== decoded.raw && (
+              <div className="text-[10px] text-white/40 mt-0.5" dir="ltr">→ מנורמל: {decoded.clean}</div>
+            )}
+          </div>
+        )}
         {toast && (
           <div className={'rounded-2xl px-3.5 py-2.5 text-sm font-black text-center fadein border ' +
             (toast.kind === 'ok' ? 'bg-volt/15 text-volt border-volt/40 glow-volt'
@@ -2513,11 +2576,13 @@ function FoodPicker({ state, mutate, onPick, onClose }){
         )}
         {!sel && !creating && !scanning && !lookup && (
           <React.Fragment>
-            <div className="flex gap-2">
-              <input className="inp flex-1 min-w-0" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
-              <button onClick={startScan} className="px-3 rounded-xl bg-volt/10 border border-volt/30 text-volt font-bold text-sm shrink-0 flex items-center gap-1 active:scale-95 transition whitespace-nowrap">📷 סרוק ברקוד</button>
-            </div>
-            <button onClick={() => photoRef.current && photoRef.current.click()} className="w-full py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-[.98] transition">📸 צלם תמונה / בחר תמונה של הברקוד</button>
+            <input className="inp" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
+            {/* primary path: the native iOS camera (autofocus + flash + sharp still) */}
+            <button onClick={() => photoRef.current && photoRef.current.click()}
+                    className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-base flex items-center justify-center gap-2 active:scale-[.98] transition glow-volt">
+              📷 סרוק ברקוד (צלם)
+            </button>
+            <button onClick={startScan} className="w-full py-2 rounded-2xl bg-white/5 border border-white/10 text-white/60 text-xs font-bold active:scale-[.98] transition">🎥 סריקה רציפה בווידאו (ניסיוני)</button>
             <div className="flex gap-2">
               <button onClick={() => setShowManual(!showManual)} className={'flex-1 py-2.5 rounded-2xl border text-sm font-bold active:scale-[.98] transition ' + (showManual ? 'bg-sky-400/10 text-sky-300 border-sky-400/30' : 'bg-white/5 text-white/60 border-white/10')}>⌨️ הזן ברקוד ידנית</button>
               <button onClick={() => setCreating(true)} className="flex-1 py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי</button>
