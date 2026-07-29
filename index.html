@@ -77,7 +77,7 @@ const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
 const PHOTO_FILE = 'photo.b64.txt';
-const ROUTINE_V = 6;
+const ROUTINE_V = 7;
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
@@ -422,6 +422,48 @@ const FOOD_DB = [
   { id:'f_noodles_dish', name:'נודלס מוקפץ (מנה)', per:'unit', unitName:'מנה', kcal:420, p:12, c:60, f:14 },
   { id:'f_rice_paper', name:'דף אורז (ספרינג רול)', per:'unit', unitName:'דף', kcal:35, p:0.5, c:8, f:0 },
   { id:'f_tea', name:'תה (כוס)', per:'unit', unitName:'כוס', kcal:1, p:0, c:0, f:0 },
+  /* --- אלכוהול (צ'ייסר = 30 מ"ל) --- */
+  { id:'f_vodka_shot', name:'וודקה (צ׳ייסר 30 מ"ל)', per:'unit', unitName:'צ׳ייסר', kcal:64, p:0, c:0, f:0 },
+  { id:'f_vodka_100', name:'וודקה 40% (100 מ"ל)', per:'100g', kcal:231, p:0, c:0, f:0 },
+  { id:'f_arak_shot', name:'ערק (צ׳ייסר 30 מ"ל)', per:'unit', unitName:'צ׳ייסר', kcal:69, p:0, c:0.6, f:0 },
+  { id:'f_arak_100', name:'ערק (100 מ"ל)', per:'100g', kcal:230, p:0, c:2, f:0 },
+  { id:'f_whiskey_shot', name:'ויסקי (צ׳ייסר 30 מ"ל)', per:'unit', unitName:'צ׳ייסר', kcal:70, p:0, c:0, f:0 },
+  { id:'f_whiskey_100', name:'ויסקי (100 מ"ל)', per:'100g', kcal:250, p:0, c:0.1, f:0 },
+  { id:'f_tequila_shot', name:'טקילה (צ׳ייסר 30 מ"ל)', per:'unit', unitName:'צ׳ייסר', kcal:64, p:0, c:0, f:0 },
+  { id:'f_tequila_100', name:'טקילה (100 מ"ל)', per:'100g', kcal:231, p:0, c:0, f:0 },
+  { id:'f_gin_shot', name:'ג׳ין (צ׳ייסר 30 מ"ל)', per:'unit', unitName:'צ׳ייסר', kcal:64, p:0, c:0, f:0 },
+  { id:'f_rum_shot', name:'רום (צ׳ייסר 30 מ"ל)', per:'unit', unitName:'צ׳ייסר', kcal:64, p:0, c:0, f:0 },
+  { id:'f_bacardi_shot', name:'בקרדי לבן (צ׳ייסר)', per:'unit', unitName:'צ׳ייסר', kcal:64, p:0, c:0, f:0 },
+  { id:'f_jager_shot', name:'יגרמייסטר (צ׳ייסר)', per:'unit', unitName:'צ׳ייסר', kcal:103, p:0, c:11, f:0 },
+  { id:'f_sambuca_shot', name:'סמבוקה (צ׳ייסר)', per:'unit', unitName:'צ׳ייסר', kcal:103, p:0, c:11, f:0 },
+  { id:'f_beer_draft', name:'בירה מהחבית (חצי ליטר)', per:'unit', unitName:'כוס', kcal:215, p:2.4, c:17, f:0 },
+  { id:'f_beer_draft_third', name:'בירה מהחבית (שליש)', per:'unit', unitName:'כוס', kcal:143, p:1.6, c:11, f:0 },
+  { id:'f_beer_bottle', name:'בירה בקבוק (330 מ"ל)', per:'unit', unitName:'בקבוק', kcal:142, p:1.6, c:11, f:0 },
+  { id:'f_beer_light', name:'בירה לייט (330 מ"ל)', per:'unit', unitName:'בקבוק', kcal:99, p:0.9, c:5, f:0 },
+  { id:'f_beer_black', name:'בירה שחורה (330 מ"ל)', per:'unit', unitName:'בקבוק', kcal:165, p:1.9, c:14, f:0 },
+  { id:'f_wine_white', name:'יין לבן (כוס 150 מ"ל)', per:'unit', unitName:'כוס', kcal:121, p:0.1, c:3.8, f:0 },
+  { id:'f_wine_sweet', name:'יין מתוק (כוס 150 מ"ל)', per:'unit', unitName:'כוס', kcal:165, p:0.1, c:12, f:0 },
+  { id:'f_champagne', name:'שמפניה (כוס 150 מ"ל)', per:'unit', unitName:'כוס', kcal:128, p:0.1, c:4, f:0 },
+  { id:'f_prosecco', name:'פרוסקו (כוס)', per:'unit', unitName:'כוס', kcal:120, p:0.1, c:4.5, f:0 },
+  { id:'f_cocktail_generic', name:'קוקטייל ממותק (כוס)', per:'unit', unitName:'כוס', kcal:250, p:0, c:30, f:0 },
+  { id:'f_mojito', name:'מוחיטו', per:'unit', unitName:'כוס', kcal:217, p:0, c:24, f:0 },
+  { id:'f_margarita', name:'מרגריטה', per:'unit', unitName:'כוס', kcal:280, p:0, c:26, f:0 },
+  /* --- מיקסרים ומשקאות אנרגיה --- */
+  { id:'f_xl', name:'XL אנרגיה (פחית 250)', per:'unit', unitName:'פחית', kcal:112, p:0, c:28, f:0 },
+  { id:'f_xl_zero', name:'XL זירו (פחית)', per:'unit', unitName:'פחית', kcal:8, p:0, c:1.5, f:0 },
+  { id:'f_redbull', name:'רד בול (פחית 250)', per:'unit', unitName:'פחית', kcal:115, p:0, c:28, f:0 },
+  { id:'f_redbull_zero', name:'רד בול ללא סוכר (פחית)', per:'unit', unitName:'פחית', kcal:8, p:0, c:1.5, f:0 },
+  { id:'f_blue', name:'בלו אנרגיה (פחית)', per:'unit', unitName:'פחית', kcal:110, p:0, c:27, f:0 },
+  { id:'f_tonic', name:'מי טוניק (200 מ"ל)', per:'unit', unitName:'כוס', kcal:70, p:0, c:18, f:0 },
+  { id:'f_tonic_zero', name:'טוניק דיאט (200 מ"ל)', per:'unit', unitName:'כוס', kcal:2, p:0, c:0, f:0 },
+  { id:'f_soda', name:'סודה/מים מוגזים', per:'unit', unitName:'כוס', kcal:0, p:0, c:0, f:0 },
+  { id:'f_cranberry_juice', name:'מיץ חמוציות (200 מ"ל)', per:'unit', unitName:'כוס', kcal:116, p:0, c:29, f:0 },
+  { id:'f_lemonana', name:'לימונענע (כוס)', per:'unit', unitName:'כוס', kcal:110, p:0.2, c:27, f:0 },
+  { id:'f_grapefruit_juice', name:'מיץ אשכוליות (200 מ"ל)', per:'unit', unitName:'כוס', kcal:78, p:1, c:18, f:0.2 },
+  { id:'f_apple_juice', name:'מיץ תפוחים (200 מ"ל)', per:'unit', unitName:'כוס', kcal:92, p:0.2, c:23, f:0 },
+  { id:'f_sprite', name:'ספרייט/סודה מתוקה (פחית)', per:'unit', unitName:'פחית', kcal:139, p:0, c:35, f:0 },
+  { id:'f_sprite_zero', name:'ספרייט זירו (פחית)', per:'unit', unitName:'פחית', kcal:2, p:0, c:0, f:0 },
+  { id:'f_ice_tea', name:'אייס טי (פחית)', per:'unit', unitName:'פחית', kcal:90, p:0, c:22, f:0 },
 ];
 function calcMacros(food, qty){
   /* self-contained parse — this runs at module load (DEFAULT_MEAL_PLAN build),
@@ -444,6 +486,8 @@ const DEFAULT_MEAL_PLAN = [
   { id:'mp3', icon:'🥪', title:'ארוחת ביניים', items:[ mkPlanItem('f_egg', 2), mkPlanItem('f_yellow9', 2), mkPlanItem('f_salad', 1) ] },
   { id:'mp4', icon:'🍮', title:'מעדן חלבון', items:[ mkPlanItem('f_pro_pud', 1) ] },
   { id:'mp5', icon:'🌙', title:'ארוחת ערב', items:[ mkPlanItem('f_pargit', 180), mkPlanItem('f_rice', 240), mkPlanItem('f_salad', 1), mkPlanItem('f_olive_tbsp', 1) ] },
+  /* free-form bucket for anything off-template (a spoon of PB, a beer, a snack) */
+  { id:'mp6', icon:'🥨', title:'נשנושים ותוספות', items:[] },
 ];
 const DEFAULT_NUTRI_TARGETS = { kcal:2400, protein:155, carbs:280, fat:70, water:3000, strengthBurn:300 };
 
@@ -682,6 +726,13 @@ function migrateRoutine(s){
     if (!s.deletedFoods) s.deletedFoods = [];
     if (!s.settings.nutri) s.settings.nutri = clone(DEFAULT_NUTRI_TARGETS);
     v = 6;
+  }
+  if (v < 7) {
+    /* v7: add the free-form snacks section to the daily template (append only —
+       any customised sections the user already has are left exactly as they are) */
+    if (!s.mealPlan) s.mealPlan = clone(DEFAULT_MEAL_PLAN);
+    if (!s.mealPlan.some(m => m.id === 'mp6')) s.mealPlan.push({ id:'mp6', icon:'🥨', title:'נשנושים ותוספות', items:[] });
+    v = 7;
   }
   s.routineVersion = v;
   s.stamps.templates = Date.now();
@@ -980,6 +1031,26 @@ function dayNutriSummary(state, week, dayIdx){
            kcal: 0, p: 0, c: 0, f: 0, water: 0, sleep: '',
            icons: state.meals.map(m => ({ icon: m.icon, done: !!checks[m.id] })) };
 }
+/* weekly recomp roll-up — averages across the days that were actually logged */
+function weekNutriStats(state, week, targets){
+  let days = 0, kcal = 0, prot = 0, carbs = 0, fat = 0, burn = 0;
+  for (let i = 0; i < 7; i++) {
+    const ns = dayNutriSummary(state, week, i);
+    if (ns.v2 && ns.kcal > 0) {
+      days++; kcal += ns.kcal; prot += ns.p; carbs += ns.c; fat += ns.f;
+      burn += dayBurn(state, addDays(week, i)).total;
+    }
+  }
+  const avgKcal = days ? Math.round(kcal / days) : 0;
+  const avgBurn = days ? Math.round(burn / days) : 0;
+  const goal = targets.kcal + avgBurn;              /* fair comparison: training days earn more */
+  const diffPct = goal ? Math.round((avgKcal - goal) / goal * 100) : 0;
+  const totalDiff = Math.round((avgKcal - goal) * days);
+  return { days, avgKcal, avgProtein: days ? Math.round(prot / days) : 0,
+           avgCarbs: days ? Math.round(carbs / days) : 0, avgFat: days ? Math.round(fat / days) : 0,
+           avgBurn, goal, diffPct, totalDiff };
+}
+
 /* estimated training burn for a calendar day: strength session flat rate +
    run kcal derived from distance × body weight (latest weigh-in, fallback 74) */
 function dayBurn(state, dateISO){
@@ -2258,12 +2329,13 @@ function FoodPicker({ state, mutate, onPick, onClose }){
         disableFlip: true,
         experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       };
-      /* iOS: demand the real rear camera first (exact), then degrade gracefully */
+      /* iOS Safari rejects hard `exact` facingMode on many devices — always try
+         soft constraints first, then degrade all the way to any camera */
       const attempts = [
-        { facingMode: { exact:'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode:'continuous' }] },
-        { facingMode: { exact:'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         { facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        { facingMode:'environment' }
+        { facingMode:'environment' },
+        { width: { ideal: 1280 }, height: { ideal: 720 } },
+        true
       ];
       let started = false, lastErr = null;
       for (let i = 0; i < attempts.length && !started; i++) {
@@ -2427,6 +2499,7 @@ function NutritionTab({ state, week, mutate }){
   const [day, setDay] = useState(isCur ? new Date().getDay() : 0);
   const [picker, setPicker] = useState(null);
   const [showTargets, setShowTargets] = useState(false);
+  const [view, setView] = useState('day');
   useEffect(() => { setDay(weekStartISO(new Date()) === week ? new Date().getDay() : 0); setPicker(null); }, [week]);
 
   const targets = nutriTargets(state);
@@ -2434,7 +2507,15 @@ function NutritionTab({ state, week, mutate }){
   const d2 = (wk.nutri2 || {})[day];
   const legacyChecks = (wk.nutrition || {})[day] || {};
   const isLegacy = !d2 && Object.keys(legacyChecks).some(k => legacyChecks[k]);
-  const viewMeals = (d2 && d2.meals) ? d2.meals : (state.mealPlan || []).map(m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => Object.assign({}, it, { eaten: false })) }));
+  /* a template section that a materialised day predates (e.g. the snacks bucket
+     added later) is appended on the fly — in plan order, so indexes stay stable */
+  const blankSection = m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => Object.assign({}, it, { eaten: false })) });
+  const mergeSections = meals => {
+    const out = (meals || []).slice();
+    (state.mealPlan || []).forEach(pm => { if (!out.some(m => m.id === pm.id)) out.push(blankSection(pm)); });
+    return out;
+  };
+  const viewMeals = mergeSections((d2 && d2.meals) ? d2.meals : (state.mealPlan || []).map(blankSection));
 
   let eatK = 0, eatP = 0, eatC = 0, eatF = 0;
   viewMeals.forEach(m => (m.items || []).forEach(it => { if (it.eaten) { eatK += numOr0(it.kcal); eatP += numOr0(it.p); eatC += numOr0(it.c); eatF += numOr0(it.f); } }));
@@ -2453,6 +2534,13 @@ function NutritionTab({ state, week, mutate }){
       meals: (d.mealPlan || []).map(m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) })),
       water: 0, sleep: ''
     };
+    /* keep the stored day in sync with template sections added after it began */
+    n2[day].meals = n2[day].meals || [];
+    (d.mealPlan || []).forEach(pm => {
+      if (!n2[day].meals.some(m => m.id === pm.id)) {
+        n2[day].meals.push({ id: pm.id, icon: pm.icon, title: pm.title, items: (pm.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) });
+      }
+    });
     fn(n2[day], d);
   }, ['week', week]);
 
@@ -2513,16 +2601,25 @@ function NutritionTab({ state, week, mutate }){
     </div>
   );
 
+  const ws = weekNutriStats(state, week, targets);
+  const wStatus = ws.days === 0
+    ? { t:'עוד לא נרשמו ימים השבוע — תתחיל לסמן ⚡', c:'bg-white/5 text-white/40 border-white/10' }
+    : Math.abs(ws.diffPct) <= 5
+      ? { t:'🎯 שבוע מושלם לשמירה ובניית שריר', c:'bg-volt/15 text-volt border-volt/35 glow-volt' }
+      : ws.diffPct > 5
+        ? { t:'⚖️ חריגה שבועית קלה — מומלץ לקזז ' + Math.abs(ws.totalDiff).toLocaleString() + ' קק"ל בימים הקרובים', c:'bg-ember/10 text-ember border-ember/30' }
+        : { t:'⚡ גירעון שבועי קל — דחוף עוד פחמימה/חלבון', c:'bg-sky-400/10 text-sky-300 border-sky-400/30' };
+
   return (
     <div className="fadein space-y-3">
-      <div className="glass rounded-2xl p-2">
+      <div className="glass rounded-2xl p-2 space-y-2">
         <div className="grid grid-cols-7 gap-1.5">
           {DAYS_HE.map((d, i) => {
             const iso = addDays(week, i);
             const nsI = dayNutriSummary(state, week, i);
-            const active = day === i;
+            const active = day === i && view === 'day';
             return (
-              <button key={i} onClick={() => setDay(i)}
+              <button key={i} onClick={() => { setDay(i); setView('day'); }}
                       className={'rounded-xl py-1.5 flex flex-col items-center transition active:scale-95 ' + (active ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 text-white/60')}>
                 <span className="text-sm font-black leading-none">{d}</span>
                 <span className={'text-[9px] mt-0.5 ' + (active ? 'text-obsidian/60' : (iso === todayISO ? 'text-volt' : 'text-white/30'))}>{fromISO(iso).getDate()}</span>
@@ -2531,7 +2628,60 @@ function NutritionTab({ state, week, mutate }){
             );
           })}
         </div>
+        <div className="flex gap-1.5">
+          <button onClick={() => setView('day')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'day' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>📅 יומי</button>
+          <button onClick={() => setView('week')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'week' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>📊 שבועי</button>
+        </div>
       </div>
+
+      {view === 'week' && (
+        <div className="fadein space-y-3">
+          <div className="glass rounded-3xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-lg font-black italic leading-none">מאזן שבועי</h2>
+                <div className="text-white/40 text-[10px] mt-1">{ws.days} ימים נרשמו · שבוע {weekNum(week)}</div>
+              </div>
+              <div className="relative w-[72px] h-[72px]">
+                <Ring pct={ws.goal ? ws.avgKcal / ws.goal : 0} size={72} stroke={6} color={ws.diffPct > 5 ? '#FF5A1F' : '#CCFF00'}/>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-black text-base leading-none">{ws.avgKcal}</span>
+                  <span className="text-[8px] text-white/40 mt-0.5">ממוצע/יום</span>
+                </div>
+              </div>
+            </div>
+            <div className={'rounded-2xl px-3.5 py-2.5 border text-sm font-black text-center ' + wStatus.c}>{wStatus.t}</div>
+            <div className="grid grid-cols-4 gap-2 mt-3 text-center">
+              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
+                <div className={'font-black ' + (ws.avgProtein >= targets.protein * 0.9 ? 'text-volt' : 'text-white')}>{ws.avgProtein}</div>
+                <div className="text-[9px] text-white/40 mt-0.5">חלבון ממוצע</div>
+              </div>
+              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
+                <div className="font-black">{ws.avgCarbs}</div>
+                <div className="text-[9px] text-white/40 mt-0.5">פחמימה ממוצעת</div>
+              </div>
+              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
+                <div className="font-black text-ember">{ws.avgFat}</div>
+                <div className="text-[9px] text-white/40 mt-0.5">שומן ממוצע</div>
+              </div>
+              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
+                <div className="font-black">{ws.goal}</div>
+                <div className="text-[9px] text-white/40 mt-0.5">יעד יומי ממוצע</div>
+              </div>
+            </div>
+            {ws.avgBurn > 0 && <div className="text-[10px] text-white/35 text-center mt-2">כולל שריפה ממוצעת מאימונים: +{ws.avgBurn} קק"ל ליום 🔥</div>}
+          </div>
+
+          <div className="glass rounded-3xl p-4">
+            <div className="text-[10px] font-bold text-white/40 mb-2">קלוריות לפי יום</div>
+            <BarChart items={DAYS_HE.map((d, i) => ({ label: d, v: dayNutriSummary(state, week, i).kcal }))}/>
+            <div className="text-[10px] font-bold text-white/40 mt-3 mb-2">חלבון לפי יום (ג׳)</div>
+            <BarChart items={DAYS_HE.map((d, i) => ({ label: d, v: dayNutriSummary(state, week, i).p }))}/>
+          </div>
+        </div>
+      )}
+      {view === 'day' && (
+      <React.Fragment>
 
       {isLegacy ? (
         <React.Fragment>
@@ -2637,6 +2787,7 @@ function NutritionTab({ state, week, mutate }){
                   )}
                 </div>
                 <div className="space-y-1.5">
+                  {items.length === 0 && <div className="text-center text-white/25 text-xs py-2">ריק — הוסף כאן כל דבר שאכלת מחוץ לתפריט 🍫</div>}
                   {items.map((it, ii) => (
                     <div key={it.id || ii} className={'flex items-center gap-2 rounded-2xl ps-2 pe-1.5 py-1.5 border transition ' + (it.eaten ? 'bg-volt/10 border-volt/20' : 'bg-black/25 border-white/5')}>
                       <button onClick={() => toggleItem(mi, ii)}
@@ -2658,8 +2809,8 @@ function NutritionTab({ state, week, mutate }){
                     </div>
                   ))}
                 </div>
-                <button onClick={() => setPicker(mi)} className="mt-2 w-full py-2 rounded-xl bg-white/5 border border-white/10 text-volt text-xs font-bold flex items-center justify-center gap-1 active:scale-[.98] transition">
-                  <Icon d={I.plus} className="w-3.5 h-3.5"/> הוסף מאכל
+                <button onClick={() => setPicker(mi)} className="mt-2 w-full py-2.5 rounded-xl bg-volt/10 border border-volt/25 text-volt text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[.98] transition">
+                  <Icon d={I.plus} className="w-4 h-4"/> הוסף מאכל לארוחה זו
                 </button>
               </div>
             );
@@ -2680,6 +2831,8 @@ function NutritionTab({ state, week, mutate }){
             </div>
           )}
         </React.Fragment>
+      )}
+      </React.Fragment>
       )}
 
       {picker != null && (
