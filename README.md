@@ -13,7 +13,7 @@ Premium dark (Nike Training Club style) fitness & nutrition tracker. Single-file
 - 📊 Progress tab: auto-detected PRs ("bench 80→82.5kg"), pace improvement over 14 days, per-exercise strength charts (max weight + volume), weekly km bars, all-time bests
 - ⚖️ Body tracking: weight log with trend chart, height + auto BMI
 - 📸 Progress photo gallery — compressed client-side, cached in IndexedDB, synced across devices via private gists
-- 🥗 Daily Lean Bulk checklist per day-of-week, weekly completion map (meals editable & reorderable)
+- 🥗 Nutrition & recomp dashboard — built-in food DB with portion macro calculator, custom foods, per-day meal template (copy-on-write), calorie ring with training-burn sync (strength + runs), protein/carb/fat bars, water tracker, sleep log & recovery score
 - 📅 יומן calendar tab — Apple-style month grid with per-day activity dots (strength/run/clean-nutrition ring) and tap-through day summaries
 - 🗓️ Week time-travel switcher (`< שבוע 28 >`) — full history of every week
 - 🔄 Cross-device sync (Mac ↔ iPhone) via a **private GitHub Gist**

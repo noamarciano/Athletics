@@ -75,7 +75,7 @@ const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
 const PHOTO_FILE = 'photo.b64.txt';
-const ROUTINE_V = 5;
+const ROUTINE_V = 6;
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
@@ -153,6 +153,73 @@ const RUN_STYLES = [
   { id:'race',     emoji:'🏁', label:'מרוץ',       title:'מרוץ' },
 ];
 const styleOf = id => RUN_STYLES.find(s => s.id === id) || null;
+
+/* ---------- built-in food database (per 100g or per unit) ---------- */
+const FOOD_DB = [
+  { id:'f_pita_spelt',   name:'פיתה כוסמין מלא',        per:'unit', unitName:'פיתה',    kcal:230, p:9,    c:45,  f:2 },
+  { id:'f_egg',          name:'ביצה',                    per:'unit', unitName:'ביצה',    kcal:72,  p:6.3,  c:0.4, f:5 },
+  { id:'f_egg_white',    name:'חלבון ביצה',              per:'unit', unitName:'חלבון',   kcal:17,  p:3.6,  c:0.2, f:0.1 },
+  { id:'f_yellow9',      name:'גבינה צהובה 9%',          per:'unit', unitName:'פרוסה',   kcal:50,  p:6.2,  c:0.5, f:2.4 },
+  { id:'f_yellow15',     name:'גבינה צהובה 15%',         per:'unit', unitName:'פרוסה',   kcal:60,  p:5.8,  c:0.5, f:3.8 },
+  { id:'f_white5',       name:'גבינה לבנה 5%',           per:'100g',                     kcal:95,  p:10.5, c:3.5, f:5 },
+  { id:'f_cottage5',     name:"קוטג' 5%",                per:'100g',                     kcal:96,  p:11,   c:3.5, f:5 },
+  { id:'f_pro_pud',      name:'מעדן חלבון PRO (20 ג׳)',  per:'unit', unitName:'מעדן',    kcal:150, p:20,   c:14,  f:1.8 },
+  { id:'f_pro_yogurt',   name:'יוגורט חלבון (24 ג׳)',    per:'unit', unitName:'גביע',    kcal:160, p:24,   c:13,  f:0.5 },
+  { id:'f_whey',         name:'אבקת חלבון וואי (סקופ)',  per:'unit', unitName:'סקופ',    kcal:120, p:24,   c:3,   f:1.5 },
+  { id:'f_creatine',     name:'קריאטין 5 ג׳',            per:'unit', unitName:'מנה',     kcal:0,   p:0,    c:0,   f:0 },
+  { id:'f_banana',       name:'בננה',                    per:'unit', unitName:'בננה',    kcal:105, p:1.3,  c:27,  f:0.4 },
+  { id:'f_apple',        name:'תפוח',                    per:'unit', unitName:'תפוח',    kcal:95,  p:0.5,  c:25,  f:0.3 },
+  { id:'f_honey',        name:'דבש (כפית)',              per:'unit', unitName:'כפית',    kcal:21,  p:0,    c:5.8, f:0 },
+  { id:'f_walnut',       name:'אגוז מלך',                per:'unit', unitName:'אגוז',    kcal:26,  p:0.6,  c:0.6, f:2.6 },
+  { id:'f_pecan',        name:'פקאן',                    per:'unit', unitName:'פקאן',    kcal:21,  p:0.3,  c:0.4, f:2.2 },
+  { id:'f_almonds',      name:'שקדים',                   per:'100g',                     kcal:579, p:21,   c:22,  f:50 },
+  { id:'f_chicken',      name:'חזה עוף (מבושל)',         per:'100g',                     kcal:165, p:31,   c:0,   f:3.6 },
+  { id:'f_pargit',       name:'פרגית (מבושל)',           per:'100g',                     kcal:190, p:25,   c:0,   f:10 },
+  { id:'f_beef5',        name:'בשר טחון רזה 5%',         per:'100g',                     kcal:140, p:21,   c:0,   f:5.5 },
+  { id:'f_salmon',       name:'סלמון',                   per:'100g',                     kcal:208, p:20,   c:0,   f:13 },
+  { id:'f_white_fish',   name:'דג לבן (אמנון/דניס)',     per:'100g',                     kcal:128, p:26,   c:0,   f:2.6 },
+  { id:'f_tuna',         name:'טונה במים (קופסה)',       per:'unit', unitName:'קופסה',   kcal:90,  p:20,   c:0,   f:1 },
+  { id:'f_rice',         name:'אורז לבן מבושל',          per:'100g',                     kcal:130, p:2.7,  c:28,  f:0.3 },
+  { id:'f_rice_full',    name:'אורז מלא מבושל',          per:'100g',                     kcal:123, p:2.7,  c:26,  f:1 },
+  { id:'f_pasta',        name:'פסטה מבושלת',             per:'100g',                     kcal:158, p:5.8,  c:31,  f:0.9 },
+  { id:'f_potato',       name:'תפוח אדמה (מבושל)',       per:'100g',                     kcal:87,  p:2,    c:20,  f:0.1 },
+  { id:'f_sweet_potato', name:'בטטה (אפויה)',            per:'100g',                     kcal:90,  p:2,    c:21,  f:0.2 },
+  { id:'f_bread_whole',  name:'לחם מלא (פרוסה)',         per:'unit', unitName:'פרוסה',   kcal:80,  p:4,    c:14,  f:1 },
+  { id:'f_oats',         name:'שיבולת שועל (יבש)',       per:'100g',                     kcal:379, p:13,   c:67,  f:6.5 },
+  { id:'f_cucumber',     name:'מלפפון',                  per:'unit', unitName:'מלפפון',  kcal:15,  p:0.7,  c:3.6, f:0.1 },
+  { id:'f_tomato',       name:'עגבנייה',                 per:'unit', unitName:'עגבנייה', kcal:22,  p:1.1,  c:4.8, f:0.2 },
+  { id:'f_cherry',       name:'עגבניות שרי',             per:'100g',                     kcal:18,  p:0.9,  c:3.9, f:0.2 },
+  { id:'f_salad',        name:'סלט ירקות (קערה)',        per:'unit', unitName:'קערה',    kcal:50,  p:2,    c:10,  f:0.5 },
+  { id:'f_olive_tsp',    name:'שמן זית (כפית)',          per:'unit', unitName:'כפית',    kcal:40,  p:0,    c:0,   f:4.5 },
+  { id:'f_olive_tbsp',   name:'שמן זית (כף)',            per:'unit', unitName:'כף',      kcal:119, p:0,    c:0,   f:13.5 },
+  { id:'f_avocado',      name:'אבוקדו (חצי)',            per:'unit', unitName:'חצי',     kcal:120, p:1.5,  c:6,   f:11 },
+  { id:'f_tahini',       name:'טחינה גולמית (כף)',       per:'unit', unitName:'כף',      kcal:89,  p:2.6,  c:3.2, f:8 },
+  { id:'f_hummus',       name:'חומוס מוכן',              per:'100g',                     kcal:166, p:8,    c:14,  f:9.6 },
+  { id:'f_dark_choc',    name:'שוקולד מריר (קובייה)',    per:'unit', unitName:'קובייה',  kcal:32,  p:0.4,  c:2.8, f:2.2 },
+];
+function calcMacros(food, qty){
+  /* self-contained parse — this runs at module load (DEFAULT_MEAL_PLAN build),
+     before the later const helpers exist */
+  const qn = parseFloat(qty);
+  const q = isNaN(qn) ? 0 : qn;
+  const k = food.per === '100g' ? q / 100 : q;
+  const r1 = v => Math.round(v * k * 10) / 10;
+  return { kcal: Math.round(food.kcal * k), p: r1(food.p), c: r1(food.c), f: r1(food.f) };
+}
+function mkPlanItem(foodId, qty){
+  const fd = FOOD_DB.find(x => x.id === foodId);
+  return Object.assign({ id: foodId + '_' + qty, foodId, name: fd.name, qty: String(qty), per: fd.per, unitName: fd.unitName || 'גרם' }, calcMacros(fd, qty));
+}
+/* the user's default daily menu — recomposition @ ~74kg, protein-first.
+   every new day starts from this; edits on a specific day stay on that day */
+const DEFAULT_MEAL_PLAN = [
+  { id:'mp1', icon:'🌅', title:'ארוחת בוקר', items:[ mkPlanItem('f_pita_spelt', 2), mkPlanItem('f_egg', 3), mkPlanItem('f_egg_white', 1), mkPlanItem('f_white5', 30), mkPlanItem('f_yellow9', 2) ] },
+  { id:'mp2', icon:'🥤', title:'לאחר אימון', items:[ mkPlanItem('f_whey', 1), mkPlanItem('f_creatine', 1) ] },
+  { id:'mp3', icon:'🥪', title:'ארוחת ביניים', items:[ mkPlanItem('f_egg', 2), mkPlanItem('f_yellow9', 2), mkPlanItem('f_salad', 1) ] },
+  { id:'mp4', icon:'🍮', title:'מעדן חלבון', items:[ mkPlanItem('f_pro_pud', 1) ] },
+  { id:'mp5', icon:'🌙', title:'ארוחת ערב', items:[ mkPlanItem('f_pargit', 180), mkPlanItem('f_rice', 240), mkPlanItem('f_salad', 1), mkPlanItem('f_olive_tbsp', 1) ] },
+];
+const DEFAULT_NUTRI_TARGETS = { kcal:2400, protein:155, carbs:280, fat:70, water:3000, strengthBurn:300 };
 
 /* ============================== utils ============================== */
 const clone = o => (typeof structuredClone === 'function' ? structuredClone(o) : JSON.parse(JSON.stringify(o)));
@@ -277,6 +344,8 @@ function seed(){
     routineVersion: ROUTINE_V,
     templates: clone(DEFAULT_TEMPLATES),
     meals: clone(DEFAULT_MEALS),
+    mealPlan: clone(DEFAULT_MEAL_PLAN),
+    foods:[], deletedFoods:[],
     logs:{}, runs:[], deletedRuns:[],
     weights:[], deletedWeights:[],
     photos:[], deletedPhotos:[],
@@ -293,6 +362,8 @@ function normalize(s){
   out.logs = s.logs || {}; out.runs = s.runs || []; out.deletedRuns = s.deletedRuns || [];
   out.weights = s.weights || []; out.deletedWeights = s.deletedWeights || [];
   out.photos = s.photos || []; out.deletedPhotos = s.deletedPhotos || [];
+  out.mealPlan = s.mealPlan || null;
+  out.foods = s.foods || []; out.deletedFoods = s.deletedFoods || [];
   out.routineVersion = s.routineVersion || 1;
   return normalizeLogKeys(out);
 }
@@ -376,6 +447,16 @@ function migrateRoutine(s){
     }
     v = 5;
   }
+  if (v < 6) {
+    /* v6: nutrition dashboard — seed the default daily meal plan and recomp
+       targets. Old checklist data (state.meals + logs[wk].nutrition) is kept
+       untouched and still renders for historical days. */
+    if (!s.mealPlan || !s.mealPlan.length) s.mealPlan = clone(DEFAULT_MEAL_PLAN);
+    if (!s.foods) s.foods = [];
+    if (!s.deletedFoods) s.deletedFoods = [];
+    if (!s.settings.nutri) s.settings.nutri = clone(DEFAULT_NUTRI_TARGETS);
+    v = 6;
+  }
   s.routineVersion = v;
   s.stamps.templates = Date.now();
   return normalizeLogKeys(s);
@@ -408,7 +489,7 @@ function mergeStates(local, remote){
   const out = clone(local);
   remote = normalize(clone(remote));
   if ((remote.stamps.templates || 0) > (out.stamps.templates || 0)) { out.templates = remote.templates; out.stamps.templates = remote.stamps.templates; }
-  if ((remote.stamps.meals || 0) > (out.stamps.meals || 0)) { out.meals = remote.meals; out.stamps.meals = remote.stamps.meals; }
+  if ((remote.stamps.meals || 0) > (out.stamps.meals || 0)) { out.meals = remote.meals; out.mealPlan = remote.mealPlan || out.mealPlan; out.stamps.meals = remote.stamps.meals; }
   if ((remote.stamps.settings || 0) > (out.stamps.settings || 0)) {
     const gid = out.settings.gistId;
     out.settings = remote.settings;
@@ -431,6 +512,9 @@ function mergeStates(local, remote){
   const deadP = new Set((out.deletedPhotos || []).concat(remote.deletedPhotos || []));
   out.photos = unionById(out.photos || [], remote.photos || [], deadP).sort((a, b) => a.date < b.date ? 1 : -1);
   out.deletedPhotos = Array.from(deadP).slice(-300);
+  const deadFd = new Set((out.deletedFoods || []).concat(remote.deletedFoods || []));
+  out.foods = unionById(out.foods || [], remote.foods || [], deadFd);
+  out.deletedFoods = Array.from(deadFd).slice(-300);
   return normalizeLogKeys(out);
 }
 
@@ -529,8 +613,8 @@ function todayStats(state){
   const runs = state.runs.filter(r => r.date === today);
   const km = runs.reduce((a, r) => a + r.km, 0);
   const dayIdx = new Date().getDay();
-  const meals = state.meals.filter(m => ((wk.nutrition || {})[dayIdx] || {})[m.id]).length;
-  return { sets, ton: Math.round(ton), perTpl, runs, km, meals };
+  const ns = dayNutriSummary(state, week, dayIdx);
+  return { sets, ton: Math.round(ton), perTpl, runs, km, meals: ns.done, mealsTotal: ns.total, kcal: ns.kcal };
 }
 function dayActive(state, iso){
   const wkk = weekStartISO(fromISO(iso));
@@ -541,6 +625,8 @@ function dayActive(state, iso){
     (wo[tplId][k] || []).some(x => x && x.done && x.t === iso)));
   if (hasSet) return true;
   if (state.runs.some(r => r.date === iso)) return true;
+  const d2 = (wk.nutri2 || {})[dayIdx];
+  if (d2 && d2.meals && d2.meals.some(m => (m.items || []).some(it => it.eaten))) return true;
   const n = (wk.nutrition || {})[dayIdx] || {};
   return Object.keys(n).some(k => n[k]);
 }
@@ -602,6 +688,57 @@ function runningInsights(state){
   const prevPace = avg(withPace.filter(r => r.date > d28 && r.date <= d14));
   const paceDelta = (recentPace && prevPace) ? Math.round(prevPace - recentPace) : null;
   return { weeks, fastest, longest, paceDelta, recentPace, total: runs.reduce((a, r) => a + r.km, 0) };
+}
+
+/* ---------- nutrition engine ---------- */
+function nutriTargets(state){
+  return Object.assign({}, DEFAULT_NUTRI_TARGETS, (state.settings || {}).nutri || {});
+}
+function foodCatalog(state){
+  return FOOD_DB.concat(state.foods || []);
+}
+/* unified per-day nutrition summary — reads the new macro log (nutri2) when it
+   exists, falls back to the legacy checklist so history keeps rendering */
+function dayNutriSummary(state, week, dayIdx){
+  const wk = state.logs[week] || {};
+  const d2 = (wk.nutri2 || {})[dayIdx];
+  if (d2 && d2.meals) {
+    let kcal = 0, p = 0, c = 0, f = 0, done = 0;
+    const icons = [];
+    d2.meals.forEach(m => {
+      const items = m.items || [];
+      const all = items.length > 0 && items.every(it => it.eaten);
+      if (all) done++;
+      icons.push({ icon: m.icon, done: all });
+      items.forEach(it => { if (it.eaten) { kcal += numOr0(it.kcal); p += numOr0(it.p); c += numOr0(it.c); f += numOr0(it.f); } });
+    });
+    const total = d2.meals.length;
+    return { v2: true, done, total, full: total > 0 && done === total,
+             kcal: Math.round(kcal), p: Math.round(p), c: Math.round(c), f: Math.round(f),
+             water: numOr0(d2.water), sleep: d2.sleep || '', icons };
+  }
+  const checks = (wk.nutrition || {})[dayIdx] || {};
+  const done = state.meals.filter(m => checks[m.id]).length;
+  return { v2: false, done, total: state.meals.length, full: done > 0 && done === state.meals.length,
+           kcal: 0, p: 0, c: 0, f: 0, water: 0, sleep: '',
+           icons: state.meals.map(m => ({ icon: m.icon, done: !!checks[m.id] })) };
+}
+/* estimated training burn for a calendar day: strength session flat rate +
+   run kcal derived from distance × body weight (latest weigh-in, fallback 74) */
+function dayBurn(state, dateISO){
+  const wkk = weekStartISO(fromISO(dateISO));
+  const wk = state.logs[wkk] || {};
+  let strength = false;
+  const wo = wk.workouts || {};
+  outer:
+  for (const tplId in wo) for (const k in wo[tplId]) {
+    if ((wo[tplId][k] || []).some(x => x && x.done && x.t === dateISO)) { strength = true; break outer; }
+  }
+  const weightKg = (state.weights && state.weights.length) ? numOr0(state.weights[0].kg) || 74 : 74;
+  let runKcal = 0;
+  (state.runs || []).forEach(r => { if (r.date === dateISO) runKcal += Math.round(numOr0(r.km) * weightKg); });
+  const strengthKcal = strength ? (nutriTargets(state).strengthBurn || 300) : 0;
+  return { strengthKcal, runKcal, total: strengthKcal + runKcal };
 }
 
 /* total strength volume per week — the zero-click progress headline */
@@ -1748,153 +1885,352 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
 }
 
 /* ============================== nutrition ============================== */
+function FoodPicker({ state, mutate, onPick, onClose }){
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState(null);
+  const [qty, setQty] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [nf, setNf] = useState({ name:'', per:'unit', unitName:'יחידה', kcal:'', p:'', c:'', f:'' });
+  const cat = foodCatalog(state);
+  const list = q.trim() ? cat.filter(fd => fd.name.indexOf(q.trim()) !== -1) : cat;
+  const pick = fd => { setSel(fd); setQty(fd.per === 'unit' ? '1' : '100'); };
+  const macros = sel ? calcMacros(sel, qty) : null;
+  const addNow = () => {
+    if (!sel || !(numOr0(qty) > 0)) { alert('הכנס כמות'); return; }
+    onPick(Object.assign({ id: uid(), foodId: sel.id, name: sel.name, qty: String(qty), per: sel.per, unitName: sel.unitName || 'גרם', eaten: true }, calcMacros(sel, qty)));
+  };
+  const saveCustom = () => {
+    if (!nf.name.trim()) { alert('מלא שם למאכל'); return; }
+    const fd = { id: 'cf' + uid(), name: nf.name.trim(), per: nf.per, unitName: nf.per === 'unit' ? (nf.unitName || 'יחידה') : undefined,
+                 kcal: numOr0(nf.kcal), p: numOr0(nf.p), c: numOr0(nf.c), f: numOr0(nf.f), custom: true, updatedAt: Date.now() };
+    mutate(d => { d.foods.push(fd); }, 'meals');
+    setCreating(false); pick(fd);
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose} style={{ background:'rgba(0,0,0,.75)' }}>
+      <div className="w-full max-w-xl rounded-t-3xl border border-white/10 p-4 space-y-2.5 fadein" onClick={e => e.stopPropagation()}
+           style={{ background:'rgba(13,16,24,.98)', backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)', maxHeight:'82vh', overflowY:'auto', paddingBottom:'max(env(safe-area-inset-bottom), 16px)' }}>
+        <div className="flex items-center justify-between">
+          <div className="font-black italic">הוספת מאכל 🍽️</div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60"><Icon d={I.x} className="w-4 h-4"/></button>
+        </div>
+        {!sel && !creating && (
+          <React.Fragment>
+            <input className="inp" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
+            <button onClick={() => setCreating(true)} className="w-full py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי (נשמר לתמיד)</button>
+            <div className="space-y-1">
+              {list.slice(0, 40).map(fd => (
+                <button key={fd.id} onClick={() => pick(fd)} className="w-full flex items-center gap-2 bg-white/5 border border-white/5 rounded-2xl px-3 py-2.5 text-start active:scale-[.985] transition">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate">{fd.name}{fd.custom ? ' ⭐' : ''}</div>
+                    <div className="text-[10px] text-white/40">{fd.per === 'unit' ? 'ל־' + (fd.unitName || 'יחידה') : 'ל־100 גרם'} · {fd.kcal} קק"ל · {fd.p} ג׳ חלבון</div>
+                  </div>
+                  <Icon d={I.plus} className="w-4 h-4 text-volt shrink-0"/>
+                </button>
+              ))}
+              {list.length === 0 && <div className="text-center text-white/30 text-sm py-4">לא נמצא — צור מאכל חדש למעלה ⬆️</div>}
+            </div>
+          </React.Fragment>
+        )}
+        {creating && (
+          <div className="space-y-2 fadein">
+            <input className="inp font-bold" placeholder="שם המאכל" value={nf.name} onChange={e => setNf({ ...nf, name: e.target.value })}/>
+            <div className="flex gap-1.5">
+              <button onClick={() => setNf({ ...nf, per:'unit' })} className={'flex-1 py-2 rounded-xl text-xs font-bold border transition ' + (nf.per === 'unit' ? 'bg-volt/15 text-volt border-volt/40' : 'bg-white/5 text-white/40 border-white/10')}>ערכים ליחידה</button>
+              <button onClick={() => setNf({ ...nf, per:'100g' })} className={'flex-1 py-2 rounded-xl text-xs font-bold border transition ' + (nf.per === '100g' ? 'bg-volt/15 text-volt border-volt/40' : 'bg-white/5 text-white/40 border-white/10')}>ערכים ל־100 גרם</button>
+            </div>
+            {nf.per === 'unit' && <input className="inp text-xs" placeholder="שם היחידה (פרוסה / כף / גביע)" value={nf.unitName} onChange={e => setNf({ ...nf, unitName: e.target.value })}/>}
+            <div className="grid grid-cols-4 gap-1.5">
+              <div><label className="lbl">קק"ל</label><input className="inp text-center font-bold" inputMode="decimal" value={nf.kcal} onChange={e => setNf({ ...nf, kcal: e.target.value })}/></div>
+              <div><label className="lbl">חלבון</label><input className="inp text-center font-bold" inputMode="decimal" value={nf.p} onChange={e => setNf({ ...nf, p: e.target.value })}/></div>
+              <div><label className="lbl">פחמימה</label><input className="inp text-center font-bold" inputMode="decimal" value={nf.c} onChange={e => setNf({ ...nf, c: e.target.value })}/></div>
+              <div><label className="lbl">שומן</label><input className="inp text-center font-bold" inputMode="decimal" value={nf.f} onChange={e => setNf({ ...nf, f: e.target.value })}/></div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveCustom} className="flex-1 py-2.5 rounded-2xl bg-volt text-obsidian font-black active:scale-[.98] transition">שמור מאכל</button>
+              <button onClick={() => setCreating(false)} className="px-4 rounded-2xl bg-white/5 border border-white/10 text-white/50 font-bold text-sm">חזרה</button>
+            </div>
+          </div>
+        )}
+        {sel && (
+          <div className="space-y-2.5 fadein">
+            <button onClick={() => setSel(null)} className="text-white/50 text-xs font-bold flex items-center gap-1 active:scale-95 transition"><Icon d={I.chevR} className="w-4 h-4"/> חזרה לחיפוש</button>
+            <div className="font-bold text-lg">{sel.name}</div>
+            <div>
+              <label className="lbl">{sel.per === 'unit' ? 'כמות (' + (sel.unitName || 'יחידות') + ')' : 'כמות בגרמים'}</label>
+              <input className="inp text-center font-black text-xl" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}/>
+            </div>
+            {macros && (
+              <div className="grid grid-cols-4 gap-1.5 text-center">
+                <div className="bg-black/25 rounded-xl py-2 border border-white/5"><div className="font-black text-volt">{macros.kcal}</div><div className="text-[9px] text-white/40">קק"ל</div></div>
+                <div className="bg-black/25 rounded-xl py-2 border border-white/5"><div className="font-black">{macros.p}</div><div className="text-[9px] text-white/40">חלבון</div></div>
+                <div className="bg-black/25 rounded-xl py-2 border border-white/5"><div className="font-black">{macros.c}</div><div className="text-[9px] text-white/40">פחמימה</div></div>
+                <div className="bg-black/25 rounded-xl py-2 border border-white/5"><div className="font-black">{macros.f}</div><div className="text-[9px] text-white/40">שומן</div></div>
+              </div>
+            )}
+            <button onClick={addNow} className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">הוסף לארוחה ⚡</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function NutritionTab({ state, week, mutate }){
   const todayISO = toISO(new Date());
   const isCur = weekStartISO(new Date()) === week;
   const [day, setDay] = useState(isCur ? new Date().getDay() : 0);
-  const [edit, setEdit] = useState(false);
-  useEffect(() => { setDay(weekStartISO(new Date()) === week ? new Date().getDay() : 0); }, [week]);
+  const [picker, setPicker] = useState(null);
+  const [showTargets, setShowTargets] = useState(false);
+  useEffect(() => { setDay(weekStartISO(new Date()) === week ? new Date().getDay() : 0); setPicker(null); }, [week]);
 
-  const nut = (state.logs[week] || {}).nutrition || {};
-  const checks = nut[day] || {};
-  const doneCount = state.meals.filter(m => checks[m.id]).length;
-  const weekDone = DAYS_HE.reduce((a, _, i) => a + state.meals.filter(m => (nut[i] || {})[m.id]).length, 0);
-  const weekTotal = Math.max(1, 7 * state.meals.length);
-  const weekPct = Math.round(weekDone / weekTotal * 100);
+  const targets = nutriTargets(state);
+  const wk = state.logs[week] || {};
+  const d2 = (wk.nutri2 || {})[day];
+  const legacyChecks = (wk.nutrition || {})[day] || {};
+  const isLegacy = !d2 && Object.keys(legacyChecks).some(k => legacyChecks[k]);
+  const viewMeals = (d2 && d2.meals) ? d2.meals : (state.mealPlan || []).map(m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => Object.assign({}, it, { eaten: false })) }));
 
-  const toggleAt = (di, mealId) => mutate(d => {
-    const wk = (d.logs[week] = d.logs[week] || {});
-    const n = (wk.nutrition = wk.nutrition || {});
-    const dd = (n[di] = n[di] || {});
-    dd[mealId] = !dd[mealId];
+  let eatK = 0, eatP = 0, eatC = 0, eatF = 0;
+  viewMeals.forEach(m => (m.items || []).forEach(it => { if (it.eaten) { eatK += numOr0(it.kcal); eatP += numOr0(it.p); eatC += numOr0(it.c); eatF += numOr0(it.f); } }));
+  eatK = Math.round(eatK); eatP = Math.round(eatP); eatC = Math.round(eatC); eatF = Math.round(eatF);
+  const water = d2 ? numOr0(d2.water) : 0;
+  const sleep = d2 ? (d2.sleep || '') : '';
+  const dateISO = addDays(week, day);
+  const burn = dayBurn(state, dateISO);
+  const kcalTarget = Math.round(targets.kcal + burn.total);
+  const remaining = kcalTarget - eatK;
+
+  const withDay = fn => mutate(d => {
+    const w2 = (d.logs[week] = d.logs[week] || {});
+    const n2 = (w2.nutri2 = w2.nutri2 || {});
+    if (!n2[day]) n2[day] = {
+      meals: (d.mealPlan || []).map(m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) })),
+      water: 0, sleep: ''
+    };
+    fn(n2[day], d);
   }, ['week', week]);
 
-  const updMeal = (id, patch) => mutate(d => { Object.assign(d.meals.find(m => m.id === id), patch); }, 'meals');
-  const delMeal = id => {
-    const m = state.meals.find(x => x.id === id);
-    if (!confirm('למחוק את "' + (m ? m.title : '') + '"?')) return;
-    mutate(d => { d.meals = d.meals.filter(x => x.id !== id); }, 'meals');
+  const toggleItem = (mi, ii) => withDay(dd => { const it = (dd.meals[mi] || { items: [] }).items[ii]; if (it) it.eaten = !it.eaten; });
+  const setItemQty = (mi, ii, q) => withDay((dd, d) => {
+    const it = (dd.meals[mi] || { items: [] }).items[ii]; if (!it) return;
+    const nq = numOr0(q);
+    const fd = it.foodId ? foodCatalog(d).find(x => x.id === it.foodId) : null;
+    if (fd && nq > 0) Object.assign(it, calcMacros(fd, nq));
+    else if (nq > 0 && numOr0(it.qty) > 0) {
+      const r = nq / numOr0(it.qty);
+      it.kcal = Math.round(it.kcal * r); it.p = Math.round(it.p * r * 10) / 10; it.c = Math.round(it.c * r * 10) / 10; it.f = Math.round(it.f * r * 10) / 10;
+    }
+    it.qty = q;
+  });
+  const delItem = (mi, ii) => withDay(dd => { (dd.meals[mi] || { items: [] }).items.splice(ii, 1); });
+  const addItemTo = (mi, item) => withDay(dd => { (dd.meals[mi] || { items: [] }).items.push(item); });
+  const addWater = ml => withDay(dd => { dd.water = Math.max(0, numOr0(dd.water) + ml); });
+  const setSleep = v => withDay(dd => { dd.sleep = v; });
+  const toggleLegacy = mealId => mutate(d => {
+    const w2 = (d.logs[week] = d.logs[week] || {});
+    const n = (w2.nutrition = w2.nutrition || {});
+    const dd = (n[day] = n[day] || {});
+    dd[mealId] = !dd[mealId];
+  }, ['week', week]);
+  const saveAsTemplate = () => {
+    if (!confirm('לשמור את התפריט של היום הזה כתבנית הקבועה לכל הימים הבאים?')) return;
+    mutate(d => {
+      const src = ((((d.logs[week] || {}).nutri2) || {})[day] || {}).meals || d.mealPlan;
+      d.mealPlan = src.map(m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => ({ id: uid(), foodId: it.foodId || null, name: it.name, qty: it.qty, per: it.per, unitName: it.unitName, kcal: it.kcal, p: it.p, c: it.c, f: it.f })) }));
+    }, 'meals');
   };
-  const addMeal = () => mutate(d => { d.meals.push({ id: uid(), icon:'🍽️', title:'ארוחה חדשה', desc:'' }); }, 'meals');
-  const moveMeal = (id, dir) => mutate(d => {
-    const i = d.meals.findIndex(m => m.id === id), j = i + dir;
-    if (i < 0 || j < 0 || j >= d.meals.length) return;
-    const tmp = d.meals[i]; d.meals[i] = d.meals[j]; d.meals[j] = tmp;
-  }, 'meals');
+  const setTarget = (k, v) => mutate(d => { d.settings.nutri = Object.assign({}, nutriTargets(d), { [k]: numOr0(v) }); }, 'settings');
+
+  const trained = burn.total > 0;
+  const sleepOk = numOr0(sleep) >= 7;
+  const protOk = eatP >= targets.protein * 0.9;
+  const score = (sleepOk ? 1 : 0) + (protOk ? 1 : 0) + (trained ? 1 : 0);
+  const recovery = score === 3 ? { t:'התאוששות אופטימלית לבניית שריר ⚡', c:'bg-volt/15 text-volt border-volt/30' }
+    : score === 2 ? { t:'התאוששות טובה 💪', c:'bg-volt/5 text-volt/80 border-volt/15' }
+    : score === 1 ? { t:'התאוששות חלקית 😴', c:'bg-ember/10 text-ember border-ember/25' }
+    : { t:'עדכן שינה, חלבון ואימון להערכת ההתאוששות', c:'bg-white/5 text-white/40 border-white/10' };
+
+  const MacroBar = ({ label, val, target, color }) => (
+    <div>
+      <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+        <span className="text-white/50">{label}</span>
+        <span><span className={color}>{val}</span><span className="text-white/30"> / {target} ג׳</span></span>
+      </div>
+      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden" dir="ltr">
+        <div className={'h-full rounded-full transition-all duration-500 ' + (val > target * 1.15 ? 'bg-ember' : 'bg-gradient-to-r from-lime-700 to-volt')} style={{ width: Math.min(100, val / Math.max(1, target) * 100) + '%' }}/>
+      </div>
+    </div>
+  );
 
   return (
     <div className="fadein space-y-3">
-      <div className="glass rounded-3xl p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-black italic leading-none">LEAN BULK</h2>
-            <div className="text-white/40 text-xs mt-1">צ'קליסט תזונה יומי</div>
-          </div>
-          <div className="relative w-[64px] h-[64px]">
-            <Ring pct={doneCount / Math.max(1, state.meals.length)} size={64} stroke={5}/>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-black text-xl leading-none">{doneCount}</span>
-              <span className="text-[8px] text-white/40">מתוך {state.meals.length}</span>
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-7 gap-1.5 mt-4">
+      <div className="glass rounded-2xl p-2">
+        <div className="grid grid-cols-7 gap-1.5">
           {DAYS_HE.map((d, i) => {
             const iso = addDays(week, i);
-            const c = state.meals.filter(m => (nut[i] || {})[m.id]).length;
-            const full = c === state.meals.length && c > 0;
+            const nsI = dayNutriSummary(state, week, i);
             const active = day === i;
             return (
               <button key={i} onClick={() => setDay(i)}
                       className={'rounded-xl py-1.5 flex flex-col items-center transition active:scale-95 ' + (active ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 text-white/60')}>
                 <span className="text-sm font-black leading-none">{d}</span>
                 <span className={'text-[9px] mt-0.5 ' + (active ? 'text-obsidian/60' : (iso === todayISO ? 'text-volt' : 'text-white/30'))}>{fromISO(iso).getDate()}</span>
-                <span className={'mt-1 w-1 h-1 rounded-full ' + (full ? (active ? 'bg-obsidian' : 'bg-volt') : (c > 0 ? 'bg-ember' : 'bg-transparent'))}></span>
+                <span className={'mt-1 w-1 h-1 rounded-full ' + (nsI.full ? (active ? 'bg-obsidian' : 'bg-volt') : (nsI.done > 0 ? 'bg-ember' : 'bg-transparent'))}></span>
               </button>
             );
           })}
         </div>
-        <div className="mt-3.5 flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-l from-volt to-lime-300 transition-all duration-500" style={{ width: weekPct + '%' }}/>
-          </div>
-          <span className="text-[10px] text-white/40 font-bold shrink-0">{weekPct}% שבועי</span>
-        </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        <span className="text-white/40 text-xs font-bold">{DAYS_FULL[day]} · {(() => { const d = fromISO(addDays(week, day)); return d.getDate() + '.' + (d.getMonth() + 1); })()}</span>
-        <button onClick={() => setEdit(!edit)}
-                className={'h-8 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold active:scale-95 transition ' + (edit ? 'bg-volt text-obsidian' : 'bg-white/5 text-white/50')}>
-          <Icon d={edit ? I.check : I.pencil} className="w-3.5 h-3.5"/>{edit ? 'סיום' : 'עריכה'}
-        </button>
-      </div>
-
-      {state.meals.map((m, mi) => {
-        const done = !!checks[m.id];
-        if (edit) return (
-          <div key={m.id} className="glass rounded-3xl p-4 space-y-2 fadein">
-            <div className="flex gap-2">
-              <input className="inp w-16 text-center text-xl" value={m.icon} onChange={e => updMeal(m.id, { icon: e.target.value })}/>
-              <input className="inp flex-1 min-w-0 font-bold" value={m.title} onChange={e => updMeal(m.id, { title: e.target.value })}/>
+      {isLegacy ? (
+        <React.Fragment>
+          <div className="glass rounded-3xl p-4 text-center">
+            <div className="text-white/50 text-sm font-bold">יום מהמעקב הקודם (צ'קליסט) 📋</div>
+            <div className="text-white/30 text-xs mt-1">הסימונים ההיסטוריים נשמרו — אפשר להמשיך לסמן כרגיל</div>
+            <button onClick={() => withDay(() => {})} className="mt-2.5 px-4 py-2 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-xs font-bold active:scale-95 transition">עבור למעקב המאקרו החדש ליום זה ←</button>
+          </div>
+          {state.meals.map(m => {
+            const done = !!legacyChecks[m.id];
+            return (
+              <button key={m.id} onClick={() => toggleLegacy(m.id)}
+                      className={'w-full text-start rounded-3xl p-4 flex gap-3 items-start transition active:scale-[.985] border ' + (done ? 'bg-volt/10 border-volt/25' : 'glass border-transparent')}>
+                <div className={'w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition ' + (done ? 'bg-volt border-volt text-obsidian glow-volt' : 'border-white/15 text-transparent')}>
+                  <Icon d={I.check} className="w-4 h-4"/>
+                </div>
+                <span className="text-2xl leading-none mt-0.5">{m.icon}</span>
+                <div className="min-w-0">
+                  <div className={'font-bold leading-snug ' + (done ? 'text-volt' : '')}>{m.title}</div>
+                  <div className={'text-xs leading-relaxed mt-1 ' + (done ? 'text-white/30' : 'text-white/45')}>{m.desc}</div>
+                </div>
+              </button>
+            );
+          })}
+        </React.Fragment>
+      ) : (
+        <React.Fragment>
+          <div className="glass rounded-3xl p-4">
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0" style={{ width:'110px', height:'110px' }}>
+                <Ring pct={eatK / Math.max(1, kcalTarget)} size={110} stroke={9} color={eatK > kcalTarget ? '#FF5A1F' : '#CCFF00'}/>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-black text-2xl leading-none">{eatK}</span>
+                  <span className="text-[9px] text-white/40 mt-0.5">מתוך {kcalTarget}</span>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className={'rounded-2xl px-3 py-2 border text-sm font-black ' + (remaining >= 0 ? 'bg-volt/10 border-volt/25 text-volt' : 'bg-ember/10 border-ember/25 text-ember')}>
+                  {remaining >= 0 ? 'נשארו ' + remaining + ' קק"ל' : 'חריגה של ' + (-remaining) + ' קק"ל'}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-[9px] font-bold text-white/40 bg-white/5 rounded-full px-2 py-1">בסיס {targets.kcal}</span>
+                  {burn.strengthKcal > 0 && <span className="text-[9px] font-bold text-volt bg-volt/10 border border-volt/20 rounded-full px-2 py-1">🏋️ אימון +{burn.strengthKcal}</span>}
+                  {burn.runKcal > 0 && <span className="text-[9px] font-bold text-ember bg-ember/10 border border-ember/20 rounded-full px-2 py-1">🏃 ריצה +{burn.runKcal}</span>}
+                </div>
+              </div>
             </div>
-            <textarea className="inp leading-relaxed" rows="3" value={m.desc} placeholder="פירוט הארוחה..." onChange={e => updMeal(m.id, { desc: e.target.value })}/>
-            <div className="flex gap-1.5">
-              <button onClick={() => moveMeal(m.id, -1)} disabled={mi === 0}
-                      className="w-10 h-9 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center active:scale-90 transition disabled:opacity-15">
-                <Icon d={I.chevUp} className="w-4 h-4"/>
-              </button>
-              <button onClick={() => moveMeal(m.id, 1)} disabled={mi === state.meals.length - 1}
-                      className="w-10 h-9 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center active:scale-90 transition disabled:opacity-15">
-                <Icon d={I.chevDown} className="w-4 h-4"/>
-              </button>
-              <div className="flex-1"></div>
-              <button onClick={() => delMeal(m.id)} className="w-10 h-9 rounded-xl bg-ember/15 text-ember flex items-center justify-center active:scale-90 transition">
-                <Icon d={I.trash} className="w-4 h-4"/>
-              </button>
+            <div className="mt-3.5 space-y-2.5">
+              <MacroBar label="חלבון 🥩" val={eatP} target={targets.protein} color="text-volt"/>
+              <MacroBar label="פחמימות 🍚" val={eatC} target={targets.carbs} color="text-white"/>
+              <MacroBar label="שומן 🥑" val={eatF} target={targets.fat} color="text-ember"/>
+            </div>
+            <div className="mt-3.5">
+              <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                <span className="text-white/50">מים 💧</span>
+                <span className="text-sky-300">{water} <span className="text-white/30">/ {targets.water} מ"ל</span></span>
+              </div>
+              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mb-2" dir="ltr">
+                <div className="h-full rounded-full bg-gradient-to-r from-sky-700 to-sky-300 transition-all duration-500" style={{ width: Math.min(100, water / Math.max(1, targets.water) * 100) + '%' }}/>
+              </div>
+              <div className="flex gap-1.5">
+                <button onClick={() => addWater(250)} className="flex-1 py-1.5 rounded-xl bg-sky-400/10 border border-sky-400/25 text-sky-300 text-xs font-bold active:scale-95 transition">+250 מ"ל</button>
+                <button onClick={() => addWater(500)} className="flex-1 py-1.5 rounded-xl bg-sky-400/10 border border-sky-400/25 text-sky-300 text-xs font-bold active:scale-95 transition">+500 מ"ל</button>
+                <button onClick={() => addWater(-250)} className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-xs font-bold active:scale-95 transition">−250</button>
+              </div>
             </div>
           </div>
-        );
-        return (
-          <button key={m.id} onClick={() => toggleAt(day, m.id)}
-                  className={'w-full text-start rounded-3xl p-4 flex gap-3 items-start transition active:scale-[.985] border ' + (done ? 'bg-volt/10 border-volt/25' : 'glass border-transparent')}>
-            <div className={'w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition ' + (done ? 'bg-volt border-volt text-obsidian glow-volt' : 'border-white/15 text-transparent')}>
-              <Icon d={I.check} className="w-4 h-4"/>
+
+          <div className="glass rounded-3xl p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">😴</span>
+              <div className="flex-1">
+                <div className="text-[10px] font-bold text-white/50 mb-1">שעות שינה הלילה</div>
+                <input className="inp text-center font-black" inputMode="decimal" placeholder="7.5" value={sleep} onChange={e => setSleep(e.target.value)} style={{ maxWidth:'110px' }}/>
+              </div>
+              <div className="flex flex-col items-end gap-1 text-[9px] font-bold">
+                <span className={sleepOk ? 'text-volt' : 'text-white/30'}>שינה 7+ שע׳ {sleepOk ? '✓' : '·'}</span>
+                <span className={protOk ? 'text-volt' : 'text-white/30'}>חלבון 90% {protOk ? '✓' : '·'}</span>
+                <span className={trained ? 'text-volt' : 'text-white/30'}>אימון היום {trained ? '✓' : '·'}</span>
+              </div>
             </div>
-            <span className="text-2xl leading-none mt-0.5">{m.icon}</span>
-            <div className="min-w-0">
-              <div className={'font-bold leading-snug ' + (done ? 'text-volt' : '')}>{m.title}</div>
-              <div className={'text-xs leading-relaxed mt-1 ' + (done ? 'text-white/30' : 'text-white/45')}>{m.desc}</div>
-            </div>
+            <div className={'mt-3 rounded-2xl px-3.5 py-2.5 border text-sm font-black text-center ' + recovery.c}>{recovery.t}</div>
+          </div>
+
+          {viewMeals.map((m, mi) => {
+            const items = m.items || [];
+            const planned = Math.round(items.reduce((a, it) => a + numOr0(it.kcal), 0));
+            const eaten = Math.round(items.reduce((a, it) => a + (it.eaten ? numOr0(it.kcal) : 0), 0));
+            const allDone = items.length > 0 && items.every(it => it.eaten);
+            return (
+              <div key={m.id || mi} className={'rounded-3xl p-4 border transition ' + (allDone ? 'bg-volt/10 border-volt/25' : 'glass border-transparent')}>
+                <div className="flex items-center gap-2.5 mb-2">
+                  <span className="text-2xl">{m.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className={'font-bold ' + (allDone ? 'text-volt' : '')}>{m.title}</div>
+                    <div className="text-[10px] text-white/40">{eaten}/{planned} קק"ל</div>
+                  </div>
+                  {allDone && <span className="text-[9px] font-black text-obsidian bg-volt rounded-full px-2 py-1 glow-volt shrink-0">✓</span>}
+                </div>
+                <div className="space-y-1.5">
+                  {items.map((it, ii) => (
+                    <div key={it.id || ii} className={'flex items-center gap-2 rounded-2xl ps-2 pe-1.5 py-1.5 border transition ' + (it.eaten ? 'bg-volt/10 border-volt/20' : 'bg-black/25 border-white/5')}>
+                      <button onClick={() => toggleItem(mi, ii)}
+                              className={'w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition active:scale-90 ' + (it.eaten ? 'bg-volt border-volt text-obsidian' : 'border-white/15 text-transparent')}>
+                        <Icon d={I.check} className="w-3.5 h-3.5"/>
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold truncate leading-tight">{it.name}</div>
+                        <div className="text-[9px] text-white/40">{it.kcal} קק"ל · ח {it.p} · פ {it.c} · ש {it.f}</div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <input className="inp text-center font-bold" inputMode="decimal" value={it.qty}
+                               onChange={e => setItemQty(mi, ii, e.target.value)} style={{ width:'52px', fontSize:'13px', padding:'4px 4px' }}/>
+                        <span className="text-[9px] text-white/35 truncate" style={{ width:'34px' }}>{it.per === '100g' ? 'גרם' : it.unitName}</span>
+                      </div>
+                      <button onClick={() => delItem(mi, ii)} className="w-7 h-7 rounded-lg text-white/20 flex items-center justify-center active:scale-90 transition shrink-0">
+                        <Icon d={I.trash} className="w-3.5 h-3.5"/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setPicker(mi)} className="mt-2 w-full py-2 rounded-xl bg-white/5 border border-white/10 text-volt text-xs font-bold flex items-center justify-center gap-1 active:scale-[.98] transition">
+                  <Icon d={I.plus} className="w-3.5 h-3.5"/> הוסף מאכל
+                </button>
+              </div>
+            );
+          })}
+
+          <button onClick={saveAsTemplate} className="w-full glass rounded-2xl py-3 text-white/50 text-xs font-bold active:scale-[.98] transition">📌 שמור את התפריט של היום כתבנית הקבועה לכל יום</button>
+
+          <button onClick={() => setShowTargets(!showTargets)} className="w-full glass rounded-2xl py-2.5 text-white/40 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[.98] transition">
+            יעדים יומיים ⚙️ <Icon d={showTargets ? I.chevUp : I.chevDown} className="w-3.5 h-3.5"/>
           </button>
-        );
-      })}
-
-      {edit && (
-        <button onClick={addMeal} className="w-full glass rounded-3xl py-4 text-volt font-bold flex items-center justify-center gap-2 active:scale-[.98] transition">
-          <Icon d={I.plus} className="w-5 h-5"/> הוסף ארוחה
-        </button>
+          {showTargets && (
+            <div className="glass rounded-3xl p-4 grid grid-cols-3 gap-2 fadein">
+              {[['kcal','קק"ל בסיס'], ['protein','חלבון (ג׳)'], ['carbs','פחמימות (ג׳)'], ['fat','שומן (ג׳)'], ['water','מים (מ"ל)'], ['strengthBurn','שריפה באימון כוח']].map(p2 => (
+                <div key={p2[0]}><label className="lbl">{p2[1]}</label>
+                  <input className="inp text-center font-bold" inputMode="numeric" value={targets[p2[0]]} onChange={e => setTarget(p2[0], e.target.value)}/>
+                </div>
+              ))}
+            </div>
+          )}
+        </React.Fragment>
       )}
 
-      <div className="glass rounded-3xl p-4">
-        <div className="text-xs font-bold text-white/40 mb-3">מפת השבוע · לחיצה על תא מסמנת</div>
-        <div className="grid gap-1" style={{ gridTemplateColumns:'28px repeat(7, 1fr)' }}>
-          <div></div>
-          {DAYS_HE.map((d, i) => <div key={i} className="text-center text-[10px] font-bold text-white/40">{d}</div>)}
-          {state.meals.map(m => (
-            <React.Fragment key={m.id}>
-              <div className="flex items-center justify-center text-sm">{m.icon}</div>
-              {DAYS_HE.map((_, di) => {
-                const on = !!((nut[di] || {})[m.id]);
-                return (
-                  <button key={di} onClick={() => toggleAt(di, m.id)}
-                          className={'h-7 rounded-lg transition active:scale-90 ' + (on ? 'bg-volt/80 glow-volt' : 'bg-white/5')}></button>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
+      {picker != null && (
+        <FoodPicker state={state} mutate={mutate} onClose={() => setPicker(null)}
+                    onPick={item => { addItemTo(picker, item); setPicker(null); }}/>
+      )}
     </div>
   );
 }
@@ -1948,8 +2284,8 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
             <div className="text-[9px] text-white/40 mt-0.5">ק"מ היום</div>
           </div>
           <div className="bg-black/30 rounded-2xl py-2.5 text-center">
-            <div className="font-black text-xl">{ts.meals}<span className="text-white/30 text-sm">/{state.meals.length}</span></div>
-            <div className="text-[9px] text-white/40 mt-0.5">ארוחות היום</div>
+            <div className="font-black text-xl">{ts.meals}<span className="text-white/30 text-sm">/{ts.mealsTotal}</span></div>
+            <div className="text-[9px] text-white/40 mt-0.5">{ts.kcal > 0 ? ts.kcal + ' קק"ל היום' : 'ארוחות היום'}</div>
           </div>
         </div>
       </div>
@@ -1996,10 +2332,10 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
                 <span className="text-2xl">🥗</span>
                 <div className="flex-1">
                   <div className="font-bold text-sm">תזונה</div>
-                  <div className="text-[10px] text-white/40">{ts.meals} מתוך {state.meals.length} ארוחות סומנו</div>
+                  <div className="text-[10px] text-white/40">{ts.meals} מתוך {ts.mealsTotal} ארוחות{ts.kcal > 0 ? ' · ' + ts.kcal + ' קק"ל' : ''}</div>
                 </div>
                 <div className="relative w-[30px] h-[30px]">
-                  <Ring pct={ts.meals / Math.max(1, state.meals.length)} size={30} stroke={3}/>
+                  <Ring pct={ts.meals / Math.max(1, ts.mealsTotal)} size={30} stroke={3}/>
                 </div>
               </button>
             )}
@@ -2362,8 +2698,8 @@ function dayFlags(state, iso){
     }
   }
   const run = state.runs.some(r => r.date === iso);
-  const mealsDone = state.meals.filter(m => ((wk.nutrition || {})[dayIdx] || {})[m.id]).length;
-  return { strength, run, fullNutrition: mealsDone > 0 && mealsDone === state.meals.length };
+  const ns = dayNutriSummary(state, wkk, dayIdx);
+  return { strength, run, fullNutrition: ns.full };
 }
 
 function daySummary(state, iso){
@@ -2385,11 +2721,10 @@ function daySummary(state, iso){
     }
   });
   const runs = state.runs.filter(r => r.date === iso);
-  const mealChecks = (wk.nutrition || {})[dayIdx] || {};
-  const mealsDone = state.meals.filter(m => mealChecks[m.id]).length;
+  const ns = dayNutriSummary(state, wkk, dayIdx);
   const weight = state.weights.find(w => w.date === iso) || null;
   const photos = state.photos.filter(p => p.date === iso);
-  return { workouts, runs, mealChecks, mealsDone, mealsTotal: state.meals.length, weight, photos };
+  return { workouts, runs, mealIcons: ns.icons, mealsDone: ns.done, mealsTotal: ns.total, dayKcal: ns.kcal, weight, photos };
 }
 
 function CalendarTab({ state, goTo }){
@@ -2493,15 +2828,15 @@ function CalendarTab({ state, goTo }){
                 <Icon d={I.chevL} className="w-4 h-4 text-white/25 shrink-0"/>
               </button>
             ))}
-            {s.mealsDone > 0 && (
+            {(s.mealsDone > 0 || s.dayKcal > 0) && (
               <button onClick={() => goTo(sel, 'food')}
                       className="w-full flex items-center gap-3 bg-black/25 border border-white/5 rounded-2xl p-3 text-start active:scale-[.985] transition">
                 <span className="text-2xl">🥗</span>
                 <div className="flex-1">
-                  <div className="font-bold text-sm">תזונה · {s.mealsDone}/{s.mealsTotal} {s.mealsDone === s.mealsTotal ? '✓' : ''}</div>
+                  <div className="font-bold text-sm">תזונה · {s.mealsDone}/{s.mealsTotal} {s.mealsDone === s.mealsTotal && s.mealsTotal > 0 ? '✓' : ''}{s.dayKcal > 0 ? ' · ' + s.dayKcal + ' קק"ל' : ''}</div>
                   <div className="flex gap-1.5 mt-1">
-                    {state.meals.map(m => (
-                      <span key={m.id} className={'text-sm ' + (s.mealChecks[m.id] ? '' : 'opacity-20')} style={s.mealChecks[m.id] ? {} : { filter:'grayscale(1)' }}>{m.icon}</span>
+                    {s.mealIcons.map((mi, i) => (
+                      <span key={i} className={'text-sm ' + (mi.done ? '' : 'opacity-20')} style={mi.done ? {} : { filter:'grayscale(1)' }}>{mi.icon}</span>
                     ))}
                   </div>
                 </div>
