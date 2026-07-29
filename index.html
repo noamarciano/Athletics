@@ -923,6 +923,37 @@ function nutriTargets(state){
 function foodCatalog(state){
   return FOOD_DB.concat(state.foods || []);
 }
+/* live barcode lookup against Open Food Facts (free, global, CORS-open).
+   Returns a food object shaped like a FOOD_DB entry, or null when unknown. */
+async function fetchOffProduct(code){
+  const url = 'https://world.openfoodfacts.org/api/v2/product/' + encodeURIComponent(code)
+            + '.json?fields=product_name,product_name_he,brands,nutriments';
+  const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), 9000) : null;
+  let j = null;
+  try {
+    const r = await fetch(url, ctl ? { signal: ctl.signal } : undefined);
+    if (!r.ok) return null;
+    j = await r.json();
+  } catch (e) {
+    return null;
+  } finally { if (timer) clearTimeout(timer); }
+  if (!j || j.status !== 1 || !j.product) return null;
+  const p = j.product, n = p.nutriments || {};
+  const num = v => { const x = parseFloat(v); return isNaN(x) ? 0 : Math.round(x * 10) / 10; };
+  let kcal = num(n['energy-kcal_100g']);
+  if (!kcal && n.energy_100g) kcal = Math.round(num(n.energy_100g) / 4.184); /* kJ → kcal */
+  const name = String(p.product_name_he || p.product_name || '').trim();
+  const brand = String(p.brands || '').split(',')[0].trim();
+  if (!name && !kcal) return null;
+  return {
+    id: 'off' + code, bc: String(code),
+    name: (name || ('מוצר ' + code)) + (brand ? ' · ' + brand : ''),
+    per: '100g', kcal: Math.round(kcal),
+    p: num(n.proteins_100g), c: num(n.carbohydrates_100g), f: num(n.fat_100g),
+    custom: true, src: 'off', updatedAt: Date.now()
+  };
+}
 /* unified per-day nutrition summary — reads the new macro log (nutri2) when it
    exists, falls back to the legacy checklist so history keeps rendering */
 function dayNutriSummary(state, week, dayIdx){
@@ -2129,6 +2160,7 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   /* ---- barcode scanner (html5-qrcode, loaded lazily on demand) ---- */
   const [toast, setToast] = useState(null);
   const [showManual, setShowManual] = useState(false);
+  const [lookup, setLookup] = useState(null);
   const handledRef = useRef(false);
   const audioRef = useRef(null);
   const toastTimer = useRef(null);
@@ -2164,23 +2196,38 @@ function FoodPicker({ state, mutate, onPick, onClose }){
       o.start(); o.stop(ctx.currentTime + 0.18);
     } catch (e) {}
   };
-  /* scanned/typed code → known product (built-in or custom) opens the portion
-     screen; unknown code opens a create-form permanently linked to it */
-  const handleCode = code => {
+  /* scanned/typed code → 1) my saved barcodes  2) Open Food Facts (live)
+     3) unknown → create-form permanently linked to that barcode */
+  const handleCode = async code => {
     if (handledRef.current) return;
     handledRef.current = true;
-    setTimeout(() => { handledRef.current = false; }, 600);
     scanFeedback();
     stopScan();
-    setShowManual(false); setBcManual('');
-    const hit = cat.find(fd => fd.bc && String(fd.bc) === String(code));
-    if (hit) {
-      flashToast('✅ מוצר נמצא: ' + hit.name, 'ok');
-      setScanErr(''); pick(hit);
-    } else {
-      flashToast('🆕 ברקוד לא מוכר: ' + code, 'new');
-      setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: String(code) });
-      setScanErr(''); setCreating(true);
+    setShowManual(false); setBcManual(''); setScanErr('');
+    try {
+      const local = cat.find(fd => fd.bc && String(fd.bc) === String(code));
+      if (local) {
+        flashToast('✅ מוצר נמצא: ' + local.name, 'ok');
+        pick(local);
+        return;
+      }
+      setLookup(String(code));
+      flashToast('🔎 מחפש במאגר העולמי…', 'wait');
+      const prod = await fetchOffProduct(code);
+      setLookup(null);
+      if (prod) {
+        /* cache it forever so the next scan is instant + offline */
+        mutate(d => { if (!(d.foods || []).some(x => String(x.bc) === prod.bc)) d.foods.push(prod); }, 'meals');
+        flashToast('✅ מוצר נמצא: ' + prod.name, 'ok');
+        pick(prod);
+      } else {
+        flashToast('🆕 ברקוד חדש - הוסף נתונים פעם אחת', 'new');
+        setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: String(code) });
+        setCreating(true);
+      }
+    } finally {
+      setLookup(null);
+      handledRef.current = false;
     }
   };
   const loadScanner = () => new Promise((res, rej) => {
@@ -2201,16 +2248,33 @@ function FoodPicker({ state, mutate, onPick, onClose }){
       await loadScanner();
       await new Promise(r => setTimeout(r, 80));
       const F = window.Html5QrcodeSupportedFormats;
-      const opts = F ? { verbose: false, formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128] } : { verbose: false };
+      const opts = F ? { verbose: false, formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_39, F.CODE_128, F.ITF] } : { verbose: false };
       const h = new window.Html5Qrcode('bc-scan-box', opts);
       scanRef.current = h;
-      await h.start(
-        { facingMode:'environment' },
-        { fps: 15,
-          qrbox: (vw, vh) => ({ width: Math.min(320, Math.floor(vw * 0.82)), height: 150 }),
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-          videoConstraints: { facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
-        txt => { handleCode(String(txt).trim()); }, () => {});
+      const cfg = {
+        fps: 20,
+        /* wide, short window — product barcodes are long and flat */
+        qrbox: (vw, vh) => ({ width: Math.floor(Math.min(vw, 420) * 0.88), height: Math.max(120, Math.min(190, Math.floor(vh * 0.42))) }),
+        disableFlip: true,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      };
+      /* iOS: demand the real rear camera first (exact), then degrade gracefully */
+      const attempts = [
+        { facingMode: { exact:'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode:'continuous' }] },
+        { facingMode: { exact:'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        { facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        { facingMode:'environment' }
+      ];
+      let started = false, lastErr = null;
+      for (let i = 0; i < attempts.length && !started; i++) {
+        try {
+          await h.start(attempts[i], cfg, txt => { handleCode(String(txt).trim()); }, () => {});
+          started = true;
+        } catch (e) { lastErr = e; }
+      }
+      if (!started) throw (lastErr || new Error('camera start failed'));
+      /* keep continuous autofocus on so a product held ~15-20cm away locks in */
+      try { await h.applyVideoConstraints({ advanced: [{ focusMode:'continuous' }] }); } catch (e) {}
     } catch (e) {
       stopScan();
       setShowManual(true);
@@ -2239,7 +2303,17 @@ function FoodPicker({ state, mutate, onPick, onClose }){
           <button onClick={close} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60"><Icon d={I.x} className="w-4 h-4"/></button>
         </div>
         {toast && (
-          <div className={'rounded-2xl px-3.5 py-2.5 text-sm font-black text-center fadein border ' + (toast.kind === 'ok' ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'bg-sky-400/10 text-sky-300 border-sky-400/30')} dir="rtl">{toast.text}</div>
+          <div className={'rounded-2xl px-3.5 py-2.5 text-sm font-black text-center fadein border ' +
+            (toast.kind === 'ok' ? 'bg-volt/15 text-volt border-volt/40 glow-volt'
+             : toast.kind === 'wait' ? 'bg-white/5 text-white/60 border-white/15'
+             : 'bg-sky-400/10 text-sky-300 border-sky-400/30')} dir="rtl">{toast.text}</div>
+        )}
+        {lookup && (
+          <div className="flex flex-col items-center justify-center py-8 gap-3 fadein">
+            <Icon d={I.refresh} className="w-8 h-8 text-volt spin"/>
+            <div className="text-sm font-bold text-white/60">מחפש את הברקוד במאגר העולמי…</div>
+            <div className="text-[11px] text-white/30" dir="ltr">{lookup}</div>
+          </div>
         )}
         {scanning && (
           <div className="space-y-2 fadein">
@@ -2262,7 +2336,7 @@ function FoodPicker({ state, mutate, onPick, onClose }){
             </div>
           </div>
         )}
-        {!sel && !creating && !scanning && (
+        {!sel && !creating && !scanning && !lookup && (
           <React.Fragment>
             <div className="flex gap-2">
               <input className="inp flex-1 min-w-0" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
@@ -2321,6 +2395,12 @@ function FoodPicker({ state, mutate, onPick, onClose }){
           <div className="space-y-2.5 fadein">
             <button onClick={() => setSel(null)} className="text-white/50 text-xs font-bold flex items-center gap-1 active:scale-95 transition"><Icon d={I.chevR} className="w-4 h-4"/> חזרה לחיפוש</button>
             <div className="font-bold text-lg">{sel.name}</div>
+            {sel.bc && (
+              <div className="text-[10px] text-white/35 flex items-center gap-1.5 flex-wrap">
+                <span dir="ltr">📷 {sel.bc}</span>
+                {sel.src === 'off' && <span className="text-volt bg-volt/10 border border-volt/25 rounded-full px-2 py-0.5 font-bold">נתונים מ-Open Food Facts · נשמר אצלך ✓</span>}
+              </div>
+            )}
             <div>
               <label className="lbl">{sel.per === 'unit' ? 'כמות (' + (sel.unitName || 'יחידות') + ')' : 'כמות בגרמים'}</label>
               <input className="inp text-center font-black text-xl" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}/>
