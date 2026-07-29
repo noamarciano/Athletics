@@ -52,6 +52,8 @@ tailwind.config = {
   .splash-bolt { font-size:56px; animation:pulseglow 1.1s ease-in-out infinite; filter:drop-shadow(0 0 24px rgba(204,255,0,.6)); }
   @keyframes spin { to { transform:rotate(360deg); } }
   .spin { animation:spin 1s linear infinite; }
+  @keyframes scanline { 0% { top:4px; } 50% { top:calc(100% - 6px); } 100% { top:4px; } }
+  .scanline { position:absolute; left:6%; right:6%; height:2px; background:linear-gradient(90deg, transparent, #CCFF00, transparent); box-shadow:0 0 14px #CCFF00; animation:scanline 2.2s ease-in-out infinite; }
 </style>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
@@ -2125,21 +2127,61 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   const macros = sel ? calcMacros(sel, qty) : null;
 
   /* ---- barcode scanner (html5-qrcode, loaded lazily on demand) ---- */
+  const [toast, setToast] = useState(null);
+  const [showManual, setShowManual] = useState(false);
+  const handledRef = useRef(false);
+  const audioRef = useRef(null);
+  const toastTimer = useRef(null);
+  const flashToast = (text, kind) => {
+    clearTimeout(toastTimer.current);
+    setToast({ text, kind });
+    toastTimer.current = setTimeout(() => setToast(null), 2400);
+  };
   const stopScan = () => {
     const h = scanRef.current;
     scanRef.current = null;
     if (h) { try { h.stop().then(() => { try { h.clear(); } catch (e) {} }).catch(() => {}); } catch (e) {} }
     setScanning(false);
   };
-  useEffect(() => () => { const h = scanRef.current; if (h) { try { h.stop().catch(() => {}); } catch (e) {} } }, []);
+  useEffect(() => () => {
+    clearTimeout(toastTimer.current);
+    const h = scanRef.current; if (h) { try { h.stop().catch(() => {}); } catch (e) {} }
+  }, []);
   const close = () => { stopScan(); onClose(); };
+  /* beep + haptic the instant a barcode pattern is read (audio pre-unlocked on
+     the scan-button tap, iOS requirement) */
+  const scanFeedback = () => {
+    try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {}
+    try {
+      const ctx = audioRef.current || new (window.AudioContext || window.webkitAudioContext)();
+      audioRef.current = ctx;
+      if (ctx.state === 'suspended') ctx.resume();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 1200;
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.25, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      o.start(); o.stop(ctx.currentTime + 0.18);
+    } catch (e) {}
+  };
   /* scanned/typed code → known product (built-in or custom) opens the portion
      screen; unknown code opens a create-form permanently linked to it */
   const handleCode = code => {
+    if (handledRef.current) return;
+    handledRef.current = true;
+    setTimeout(() => { handledRef.current = false; }, 600);
+    scanFeedback();
     stopScan();
+    setShowManual(false); setBcManual('');
     const hit = cat.find(fd => fd.bc && String(fd.bc) === String(code));
-    if (hit) { setScanErr(''); pick(hit); }
-    else { setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: String(code) }); setScanErr(''); setCreating(true); }
+    if (hit) {
+      flashToast('✅ מוצר נמצא: ' + hit.name, 'ok');
+      setScanErr(''); pick(hit);
+    } else {
+      flashToast('🆕 ברקוד לא מוכר: ' + code, 'new');
+      setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: String(code) });
+      setScanErr(''); setCreating(true);
+    }
   };
   const loadScanner = () => new Promise((res, rej) => {
     if (window.Html5Qrcode) return res();
@@ -2150,16 +2192,29 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   });
   const startScan = async () => {
     setScanErr(''); setScanning(true);
+    /* unlock audio inside the user gesture so the read-beep works on iOS */
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioRef.current.state === 'suspended') audioRef.current.resume();
+    } catch (e) {}
     try {
       await loadScanner();
       await new Promise(r => setTimeout(r, 80));
-      const h = new window.Html5Qrcode('bc-scan-box');
+      const F = window.Html5QrcodeSupportedFormats;
+      const opts = F ? { verbose: false, formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128] } : { verbose: false };
+      const h = new window.Html5Qrcode('bc-scan-box', opts);
       scanRef.current = h;
-      await h.start({ facingMode:'environment' }, { fps: 10, qrbox: { width: 260, height: 140 } },
+      await h.start(
+        { facingMode:'environment' },
+        { fps: 15,
+          qrbox: (vw, vh) => ({ width: Math.min(320, Math.floor(vw * 0.82)), height: 150 }),
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+          videoConstraints: { facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
         txt => { handleCode(String(txt).trim()); }, () => {});
     } catch (e) {
       stopScan();
-      setScanErr('לא הצלחתי לפתוח את המצלמה — בדוק הרשאה, או הקלד את הברקוד ידנית:');
+      setShowManual(true);
+      setScanErr('לא הצלחתי לפתוח את המצלמה — בדוק הרשאת מצלמה, או הזן את הברקוד ידנית למטה:');
     }
   };
 
@@ -2183,11 +2238,28 @@ function FoodPicker({ state, mutate, onPick, onClose }){
           <div className="font-black italic">הוספת מאכל 🍽️</div>
           <button onClick={close} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60"><Icon d={I.x} className="w-4 h-4"/></button>
         </div>
+        {toast && (
+          <div className={'rounded-2xl px-3.5 py-2.5 text-sm font-black text-center fadein border ' + (toast.kind === 'ok' ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'bg-sky-400/10 text-sky-300 border-sky-400/30')} dir="rtl">{toast.text}</div>
+        )}
         {scanning && (
           <div className="space-y-2 fadein">
-            <div id="bc-scan-box" className="rounded-2xl overflow-hidden border border-volt/30" style={{ minHeight:'240px', background:'#000' }}></div>
-            <div className="text-center text-[10px] text-white/40">כוון את המצלמה לברקוד שעל המוצר 📷</div>
-            <button onClick={stopScan} className="w-full py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-bold text-sm active:scale-[.98] transition">בטל סריקה ✕</button>
+            <div className="relative rounded-2xl overflow-hidden border border-volt/30" style={{ background:'#000' }}>
+              <div id="bc-scan-box" style={{ minHeight:'260px' }}></div>
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="relative" style={{ width:'82%', height:'150px' }}>
+                  <span className="absolute top-0 start-0 w-7 h-7 border-t-2 border-s-2 border-volt"></span>
+                  <span className="absolute top-0 end-0 w-7 h-7 border-t-2 border-e-2 border-volt"></span>
+                  <span className="absolute bottom-0 start-0 w-7 h-7 border-b-2 border-s-2 border-volt"></span>
+                  <span className="absolute bottom-0 end-0 w-7 h-7 border-b-2 border-e-2 border-volt"></span>
+                  <div className="scanline"></div>
+                </div>
+              </div>
+            </div>
+            <div className="text-center text-[10px] text-white/40">יישר את הברקוד בתוך המסגרת — הזיהוי אוטומטי, תרגיש רטט/ביפ 📳</div>
+            <div className="flex gap-2">
+              <button onClick={() => { stopScan(); setShowManual(true); }} className="flex-1 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 font-bold text-sm active:scale-[.98] transition">⌨️ הזן ברקוד ידנית</button>
+              <button onClick={stopScan} className="px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/50 font-bold text-sm active:scale-[.98] transition">בטל ✕</button>
+            </div>
           </div>
         )}
         {!sel && !creating && !scanning && (
@@ -2196,16 +2268,19 @@ function FoodPicker({ state, mutate, onPick, onClose }){
               <input className="inp flex-1 min-w-0" placeholder="חפש מאכל... (עוף, אורז, ביצה)" value={q} onChange={e => setQ(e.target.value)}/>
               <button onClick={startScan} className="px-3 rounded-xl bg-volt/10 border border-volt/30 text-volt font-bold text-sm shrink-0 flex items-center gap-1 active:scale-95 transition whitespace-nowrap">📷 סרוק ברקוד</button>
             </div>
-            {scanErr && (
+            <div className="flex gap-2">
+              <button onClick={() => setShowManual(!showManual)} className={'flex-1 py-2.5 rounded-2xl border text-sm font-bold active:scale-[.98] transition ' + (showManual ? 'bg-sky-400/10 text-sky-300 border-sky-400/30' : 'bg-white/5 text-white/60 border-white/10')}>⌨️ הזן ברקוד ידנית</button>
+              <button onClick={() => setCreating(true)} className="flex-1 py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי</button>
+            </div>
+            {(showManual || scanErr) && (
               <div className="space-y-1.5 fadein">
-                <div className="text-xs text-ember bg-ember/10 border border-ember/25 rounded-xl px-3 py-2">{scanErr}</div>
+                {scanErr && <div className="text-xs text-ember bg-ember/10 border border-ember/25 rounded-xl px-3 py-2">{scanErr}</div>}
                 <div className="flex gap-1.5">
-                  <input className="inp flex-1 min-w-0 text-center" dir="ltr" inputMode="numeric" placeholder="הקלד ברקוד ידנית" value={bcManual} onChange={e => setBcManual(e.target.value.replace(/\D/g, ''))}/>
-                  <button onClick={() => { if (bcManual.trim()) { handleCode(bcManual.trim()); setBcManual(''); } }} className="px-4 rounded-xl bg-volt text-obsidian font-black text-sm active:scale-95 transition">חפש</button>
+                  <input className="inp flex-1 min-w-0 text-center font-bold" dir="ltr" inputMode="numeric" placeholder="7290001234567" value={bcManual} onChange={e => setBcManual(e.target.value.replace(/\D/g, ''))}/>
+                  <button onClick={() => { if (bcManual.trim()) { handleCode(bcManual.trim()); } }} disabled={!bcManual.trim()} className="px-4 rounded-xl bg-volt text-obsidian font-black text-sm active:scale-95 transition disabled:opacity-30">חפש</button>
                 </div>
               </div>
             )}
-            <button onClick={() => setCreating(true)} className="w-full py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי (נשמר לתמיד)</button>
             <div className="space-y-1">
               {list.slice(0, 40).map(fd => (
                 <button key={fd.id} onClick={() => pick(fd)} className="w-full flex items-center gap-2 bg-white/5 border border-white/5 rounded-2xl px-3 py-2.5 text-start active:scale-[.985] transition">
