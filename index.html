@@ -38,6 +38,11 @@ tailwind.config = {
   --ice:#4FE3FF;    --ice-2:#1CB8E0;    /* cardio · hydration */
   --violet:#A78BFA; --violet-2:#7C5CF0; /* recovery · sleep */
   --gold:#FFD75E;   --gold-2:#F0A93B;   /* records · perfection */
+  /* chart palette — softer than the brand lime so the three arcs read as one
+     family of soft-marker tones instead of neon fighting pastel */
+  --c-train:#9BE86B; --c-train-2:#6FCF4A;
+  --c-fuel:#6FDCF7;  --c-fuel-2:#33B6DC;
+  --c-rec:#B39CFB;   --c-rec-2:#8A6FF0;
   --coral:#FF6B57;                      /* warning only */
   /* ink */
   --ink:#FFFFFF; --ink-2:rgba(255,255,255,.60); --ink-3:rgba(255,255,255,.34); --ink-4:rgba(255,255,255,.20);
@@ -1659,7 +1664,7 @@ function Icon({ d, className, filled }){
    Gradient strokes + soft bloom so it reads as light, not as a progress bar. */
 function ArcGauge({ rings, size = 168 }){
   const cx = size / 2, cy = size / 2;
-  const sw = size * 0.055, gap = sw * 2.05;
+  const sw = size * 0.05, gap = sw * 1.55;
   const START = -125, SWEEP = 250;                     /* open-bottom dial */
   const pol = (r, deg) => {
     const a = (deg - 90) * Math.PI / 180;
@@ -1681,7 +1686,7 @@ function ArcGauge({ rings, size = 168 }){
           <stop offset="0%" stopColor="#FF6B57"/><stop offset="100%" stopColor="#FF9B57"/>
         </linearGradient>
         <filter id="agbloom" x="-70%" y="-70%" width="240%" height="240%">
-          <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          <feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
       {rings.map((rg, i) => {
@@ -3944,54 +3949,62 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
         </div>
 
         {/* signature dial: training · fuel · recovery */}
-        <div className="flex items-center gap-5 mt-5 relative">
-          <div className="relative shrink-0" style={{ width:'168px', height:'168px' }}>
-            <ArcGauge size={168} rings={[
-              { p: dayTrain, c:'#D7FF3E', c2:'#9FE800', rest: train.state === 'rest' },
-              { p: fuelPct, c:'#4FE3FF', c2:'#1CB8E0' },
-              { p: recPct, c:'#A78BFA', c2:'#7C5CF0' }
+        <div className="flex items-center gap-3.5 mt-5 relative">
+          <div className="relative shrink-0" style={{ width:'150px', height:'150px' }}>
+            <ArcGauge size={150} rings={[
+              { p: dayTrain, c:'#9BE86B', c2:'#6FCF4A', rest: train.state === 'rest' },
+              { p: fuelPct, c:'#6FDCF7', c2:'#33B6DC' },
+              { p: recPct, c:'#B39CFB', c2:'#8A6FF0' }
             ]}/>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingBottom:'18px' }}>
-              <div className="t-label" style={{ fontSize:'8px', letterSpacing:'.16em' }}>{kcalLeft >= 0 ? 'נשארו' : 'חריגה'}</div>
-              <div className="t-hero mt-1" style={{ fontSize:'32px', color: kcalLeft >= 0 ? '#fff' : 'var(--coral)' }}>{Math.abs(kcalLeft)}</div>
-              <div className="t-cap" style={{ fontSize:'9.5px', marginTop:'1px' }}>קק"ל</div>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center justify-center text-center"
+                   style={{ width:'82px', height:'82px', marginTop:'5px' }}>
+                <div className="t-label" style={{ fontSize:'7px', letterSpacing:'.18em' }}>{kcalLeft >= 0 ? 'נשארו' : 'חריגה'}</div>
+                <div className="t-hero" style={{ fontSize:'26px', marginTop:'2px', color: kcalLeft >= 0 ? '#fff' : 'var(--coral)' }}>{Math.abs(kcalLeft)}</div>
+                <div className="t-cap" style={{ fontSize:'8.5px' }}>קק"ל</div>
+              </div>
             </div>
           </div>
           <div className="flex-1 min-w-0 space-y-2.5">
             {[
-              { k:'אימון', c:'var(--lime)', p: dayTrain, rest: train.state === 'rest',
+              { k:'אימון', c:'var(--c-train)', p: dayTrain, rest: train.state === 'rest',
                 v: train.state === 'rest' ? 'מנוחה' : train.state === 'run' ? 'ריצה ✓'
-                   : train.state === 'pending' ? 'טרם התחיל' : train.sets + ' סטים' },
-              { k:'תזונה', c:'var(--ice)', p: fuelPct, over: fuelPct > 1,
-                v: ns.kcal + ' / ' + kcalTarget },
-              { k:'התאוששות', c:'var(--violet)', p: recPct,
-                v: (ns.sleep ? ns.sleep + ' שע׳' : '—') + ' · ' + Math.round(ns.water / 100) / 10 + 'ל׳' }
+                   : train.state === 'pending' ? '—' : train.sets + ' סטים' },
+              { k:'תזונה', c:'var(--c-fuel)', p: fuelPct, over: fuelPct > 1,
+                v: ns.kcal.toLocaleString() + ' / ' + kcalTarget.toLocaleString() },
+              { k:'התאוששות', c:'var(--c-rec)', p: recPct,
+                v: (ns.sleep ? ns.sleep + ' שע׳' : '—') + ' · ' + (Math.round(ns.water / 100) / 10) + 'ל׳' }
             ].map((r, i) => (
               <div key={i}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="flex items-center gap-1.5">
-                    {/* the dot is what makes the dial readable — row ↔ arc */}
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="flex items-center gap-1.5 min-w-0">
                     <span className="w-[7px] h-[7px] rounded-full shrink-0"
                           style={{ background: r.rest ? 'transparent' : r.c,
-                                   border: r.rest ? '1.5px dashed rgba(167,139,250,.6)' : 'none',
+                                   border: r.rest ? '1.5px dashed rgba(179,156,251,.7)' : 'none',
                                    boxShadow: r.rest ? 'none' : '0 0 8px ' + r.c }}></span>
-                    <span className="t-label" style={{ letterSpacing:'.1em' }}>{r.k}</span>
+                    <span className="t-label truncate" style={{ letterSpacing:'.08em' }}>{r.k}</span>
                   </span>
-                  <span className="text-[11px] font-bold t-num" style={{ color: r.over ? 'var(--coral)' : r.rest ? 'var(--violet)' : r.c }}>{r.v}</span>
+                  <span className="text-[11px] font-bold t-num shrink-0 whitespace-nowrap"
+                        style={{ color: r.over ? 'var(--coral)' : r.rest ? 'var(--c-rec)' : r.c }}>{r.v}</span>
                 </div>
-                <div className="h-[5px] rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,.06)' }} dir="ltr">
-                  {r.rest ? (
-                    <div className="h-full rounded-full" style={{ width:'100%', backgroundImage:'repeating-linear-gradient(90deg, rgba(167,139,250,.45) 0 3px, transparent 3px 9px)' }}/>
-                  ) : (
-                    <div className="h-full rounded-full" style={{ width: Math.min(100, r.p * 100) + '%', background:'linear-gradient(90deg,' + (r.over ? 'var(--coral)55, var(--coral)' : r.c + '55,' + r.c) + ')', boxShadow:'0 0 12px ' + (r.over ? 'var(--coral)' : r.c) + '66', transition:'width .6s var(--ease)' }}/>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-[6px] rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,.07)' }} dir="ltr">
+                    {r.rest ? (
+                      <div className="h-full rounded-full" style={{ width:'100%', backgroundImage:'repeating-linear-gradient(90deg, rgba(179,156,251,.5) 0 3px, transparent 3px 9px)' }}/>
+                    ) : (
+                      <div className="h-full rounded-full" style={{ width: Math.max(r.p > 0 ? 4 : 0, Math.min(100, r.p * 100)) + '%', background: r.over ? 'linear-gradient(90deg, rgba(255,107,87,.55), var(--coral))' : 'linear-gradient(90deg,' + r.c + '66,' + r.c + ')', boxShadow:'0 0 10px ' + (r.over ? 'var(--coral)' : r.c) + '88', transition:'width .6s var(--ease)' }}/>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-black t-num shrink-0 text-end" style={{ width:'30px', color: r.rest ? 'var(--c-rec)' : r.over ? 'var(--coral)' : 'rgba(255,255,255,.34)' }}>
+                    {r.rest ? '—' : Math.round(r.p * 100) + '%'}
+                  </span>
                 </div>
               </div>
             ))}
-            <div className="flex items-center gap-1.5 pt-0.5">
-              <span className="text-[10px] font-bold t-num" style={{ color:'var(--lime)' }}>{ns.p}<span className="text-white/25">/{targets.protein}</span></span>
-              <span className="t-label" style={{ letterSpacing:'.08em' }}>חלבון</span>
-              {burn.total > 0 && <span className="ms-auto text-[9.5px] font-black" style={{ color:'var(--lime)' }}>+{burn.total} מאימון</span>}
+            <div className="flex items-center gap-2 pt-1">
+              <span className="t-label shrink-0" style={{ letterSpacing:'.08em' }}>חלבון</span>
+              <span className="text-[11px] font-bold t-num shrink-0" style={{ color:'var(--c-train)' }}>{ns.p}<span className="text-white/25">/{targets.protein}</span></span>
+              {burn.total > 0 && <span className="ms-auto text-[9px] font-black shrink-0 whitespace-nowrap" style={{ color:'var(--c-train)' }}>+{burn.total} 🔥</span>}
             </div>
           </div>
         </div>
@@ -4037,9 +4050,9 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
                 <span className={'text-[10px] font-black ' + (active ? 'text-volt' : 'text-white/45')}>{d}</span>
                 <span className={'text-[13px] font-black t-num mt-0.5 ' + (active ? 'text-volt' : iso === realToday ? 'text-white' : 'text-white/60')}>{fromISO(iso).getDate()}</span>
                 <span className="flex gap-[3px] mt-1.5" style={{ height:'5px' }}>
-                  {f.strength && <span className="w-[5px] h-[5px] rounded-full" style={{ background:'var(--lime)', boxShadow:'0 0 6px var(--lime)' }}></span>}
-                  {f.run && <span className="w-[5px] h-[5px] rounded-full" style={{ background:'var(--ice)', boxShadow:'0 0 6px var(--ice)' }}></span>}
-                  {nsD.full && <span className="w-[5px] h-[5px] rounded-full" style={{ background:'var(--violet)', boxShadow:'0 0 6px var(--violet)' }}></span>}
+                  {f.strength && <span className="w-[5px] h-[5px] rounded-full" style={{ background:'var(--c-train)', boxShadow:'0 0 6px var(--c-train)' }}></span>}
+                  {f.run && <span className="w-[5px] h-[5px] rounded-full" style={{ background:'var(--c-fuel)', boxShadow:'0 0 6px var(--c-fuel)' }}></span>}
+                  {nsD.full && <span className="w-[5px] h-[5px] rounded-full" style={{ background:'var(--c-rec)', boxShadow:'0 0 6px var(--c-rec)' }}></span>}
                 </span>
               </button>
             );
@@ -4105,9 +4118,9 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
         </div>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { l:'נפח', v: mom.cur.vol >= 1000 ? (Math.round(mom.cur.vol / 100) / 10) + 'K' : mom.cur.vol, u:'ק"ג', d: mom.volPct, c:'var(--lime)' },
-            { l:'ריצה', v: mom.cur.km || 0, u:'ק"מ', d: mom.kmPct, c:'var(--ice)' },
-            { l:'חלבון', v: mom.cur.prot || 0, u:'ג׳/יום', d: mom.protPct, c:'var(--violet)' }
+            { l:'נפח', v: mom.cur.vol >= 1000 ? (Math.round(mom.cur.vol / 100) / 10) + 'K' : mom.cur.vol, u:'ק"ג', d: mom.volPct, c:'var(--c-train)' },
+            { l:'ריצה', v: mom.cur.km || 0, u:'ק"מ', d: mom.kmPct, c:'var(--c-fuel)' },
+            { l:'חלבון', v: mom.cur.prot || 0, u:'ג׳/יום', d: mom.protPct, c:'var(--c-rec)' }
           ].map((x, i) => (
             <div key={i} className="glass-2 rounded-[16px] p-3">
               <div className="t-label" style={{ fontSize:'8.5px' }}>{x.l}</div>
