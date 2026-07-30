@@ -1659,7 +1659,7 @@ function Icon({ d, className, filled }){
    Gradient strokes + soft bloom so it reads as light, not as a progress bar. */
 function ArcGauge({ rings, size = 168 }){
   const cx = size / 2, cy = size / 2;
-  const sw = size * 0.058, gap = sw * 1.95;
+  const sw = size * 0.055, gap = sw * 2.05;
   const START = -125, SWEEP = 250;                     /* open-bottom dial */
   const pol = (r, deg) => {
     const a = (deg - 90) * Math.PI / 180;
@@ -1677,19 +1677,32 @@ function ArcGauge({ rings, size = 168 }){
             <stop offset="0%" stopColor={rg.c2 || rg.c}/><stop offset="100%" stopColor={rg.c}/>
           </linearGradient>
         ))}
-        <filter id="agbloom" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <linearGradient id="agOver" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stopColor="#FF6B57"/><stop offset="100%" stopColor="#FF9B57"/>
+        </linearGradient>
+        <filter id="agbloom" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
       {rings.map((rg, i) => {
         const r = (size / 2) - sw / 2 - i * gap;
-        const p = Math.max(0, Math.min(1, rg.p || 0));
+        const raw = rg.p || 0;
+        const p = Math.max(0, Math.min(1, raw));
+        const over = Math.max(0, Math.min(1, raw - 1));       /* spill past target */
         return (
           <g key={i}>
-            <path d={arc(r, START, START + SWEEP)} fill="none" stroke="rgba(255,255,255,.055)" strokeWidth={sw} strokeLinecap="round"/>
+            {/* empty track — dashed when the day is deliberately a rest day */}
+            <path d={arc(r, START, START + SWEEP)} fill="none"
+                  stroke={rg.rest ? 'rgba(167,139,250,.30)' : 'rgba(255,255,255,.05)'}
+                  strokeWidth={rg.rest ? sw * 0.5 : sw} strokeLinecap="round"
+                  strokeDasharray={rg.rest ? '1 9' : undefined}/>
             {p > 0.004 && (
-              <path d={arc(r, START, START + SWEEP * p)} fill="none" stroke={'url(#ag' + i + ')'} strokeWidth={sw} strokeLinecap="round"
-                    filter="url(#agbloom)" style={{ transition:'d .6s var(--ease)' }}/>
+              <path d={arc(r, START, START + SWEEP * p)} fill="none" stroke={'url(#ag' + i + ')'}
+                    strokeWidth={sw} strokeLinecap="round" filter="url(#agbloom)"/>
+            )}
+            {over > 0.004 && (
+              <path d={arc(r, START, START + SWEEP * over)} fill="none" stroke="url(#agOver)"
+                    strokeWidth={sw} strokeLinecap="round" filter="url(#agbloom)"/>
             )}
           </g>
         );
@@ -3863,12 +3876,28 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
   const plan = todaysWorkout(state);
   const hype = useMemo(() => hypeWord(), []);
   /* dial inputs: training completion today, fuel vs target, recovery composite */
-  const dayTrain = useMemo(() => {
-    const p = plan.tpl ? tplProgress(state, week, plan.tpl) : null;
-    if (plan.isRun) return plan.done ? 1 : 0;
-    if (p && p.total) return Math.min(1, p.done / p.total);
-    return ts.sets > 0 ? 1 : 0;
-  }, [state.logs, state.templates]);
+  /* what actually happened on the SELECTED day — not on the real today */
+  const train = useMemo(() => {
+    const wo = (state.logs[week] || {}).workouts || {};
+    let done = 0, total = 0;
+    state.templates.forEach(tpl => {
+      const m = wo[tpl.id] || {};
+      let d = 0;
+      Object.keys(m).forEach(k => (m[k] || []).forEach(x => { if (x && x.done && x.t === sel) d++; }));
+      if (d > 0) { done += d; total += tplProgress(state, week, tpl).total; }
+    });
+    const ranToday = (state.runs || []).some(r => r.date === sel);
+    if (total > 0) {
+      const p = Math.min(1, done / total);
+      return { p, state: p >= 0.999 ? 'done' : 'partial', sets: done };
+    }
+    if (ranToday) return { p: 1, state:'run', sets: 0 };
+    /* a finished day with nothing logged is a REST day — that is a success
+       state in a 5-day program, not a gap */
+    return { p: 0, state: sel < realToday ? 'rest' : 'pending', sets: 0 };
+  }, [state.logs, state.runs, state.templates, sel, week]);
+  const dayTrain = train.p;
+  const fuelPct = kcalTarget ? ns.kcal / kcalTarget : 0;
   const recPct = useMemo(() => {
     const sl = Math.min(1, numOr0(ns.sleep) / 8);
     const wa = Math.min(1, numOr0(ns.water) / Math.max(1, targets.water));
@@ -3918,29 +3947,44 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
         <div className="flex items-center gap-5 mt-5 relative">
           <div className="relative shrink-0" style={{ width:'168px', height:'168px' }}>
             <ArcGauge size={168} rings={[
-              { p: dayTrain, c:'#D7FF3E', c2:'#9FE800' },
-              { p: kcalTarget ? ns.kcal / kcalTarget : 0, c:'#4FE3FF', c2:'#1CB8E0' },
+              { p: dayTrain, c:'#D7FF3E', c2:'#9FE800', rest: train.state === 'rest' },
+              { p: fuelPct, c:'#4FE3FF', c2:'#1CB8E0' },
               { p: recPct, c:'#A78BFA', c2:'#7C5CF0' }
             ]}/>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingBottom:'18px' }}>
               <div className="t-label" style={{ fontSize:'8px', letterSpacing:'.16em' }}>{kcalLeft >= 0 ? 'נשארו' : 'חריגה'}</div>
-              <div className="t-hero mt-1" style={{ fontSize:'32px' }}>{Math.abs(kcalLeft)}</div>
+              <div className="t-hero mt-1" style={{ fontSize:'32px', color: kcalLeft >= 0 ? '#fff' : 'var(--coral)' }}>{Math.abs(kcalLeft)}</div>
               <div className="t-cap" style={{ fontSize:'9.5px', marginTop:'1px' }}>קק"ל</div>
             </div>
           </div>
           <div className="flex-1 min-w-0 space-y-2.5">
             {[
-              { k:'אימון', v: ts.sets + ' סטים', p: dayTrain, c:'var(--lime)' },
-              { k:'תזונה', v: ns.kcal + ' / ' + kcalTarget, p: kcalTarget ? ns.kcal / kcalTarget : 0, c:'var(--ice)' },
-              { k:'התאוששות', v: (ns.sleep ? ns.sleep + ' שע׳' : '—') + ' · ' + Math.round(ns.water / 100) / 10 + 'ל׳', p: recPct, c:'var(--violet)' }
+              { k:'אימון', c:'var(--lime)', p: dayTrain, rest: train.state === 'rest',
+                v: train.state === 'rest' ? 'מנוחה' : train.state === 'run' ? 'ריצה ✓'
+                   : train.state === 'pending' ? 'טרם התחיל' : train.sets + ' סטים' },
+              { k:'תזונה', c:'var(--ice)', p: fuelPct, over: fuelPct > 1,
+                v: ns.kcal + ' / ' + kcalTarget },
+              { k:'התאוששות', c:'var(--violet)', p: recPct,
+                v: (ns.sleep ? ns.sleep + ' שע׳' : '—') + ' · ' + Math.round(ns.water / 100) / 10 + 'ל׳' }
             ].map((r, i) => (
               <div key={i}>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="t-label" style={{ letterSpacing:'.1em' }}>{r.k}</span>
-                  <span className="text-[11px] font-bold t-num" style={{ color:r.c }}>{r.v}</span>
+                  <span className="flex items-center gap-1.5">
+                    {/* the dot is what makes the dial readable — row ↔ arc */}
+                    <span className="w-[7px] h-[7px] rounded-full shrink-0"
+                          style={{ background: r.rest ? 'transparent' : r.c,
+                                   border: r.rest ? '1.5px dashed rgba(167,139,250,.6)' : 'none',
+                                   boxShadow: r.rest ? 'none' : '0 0 8px ' + r.c }}></span>
+                    <span className="t-label" style={{ letterSpacing:'.1em' }}>{r.k}</span>
+                  </span>
+                  <span className="text-[11px] font-bold t-num" style={{ color: r.over ? 'var(--coral)' : r.rest ? 'var(--violet)' : r.c }}>{r.v}</span>
                 </div>
                 <div className="h-[5px] rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,.06)' }} dir="ltr">
-                  <div className="h-full rounded-full" style={{ width: Math.min(100, r.p * 100) + '%', background:'linear-gradient(90deg,' + r.c + '55,' + r.c + ')', boxShadow:'0 0 12px ' + r.c + '66', transition:'width .6s var(--ease)' }}/>
+                  {r.rest ? (
+                    <div className="h-full rounded-full" style={{ width:'100%', backgroundImage:'repeating-linear-gradient(90deg, rgba(167,139,250,.45) 0 3px, transparent 3px 9px)' }}/>
+                  ) : (
+                    <div className="h-full rounded-full" style={{ width: Math.min(100, r.p * 100) + '%', background:'linear-gradient(90deg,' + (r.over ? 'var(--coral)55, var(--coral)' : r.c + '55,' + r.c) + ')', boxShadow:'0 0 12px ' + (r.over ? 'var(--coral)' : r.c) + '66', transition:'width .6s var(--ease)' }}/>
+                  )}
                 </div>
               </div>
             ))}
