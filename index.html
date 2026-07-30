@@ -77,7 +77,7 @@ const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
 const PHOTO_FILE = 'photo.b64.txt';
-const ROUTINE_V = 7;
+const ROUTINE_V = 8;
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
@@ -465,12 +465,28 @@ const FOOD_DB = [
   { id:'f_sprite_zero', name:'ספרייט זירו (פחית)', per:'unit', unitName:'פחית', kcal:2, p:0, c:0, f:0 },
   { id:'f_ice_tea', name:'אייס טי (פחית)', per:'unit', unitName:'פחית', kcal:90, p:0, c:22, f:0 },
 ];
-function calcMacros(food, qty){
+/* serving units for gram-based foods — macros come from the underlying weight
+   while the label keeps the human unit ("1 כפית"). Declared before calcMacros
+   because that runs at module load while building DEFAULT_MEAL_PLAN. */
+const SERVING_UNITS = [
+  { id:'g',    label:'גרם',  short:'ג׳',   grams:1 },
+  { id:'tsp',  label:'כפית', short:'כפית', grams:10 },
+  { id:'tbsp', label:'כף',   short:'כף',   grams:15 },
+  { id:'cup',  label:'כוס',  short:'כוס',  grams:240 },
+];
+const unitById = id => SERVING_UNITS.find(u => u.id === id) || SERVING_UNITS[0];
+function unitLabel(item){
+  if (item && item.per === '100g') return unitById(item.unit).short;
+  return (item && item.unitName) || 'יחידה';
+}
+function calcMacros(food, qty, unitId){
   /* self-contained parse — this runs at module load (DEFAULT_MEAL_PLAN build),
      before the later const helpers exist */
   const qn = parseFloat(qty);
   const q = isNaN(qn) ? 0 : qn;
-  const k = food.per === '100g' ? q / 100 : q;
+  const gramsPer = { g:1, tsp:10, tbsp:15, cup:240 };
+  const mult = (unitId && gramsPer[unitId]) ? gramsPer[unitId] : 1;
+  const k = food.per === '100g' ? (q * mult) / 100 : q;
   const r1 = v => Math.round(v * k * 10) / 10;
   return { kcal: Math.round(food.kcal * k), p: r1(food.p), c: r1(food.c), f: r1(food.f) };
 }
@@ -486,8 +502,9 @@ const DEFAULT_MEAL_PLAN = [
   { id:'mp3', icon:'🥪', title:'ארוחת ביניים', items:[ mkPlanItem('f_egg', 2), mkPlanItem('f_yellow9', 2), mkPlanItem('f_salad', 1) ] },
   { id:'mp4', icon:'🍮', title:'מעדן חלבון', items:[ mkPlanItem('f_pro_pud', 1) ] },
   { id:'mp5', icon:'🌙', title:'ארוחת ערב', items:[ mkPlanItem('f_pargit', 180), mkPlanItem('f_rice', 240), mkPlanItem('f_salad', 1), mkPlanItem('f_olive_tbsp', 1) ] },
-  /* free-form bucket for anything off-template (a spoon of PB, a beer, a snack) */
-  { id:'mp6', icon:'🥨', title:'נשנושים ותוספות', items:[] },
+  /* free-form bucket for anything off-template (a spoon of PB, a beer, a snack).
+     `snack:true` keeps its calories counted but excludes it from the meals ratio */
+  { id:'mp6', icon:'🥨', title:'נשנושים ותוספות', items:[], snack:true },
 ];
 const DEFAULT_NUTRI_TARGETS = { kcal:2400, protein:155, carbs:280, fat:70, water:3000, strengthBurn:300 };
 
@@ -616,6 +633,7 @@ function seed(){
     meals: clone(DEFAULT_MEALS),
     mealPlan: clone(DEFAULT_MEAL_PLAN),
     foods:[], deletedFoods:[],
+    favMeals:[], deletedFavs:[],
     logs:{}, runs:[], deletedRuns:[],
     weights:[], deletedWeights:[],
     photos:[], deletedPhotos:[],
@@ -634,6 +652,7 @@ function normalize(s){
   out.photos = s.photos || []; out.deletedPhotos = s.deletedPhotos || [];
   out.mealPlan = s.mealPlan || null;
   out.foods = s.foods || []; out.deletedFoods = s.deletedFoods || [];
+  out.favMeals = s.favMeals || []; out.deletedFavs = s.deletedFavs || [];
   out.routineVersion = s.routineVersion || 1;
   return normalizeLogKeys(out);
 }
@@ -734,6 +753,14 @@ function migrateRoutine(s){
     if (!s.mealPlan.some(m => m.id === 'mp6')) s.mealPlan.push({ id:'mp6', icon:'🥨', title:'נשנושים ותוספות', items:[] });
     v = 7;
   }
+  if (v < 8) {
+    /* v8: snacks stop counting toward the daily meals ratio, and favourites get a home */
+    const sn = (s.mealPlan || []).find(m => m.id === 'mp6');
+    if (sn) sn.snack = true;
+    if (!s.favMeals) s.favMeals = [];
+    if (!s.deletedFavs) s.deletedFavs = [];
+    v = 8;
+  }
   s.routineVersion = v;
   s.stamps.templates = Date.now();
   return normalizeLogKeys(s);
@@ -792,6 +819,9 @@ function mergeStates(local, remote){
   const deadFd = new Set((out.deletedFoods || []).concat(remote.deletedFoods || []));
   out.foods = unionById(out.foods || [], remote.foods || [], deadFd);
   out.deletedFoods = Array.from(deadFd).slice(-300);
+  const deadFv = new Set((out.deletedFavs || []).concat(remote.deletedFavs || []));
+  out.favMeals = unionById(out.favMeals || [], remote.favMeals || [], deadFv);
+  out.deletedFavs = Array.from(deadFv).slice(-200);
   return normalizeLogKeys(out);
 }
 
@@ -1025,22 +1055,33 @@ async function fetchOffProduct(code){
     custom: true, src: 'off', updatedAt: Date.now()
   };
 }
+/* snack sections keep their calories but are excluded from the meals ratio.
+   Stored days may predate the flag, so fall back to the plan and the known id. */
+function isSnackSection(state, m){
+  if (!m) return false;
+  if (m.snack) return true;
+  const p = ((state && state.mealPlan) || []).find(x => x.id === m.id);
+  return !!(p && p.snack) || m.id === 'mp6';
+}
 /* unified per-day nutrition summary — reads the new macro log (nutri2) when it
    exists, falls back to the legacy checklist so history keeps rendering */
 function dayNutriSummary(state, week, dayIdx){
   const wk = state.logs[week] || {};
   const d2 = (wk.nutri2 || {})[dayIdx];
   if (d2 && d2.meals) {
-    let kcal = 0, p = 0, c = 0, f = 0, done = 0;
+    let kcal = 0, p = 0, c = 0, f = 0, done = 0, total = 0;
     const icons = [];
     d2.meals.forEach(m => {
       const items = m.items || [];
       const all = items.length > 0 && items.every(it => it.eaten);
-      if (all) done++;
-      icons.push({ icon: m.icon, done: all });
+      /* snacks contribute calories but never the meals ratio */
+      if (!isSnackSection(state, m)) {
+        total++;
+        if (all) done++;
+        icons.push({ icon: m.icon, done: all });
+      }
       items.forEach(it => { if (it.eaten) { kcal += numOr0(it.kcal); p += numOr0(it.p); c += numOr0(it.c); f += numOr0(it.f); } });
     });
-    const total = d2.meals.length;
     return { v2: true, done, total, full: total > 0 && done === total,
              kcal: Math.round(kcal), p: Math.round(p), c: Math.round(c), f: Math.round(f),
              water: numOr0(d2.water), sleep: d2.sleep || '', icons };
@@ -1128,6 +1169,128 @@ function exerciseStatus(state){
   return rows;
 }
 
+/* ---------- 9:16 story card renderer (1080x1920, branded) ---------- */
+function drawStoryCard(spec){
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0B0B0C'; g.fillRect(0, 0, W, H);
+  /* volt + ember ambient glow */
+  const glow = (x, y, r, col, a) => {
+    const rg = g.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = a; g.fillStyle = rg; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  };
+  glow(880, 220, 620, '#CCFF00', .16);
+  glow(180, 1500, 640, '#FF5A1F', .12);
+
+  g.textAlign = 'right';
+  g.fillStyle = '#fff';
+  g.font = '900 italic 74px Rubik, Assistant, sans-serif';
+  g.fillText('ATHLETICS', W - 80, 168);
+  g.fillStyle = 'rgba(255,255,255,.35)';
+  g.font = '700 26px Rubik, sans-serif';
+  g.fillText('LEAN BULK ENGINE', W - 80, 212);
+  /* bolt mark */
+  g.fillStyle = '#CCFF00';
+  g.beginPath();
+  const bx = 96, by = 128, bs = 5.4;
+  [[13,2],[3,14],[12,14],[11,22],[21,10],[12,10]].forEach((pt, i) => {
+    const x = bx + pt[0] * bs, y = by + pt[1] * bs;
+    i ? g.lineTo(x, y) : g.moveTo(x, y);
+  });
+  g.closePath(); g.fill();
+
+  g.fillStyle = 'rgba(204,255,0,.85)';
+  g.font = '800 34px Rubik, sans-serif';
+  g.fillText(spec.kicker || '', W - 80, 330);
+  g.fillStyle = '#fff';
+  g.font = '900 italic 92px Rubik, sans-serif';
+  const title = String(spec.title || '');
+  g.fillText(title.length > 22 ? title.slice(0, 21) + '…' : title, W - 80, 440);
+  if (spec.sub) {
+    g.fillStyle = 'rgba(255,255,255,.45)';
+    g.font = '600 34px Rubik, sans-serif';
+    g.fillText(spec.sub, W - 80, 496);
+  }
+
+  /* stat tiles */
+  const stats = (spec.stats || []).slice(0, 4);
+  const cols = stats.length <= 2 ? stats.length : 2;
+  const rows = Math.ceil(stats.length / cols);
+  const gap = 34, padX = 80;
+  const tw = (W - padX * 2 - gap * (cols - 1)) / Math.max(1, cols);
+  const th = 250;
+  const top = 600;
+  const rr = (x, y, w, h, r) => {
+    g.beginPath();
+    g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
+    g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath();
+  };
+  stats.forEach((stt, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = W - padX - tw - col * (tw + gap);
+    const y = top + row * (th + gap);
+    g.fillStyle = 'rgba(255,255,255,.045)';
+    rr(x, y, tw, th, 40); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 2; g.stroke();
+    g.textAlign = 'center';
+    g.fillStyle = stt.color || '#CCFF00';
+    g.font = '900 96px Rubik, sans-serif';
+    g.fillText(String(stt.v), x + tw / 2, y + 140);
+    g.fillStyle = 'rgba(255,255,255,.5)';
+    g.font = '700 32px Rubik, sans-serif';
+    g.fillText(String(stt.l), x + tw / 2, y + 196);
+    g.textAlign = 'right';
+  });
+
+  /* optional highlight rows (splits / PRs) */
+  let hy = top + rows * (th + gap) + 30;
+  (spec.lines || []).slice(0, 5).forEach(ln => {
+    g.fillStyle = 'rgba(255,255,255,.05)';
+    rr(padX, hy, W - padX * 2, 96, 30); g.fill();
+    g.fillStyle = '#fff';
+    g.font = '700 38px Rubik, sans-serif';
+    g.fillText(String(ln.a), W - padX - 36, hy + 60);
+    g.textAlign = 'left';
+    g.fillStyle = ln.color || '#CCFF00';
+    g.font = '900 42px Rubik, sans-serif';
+    g.fillText(String(ln.b), padX + 36, hy + 60);
+    g.textAlign = 'right';
+    hy += 118;
+  });
+
+  g.fillStyle = 'rgba(255,255,255,.3)';
+  g.font = '600 30px Rubik, sans-serif';
+  g.fillText(spec.footer || heDate(toISO(new Date())), W - 80, H - 90);
+  g.textAlign = 'left';
+  g.fillStyle = 'rgba(204,255,0,.55)';
+  g.font = '800 30px Rubik, sans-serif';
+  g.fillText('#ATHLETICS', 80, H - 90);
+  return c;
+}
+/* share sheet — native share when available, download otherwise */
+async function shareStory(spec){
+  const canvas = drawStoryCard(spec);
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  if (!blob) return { ok:false };
+  const file = new File([blob], 'athletics-story.png', { type:'image/png' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+      await navigator.share({ files: [file], title: 'ATHLETICS' });
+      return { ok:true, via:'share' };
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return { ok:true, via:'cancelled' }; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'athletics-story.png'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return { ok:true, via:'download' };
+}
+
 /* ============================== icons & atoms ============================== */
 const I = {
   chevR:'M9 18l6-6-6-6', chevL:'M15 18l-6-6 6-6',
@@ -1150,7 +1313,45 @@ const I = {
   camera:['M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z','M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
   scale:['M12 3v3','M18.5 5.5L16 8','M5.5 5.5L8 8','M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9z'],
   calendar:['M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z','M16 2v4','M8 2v4','M3 10h18'],
+  grip:['M9 5h.01','M9 12h.01','M9 19h.01','M15 5h.01','M15 12h.01','M15 19h.01'],
+  trophy:['M6 4h12v4a6 6 0 0 1-12 0z','M6 6H4a2 2 0 0 0 2 2','M18 6h2a2 2 0 0 1-2 2','M10 14h4','M12 14v4','M8 21h8'],
+  share:['M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7','M16 6l-4-4-4 4','M12 2v14'],
+  history:['M3 3v5h5','M3.05 13A9 9 0 1 0 6 5.3L3 8','M12 7v5l4 2'],
 };
+/* monochrome muscle/equipment silhouettes, matched from the exercise's muscle text */
+const MUSCLE_ART = {
+  chest:   ['M4 8c3-2 5-2 8-2s5 0 8 2', 'M5 8c0 4 2 7 7 8 5-1 7-4 7-8', 'M12 10v6'],
+  back:    ['M12 3v18', 'M6 6c2 1 3 3 3 6s-1 5-3 6', 'M18 6c-2 1-3 3-3 6s1 5 3 6'],
+  shoulder:['M12 6a4 4 0 0 1 4 4v3', 'M12 6a4 4 0 0 0-4 4v3', 'M5 20c0-4 3-6 7-6s7 2 7 6'],
+  biceps:  ['M7 5v7a5 5 0 0 0 10 0', 'M9 12c0 3 1 5 3 7', 'M17 9c2 0 3 2 2 4'],
+  triceps: ['M17 5v7a5 5 0 0 1-10 0', 'M15 12c0 3-1 5-3 7', 'M7 9c-2 0-3 2-2 4'],
+  legs:    ['M9 3v8l-2 10', 'M15 3v8l2 10', 'M9 11h6'],
+  calves:  ['M10 3v6c0 4-2 6-2 12', 'M14 3v6c0 4 2 6 2 12', 'M9 9h6'],
+  abs:     ['M6 4h12v16H6z', 'M6 9h12', 'M6 14h12', 'M12 4v16'],
+  cardio:  ['M22 12h-4l-3 9L9 3l-3 9H2'],
+  barbell: ['M6.5 5.5v13','M17.5 5.5v13','M3 8.5v7','M21 8.5v7','M6.5 12h11'],
+};
+function muscleArt(text){
+  const s = String(text || '');
+  if (/חזה/.test(s)) return MUSCLE_ART.chest;
+  if (/גב|לטיס/.test(s)) return MUSCLE_ART.back;
+  if (/כתפ/.test(s)) return MUSCLE_ART.shoulder;
+  if (/יד קדמית|בייספ/.test(s)) return MUSCLE_ART.biceps;
+  if (/יד אחורית|טרייספ/.test(s)) return MUSCLE_ART.triceps;
+  if (/תאומים|אכילס/.test(s)) return MUSCLE_ART.calves;
+  if (/בטן|ליבה/.test(s)) return MUSCLE_ART.abs;
+  if (/רגל|ארבע|המסטר|מקרב|ישבן/.test(s)) return MUSCLE_ART.legs;
+  if (/אירובי|ריצה/.test(s)) return MUSCLE_ART.cardio;
+  return MUSCLE_ART.barbell;
+}
+function MuscleBadge({ muscle, size = 40 }){
+  return (
+    <div className="rounded-2xl flex items-center justify-center shrink-0 border border-volt/20 bg-volt/5"
+         style={{ width: size, height: size, boxShadow:'0 0 14px rgba(204,255,0,.10) inset' }}>
+      <Icon d={muscleArt(muscle)} className="w-5 h-5 text-volt/85"/>
+    </div>
+  );
+}
 function Icon({ d, className, filled }){
   return (
     <svg className={className || 'w-6 h-6'} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'}
@@ -1172,14 +1373,20 @@ function Ring({ pct, size = 44, stroke = 4, color = '#CCFF00' }){
 }
 
 /* generic dual-series line chart (A = solid volt w/ area, B = dashed ember, optional) */
-function TrendChart({ data, fmtA, fmtB, unitA, unitB }){
+function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
   const [sel, setSel] = useState(data.length ? data.length - 1 : null);
   useEffect(() => { setSel(data.length ? data.length - 1 : null); }, [data.length, data.map(d => d.a).join(',')]);
   if (!data.length) return <div className="text-center py-8 text-white/25 text-sm">אין עדיין נתונים — תתחיל לרשום 💪</div>;
   const W = 640, H = 220, L = 42, R = 46, T = 14, B = 26;
   const fa = fmtA || (v => String(Math.round(v * 10) / 10));
   const fb = fmtB || (v => String(Math.round(v)));
-  const amax = Math.max.apply(null, data.map(d => d.a).concat([1])) * 1.2;
+  /* tight mode brackets the actual range (weight 70-80) instead of anchoring at 0 */
+  const aVals = data.map(d => numOr0(d.a));
+  const rawMax = Math.max.apply(null, aVals.concat([1]));
+  const rawMin = Math.min.apply(null, aVals);
+  const pad = Math.max((rawMax - rawMin) * 0.25, rawMax * 0.02, 0.5);
+  const amin = tight ? rawMin - pad : 0;
+  const amax = tight ? rawMax + pad : rawMax * 1.2;
   const hasB = data.some(d => d.b != null && d.b > 0);
   let bmin = 0, bmax = 1;
   if (hasB) {
@@ -1188,12 +1395,13 @@ function TrendChart({ data, fmtA, fmtB, unitA, unitB }){
     const p = Math.max((bmax - bmin) * .25, 1); bmin -= p; bmax += p;
   }
   const X = i => data.length === 1 ? (L + (W - L - R) / 2) : L + i * (W - L - R) / (data.length - 1);
-  const Ya = v => H - B - (v / amax) * (H - T - B);
+  const Ya = v => H - B - ((v - amin) / Math.max(1e-6, amax - amin)) * (H - T - B);
   const Yb = v => H - B - ((v - bmin) / (bmax - bmin)) * (H - T - B);
   const aPts = data.map((d, i) => X(i) + ',' + Ya(d.a)).join(' ');
   const bPts = hasB ? data.filter(d => d.b > 0).map((d) => X(data.indexOf(d)) + ',' + Yb(d.b)).join(' ') : '';
+  const floor = H - B;
   const area = data.length > 1
-    ? 'M' + X(0) + ',' + (H - B) + ' L' + data.map((d, i) => X(i) + ',' + Ya(d.a)).join(' L') + ' L' + X(data.length - 1) + ',' + (H - B) + ' Z'
+    ? 'M' + X(0) + ',' + floor + ' L' + data.map((d, i) => X(i) + ',' + Ya(d.a)).join(' L') + ' L' + X(data.length - 1) + ',' + floor + ' Z'
     : '';
   const step = Math.max(1, Math.ceil(data.length / 6));
   const s = sel != null ? data[sel] : null;
@@ -1206,8 +1414,8 @@ function TrendChart({ data, fmtA, fmtB, unitA, unitB }){
             <stop offset="100%" stopColor="#CCFF00" stopOpacity="0"/>
           </linearGradient>
         </defs>
-        {[.33, .66, 1].map(f => {
-          const v = amax * f, y = Ya(v);
+        {[.15, .5, .85].map(f => {
+          const v = amin + (amax - amin) * f, y = Ya(v);
           return (
             <g key={f}>
               <line x1={L} x2={W - R} y1={y} y2={y} stroke="rgba(255,255,255,.05)"/>
@@ -1385,9 +1593,10 @@ function BarChart({ items, unit }){
 }
 
 /* ============================== rest timer ============================== */
-function RestTimer(){
+function RestTimer({ trigger }){
   const [total, setTotal] = useState(0);
   const [left, setLeft] = useState(0);
+  const [preset, setPreset] = useState(90);
   const [flash, setFlash] = useState(false);
   const ctxRef = useRef(null);
   const flashTimer = useRef(null);
@@ -1407,8 +1616,14 @@ function RestTimer(){
   const start = s => {
     unlockAudio();
     clearTimeout(flashTimer.current);
-    setFlash(false); setTotal(s); setLeft(s);
+    setFlash(false); setPreset(s); setTotal(s); setLeft(s);
   };
+  /* completing a set auto-launches the countdown with the last preset used */
+  useEffect(() => {
+    if (!trigger) return;
+    clearTimeout(flashTimer.current);
+    setFlash(false); setTotal(preset); setLeft(preset);
+  }, [trigger]);
   useEffect(() => {
     if (left <= 0) return;
     const t = setTimeout(() => {
@@ -1453,7 +1668,8 @@ function RestTimer(){
         </span>
         {[60, 90, 120, 180].map(s => (
           <button key={s} onClick={() => start(s)}
-                  className="flex-1 py-1.5 rounded-xl bg-white/5 text-sm font-bold active:scale-95 transition select-none">
+                  className={'flex-1 py-1.5 rounded-xl text-sm font-bold active:scale-95 transition select-none border ' +
+                    (preset === s ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 border-transparent')}>
             {fmtDur(s)}
           </button>
         ))}
@@ -1502,7 +1718,7 @@ function SetRow({ s, i, prev, onField, onToggle }){
   );
 }
 
-function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, setVariant, moveEx, idx, count }){
+function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, setVariant, moveEx, idx, count, onHistory, dragProps, dragging }){
   const active = getActiveVariant(state, week, tpl.id, ex);
   const key = exKey(ex, active);
   const sets = getSetsByKey(state, week, tpl.id, key, ex.sets);
@@ -1514,18 +1730,16 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
     return (best.w || '?') + ' ק"ג × ' + (best.r || '?');
   }, [prev]);
   if (edit) return (
-    <div className="glass rounded-3xl p-4 space-y-2.5 fadein">
-      <div className="flex gap-1.5">
+    <div className={'glass rounded-3xl p-4 space-y-2.5 ' + (dragging ? 'border-volt/50 opacity-90' : 'fadein')}
+         style={dragging ? { boxShadow:'0 0 0 2px rgba(204,255,0,.35), 0 20px 40px rgba(0,0,0,.6)' } : {}}>
+      <div className="flex gap-1.5 items-center">
+        <div {...(dragProps || {})} title="גרור לשינוי סדר"
+             className="w-9 h-10 rounded-xl bg-white/5 border border-white/10 text-white/40 flex items-center justify-center shrink-0"
+             style={{ touchAction:'none', cursor:'grab' }}>
+          <Icon d={I.grip} className="w-4 h-4"/>
+        </div>
         <input className="inp flex-1 min-w-0 font-bold" value={ex.name} onChange={e => updEx(ex.id, { name: e.target.value })}/>
-        <button onClick={() => moveEx(ex.id, -1)} disabled={idx === 0}
-                className="w-10 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center shrink-0 active:scale-90 transition disabled:opacity-15">
-          <Icon d={I.chevUp} className="w-4 h-4"/>
-        </button>
-        <button onClick={() => moveEx(ex.id, 1)} disabled={idx === count - 1}
-                className="w-10 rounded-xl bg-white/5 border border-white/10 text-white/60 flex items-center justify-center shrink-0 active:scale-90 transition disabled:opacity-15">
-          <Icon d={I.chevDown} className="w-4 h-4"/>
-        </button>
-        <button onClick={() => delEx(ex.id)} className="w-10 rounded-xl bg-ember/15 text-ember flex items-center justify-center shrink-0 active:scale-90 transition">
+        <button onClick={() => delEx(ex.id)} className="w-10 h-10 rounded-xl bg-ember/15 text-ember flex items-center justify-center shrink-0 active:scale-90 transition">
           <Icon d={I.trash} className="w-4 h-4"/>
         </button>
       </div>
@@ -1583,10 +1797,16 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
   return (
     <div className="glass rounded-3xl p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="inline-block text-[10px] font-bold text-volt bg-volt/10 border border-volt/20 rounded-full px-2 py-0.5">{ex.muscle}</span>
-          <h3 className="font-bold mt-1.5 leading-snug">{ex.name}</h3>
-        </div>
+        <button onClick={() => onHistory && onHistory(ex, active)} className="flex items-start gap-2.5 min-w-0 text-start active:scale-[.99] transition">
+          <MuscleBadge muscle={ex.muscle}/>
+          <div className="min-w-0">
+            <span className="inline-block text-[10px] font-bold text-volt bg-volt/10 border border-volt/20 rounded-full px-2 py-0.5">{ex.muscle}</span>
+            <h3 className="font-bold mt-1 leading-snug flex items-center gap-1">
+              {ex.name}
+              <Icon d={I.history} className="w-3.5 h-3.5 text-white/25 shrink-0"/>
+            </h3>
+          </div>
+        </button>
         <div className="text-end shrink-0">
           <div className="font-black text-lg leading-none whitespace-nowrap">{ex.sets}<span className="text-white/30 mx-0.5">×</span>{ex.reps}</div>
           {prevSumm && <div className="text-[10px] text-white/35 mt-1.5 whitespace-nowrap">שבוע קודם · {prevSumm}</div>}
@@ -1609,6 +1829,58 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
                   onField={(idx, f, v) => setSetField(key, idx, f, v)}
                   onToggle={idx => setSetField(key, idx, 'done')}/>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* last 3 logged sessions for one exercise/variant — progressive-overload at a tap */
+function ExerciseHistorySheet({ state, tplId, ex, variant, onClose }){
+  const key = exKey(ex, variant);
+  const rows = useMemo(() => {
+    const weeks = Object.keys(state.logs).sort().reverse();
+    const out = [];
+    for (let i = 0; i < weeks.length && out.length < 3; i++) {
+      const arr = (((state.logs[weeks[i]] || {}).workouts || {})[tplId] || {})[key] || [];
+      const sets = arr.filter(x => x && ((x.w !== '' && x.w != null) || (x.r !== '' && x.r != null)));
+      if (sets.length) out.push({ week: weeks[i], sets });
+    }
+    return out;
+  }, [state.logs, tplId, key]);
+  const best = rows.length ? Math.max.apply(null, rows.flatMap(r => r.sets.map(s => numOr0(s.w)))) : 0;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose} style={{ background:'rgba(0,0,0,.75)' }}>
+      <div className="w-full max-w-xl rounded-t-3xl border border-white/10 p-4 space-y-3 fadein" onClick={e => e.stopPropagation()}
+           style={{ background:'rgba(13,16,24,.98)', backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)', maxHeight:'80vh', overflowY:'auto', paddingBottom:'max(env(safe-area-inset-bottom), 16px)' }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-volt flex items-center gap-1"><Icon d={I.history} className="w-3.5 h-3.5"/> 3 האימונים האחרונים</div>
+            <div className="font-black text-lg leading-tight mt-0.5">{ex.name}</div>
+            {variant && <div className="text-[10px] text-white/40 mt-0.5">{variant}</div>}
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60 shrink-0"><Icon d={I.x} className="w-4 h-4"/></button>
+        </div>
+        {rows.length === 0 ? (
+          <div className="text-center text-white/30 text-sm py-6">עוד אין היסטוריה לתרגיל הזה — הסטים של היום יהיו הראשונים 💪</div>
+        ) : rows.map(r => (
+          <div key={r.week} className="bg-black/25 border border-white/5 rounded-2xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-white/60">שבוע {weekNum(r.week)}</span>
+              <span className="text-[10px] text-white/30">{weekRangeLabel(r.week)}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {r.sets.map((sx, i) => {
+                const isBest = numOr0(sx.w) === best && best > 0;
+                return (
+                  <span key={i} className={'text-xs font-bold rounded-xl px-2.5 py-1.5 border ' + (isBest ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/70 border-white/10')}>
+                    {sx.w || '—'}<span className="text-white/30 mx-0.5">×</span>{sx.r || '—'}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {best > 0 && <div className="text-center text-[11px] text-white/40">שיא במשקל: <span className="text-volt font-black">{best} ק"ג</span></div>}
       </div>
     </div>
   );
@@ -1751,15 +2023,21 @@ function FridayRunBlock({ state, week, tpl, mutate }){
   );
 }
 
-function WorkoutDetail({ state, week, tpl, mutate, onBack }){
+function WorkoutDetail({ state, week, tpl, mutate, onBack, onStory }){
   const [edit, setEdit] = useState(false);
+  const [restTick, setRestTick] = useState(0);
+  const [histFor, setHistFor] = useState(null);
+  const [dragId, setDragId] = useState(null);
+  const dragRef = useRef(null);
   const prog = tplProgress(state, week, tpl);
   const ton = tonnage(state, week, tpl);
   const pct = prog.total ? prog.done / prog.total : 0;
   const isRunDay = !!tpl.runDay || (tpl.exercises.length > 0 && tpl.exercises.every(e => e.check));
   const runDayDone = isRunDay && tpl.exercises.some(ex => isCheckExDone(state, week, tpl.id, ex));
 
-  const setSetField = (key, idx, field, val) => mutate(d => {
+  const setSetField = (key, idx, field, val) => {
+    let justCompleted = false;
+    mutate(d => {
     const wk = (d.logs[week] = d.logs[week] || {});
     const wo = (wk.workouts = wk.workouts || {});
     const t = (wo[tpl.id] = wo[tpl.id] || {});
@@ -1767,10 +2045,12 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
     while (arr.length <= idx) arr.push({ w:'', r:'', done:false });
     if (field === 'done') {
       arr[idx].done = !arr[idx].done;
-      if (arr[idx].done) arr[idx].t = toISO(new Date());
+      if (arr[idx].done) { arr[idx].t = toISO(new Date()); justCompleted = true; }
       else delete arr[idx].t;
     } else arr[idx][field] = val;
-  }, ['week', week]);
+    }, ['week', week]);
+    if (justCompleted) setRestTick(t => t + 1);   /* auto rest countdown */
+  };
 
   const setVariant = (ex, v) => mutate(d => {
     const wk = (d.logs[week] = d.logs[week] || {});
@@ -1797,6 +2077,35 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
     if (i < 0 || j < 0 || j >= t.exercises.length) return;
     const tmp = t.exercises[i]; t.exercises[i] = t.exercises[j]; t.exercises[j] = tmp;
   }, 'templates');
+  /* touch/pointer drag-to-reorder: find the card under the finger and move into it */
+  const onDragStart = (exId, e) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    setDragId(exId); dragRef.current = { id: exId };
+  };
+  const onDragMove = e => {
+    if (!dragRef.current) return;
+    const y = e.clientY;
+    const nodes = Array.from(document.querySelectorAll('[data-exrow]'));
+    for (let i = 0; i < nodes.length; i++) {
+      const r = nodes[i].getBoundingClientRect();
+      if (y >= r.top && y <= r.bottom) {
+        const overId = nodes[i].getAttribute('data-exrow');
+        if (overId && overId !== dragRef.current.id) {
+          mutate(d => {
+            const t = d.templates.find(x => x.id === tpl.id);
+            const from = t.exercises.findIndex(x => x.id === dragRef.current.id);
+            const to = t.exercises.findIndex(x => x.id === overId);
+            if (from < 0 || to < 0) return;
+            const [it] = t.exercises.splice(from, 1);
+            t.exercises.splice(to, 0, it);
+          }, 'templates');
+        }
+        break;
+      }
+    }
+  };
+  const onDragEnd = () => { dragRef.current = null; setDragId(null); };
+
   const moveTpl = dir => mutate(d => {
     const i = d.templates.findIndex(x => x.id === tpl.id), j = i + dir;
     if (i < 0 || j < 0 || j >= d.templates.length) return;
@@ -1829,6 +2138,26 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
                 <Icon d={I.trash} className="w-4 h-4"/>
               </button>
             </React.Fragment>
+          )}
+          {!edit && onStory && prog.done > 0 && (
+            <button onClick={() => onStory({
+                      kicker:'אימון הושלם', title: tpl.name, sub: tpl.sub,
+                      stats: [
+                        { v: prog.done + '/' + prog.total, l:'סטים', color:'#CCFF00' },
+                        { v: ton.toLocaleString(), l:'ק"ג נפח', color:'#fff' },
+                        { v: tpl.exercises.length, l:'תרגילים', color:'#FF5A1F' },
+                        { v: Math.round(pct * 100) + '%', l:'הושלם', color:'#CCFF00' }
+                      ],
+                      lines: tpl.exercises.slice(0, 4).map(ex2 => {
+                        const ss = getSetsByKey(state, week, tpl.id, exKey(ex2, getActiveVariant(state, week, tpl.id, ex2)), ex2.sets).filter(x => x.done);
+                        const top = ss.reduce((b, x) => numOr0(x.w) > numOr0(b.w) ? x : b, ss[0] || { w:'', r:'' });
+                        return ss.length ? { a: ex2.name.length > 26 ? ex2.name.slice(0, 25) + '…' : ex2.name, b: (top.w || '—') + ' × ' + (top.r || '—') } : null;
+                      }).filter(Boolean),
+                      footer: heDate(toISO(new Date()))
+                    })}
+                    className="h-10 px-3 rounded-2xl bg-volt/10 border border-volt/25 text-volt flex items-center gap-1.5 text-sm font-bold active:scale-95 transition">
+              <Icon d={I.share} className="w-4 h-4"/> שתף
+            </button>
           )}
           <button onClick={() => setEdit(!edit)}
                   className={'h-10 px-4 rounded-2xl flex items-center gap-2 text-sm font-bold active:scale-95 transition ' + (edit ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 text-white/70 border border-white/10')}>
@@ -1881,7 +2210,7 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
         )}
       </div>
 
-      {!edit && !isRunDay && <RestTimer/>}
+      {!edit && !isRunDay && <RestTimer trigger={restTick}/>}
 
       {isRunDay ? (
         <React.Fragment>
@@ -1901,16 +2230,25 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack }){
       ) : (
         <React.Fragment>
           {tpl.exercises.map((ex, i) => (
-            <ExerciseCard key={ex.id} state={state} week={week} tpl={tpl} ex={ex} edit={edit}
-                          updEx={updEx} delEx={delEx} setSetField={setSetField} setVariant={setVariant}
-                          moveEx={moveEx} idx={i} count={tpl.exercises.length}/>
+            <div key={ex.id} data-exrow={ex.id}>
+              <ExerciseCard state={state} week={week} tpl={tpl} ex={ex} edit={edit}
+                            updEx={updEx} delEx={delEx} setSetField={setSetField} setVariant={setVariant}
+                            moveEx={moveEx} idx={i} count={tpl.exercises.length}
+                            onHistory={(e2, v) => setHistFor({ ex: e2, variant: v })}
+                            dragging={dragId === ex.id}
+                            dragProps={{ onPointerDown: e => onDragStart(ex.id, e), onPointerMove: onDragMove, onPointerUp: onDragEnd, onPointerCancel: onDragEnd }}/>
+            </div>
           ))}
           {edit && (
             <button onClick={addEx} className="w-full glass rounded-3xl py-4 text-volt font-bold flex items-center justify-center gap-2 active:scale-[.98] transition">
               <Icon d={I.plus} className="w-5 h-5"/> הוסף תרגיל
             </button>
           )}
+          {edit && <div className="text-center text-[10px] text-white/30">גרור את הידית לשינוי סדר התרגילים</div>}
         </React.Fragment>
+      )}
+      {histFor && (
+        <ExerciseHistorySheet state={state} tplId={tpl.id} ex={histFor.ex} variant={histFor.variant} onClose={() => setHistFor(null)}/>
       )}
     </div>
   );
@@ -1939,9 +2277,9 @@ function WeekChips({ state, week, onOpen }){
   );
 }
 
-function WorkoutsTab({ state, week, mutate, openTpl, setOpenTpl }){
+function WorkoutsTab({ state, week, mutate, openTpl, setOpenTpl, onStory }){
   const tpl = openTpl ? state.templates.find(t => t.id === openTpl) : null;
-  if (tpl) return <WorkoutDetail state={state} week={week} tpl={tpl} mutate={mutate} onBack={() => setOpenTpl(null)}/>;
+  if (tpl) return <WorkoutDetail state={state} week={week} tpl={tpl} mutate={mutate} onBack={() => setOpenTpl(null)} onStory={onStory}/>;
 
   const addWorkout = () => {
     const id = uid();
@@ -2014,7 +2352,8 @@ function RunChart({ runs }){
       <svg viewBox={'0 0 ' + W + ' ' + H} className="w-full select-none">
         <defs>
           <linearGradient id="gkm" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#CCFF00" stopOpacity=".26"/>
+            <stop offset="0%" stopColor="#CCFF00" stopOpacity=".42"/>
+            <stop offset="55%" stopColor="#CCFF00" stopOpacity=".14"/>
             <stop offset="100%" stopColor="#CCFF00" stopOpacity="0"/>
           </linearGradient>
         </defs>
@@ -2042,6 +2381,24 @@ function RunChart({ runs }){
             <rect x={X(i) - 14} y={T} width="28" height={H - T - B} fill="transparent" onClick={() => setSel(i)} style={{ cursor:'pointer' }}/>
           </g>
         ))}
+        {(() => {
+          const kms = data.map(r => r.km);
+          const bi = kms.indexOf(Math.max.apply(null, kms));
+          const paces2 = data.map(paceOf);
+          const fi = paces2.indexOf(Math.min.apply(null, paces2));
+          const tags = [];
+          if (data.length > 1 && bi >= 0) tags.push(
+            <g key="pk-km">
+              <circle cx={X(bi)} cy={Ykm(data[bi].km)} r="7" fill="none" stroke="#CCFF00" strokeWidth="1.5" opacity=".55"/>
+              <text x={X(bi)} y={Ykm(data[bi].km) - 12} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#CCFF00">▲{data[bi].km}</text>
+            </g>);
+          if (data.length > 1 && fi >= 0 && fi !== bi) tags.push(
+            <g key="pk-pace">
+              <circle cx={X(fi)} cy={Yp(paces2[fi])} r="6" fill="none" stroke="#FF5A1F" strokeWidth="1.5" opacity=".55"/>
+              <text x={X(fi)} y={Yp(paces2[fi]) - 11} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#FF5A1F">⚡{fmtPace(paces2[fi])}</text>
+            </g>);
+          return tags;
+        })()}
         {data.map((r, i) => ((i % xLabelStep === 0 || i === data.length - 1)
           ? <text key={'x' + r.id} x={X(i)} y={H - 8} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,.35)">
               {fromISO(r.date).getDate() + '.' + (fromISO(r.date).getMonth() + 1)}
@@ -2065,13 +2422,14 @@ function RunChart({ runs }){
   );
 }
 
-function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
+function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare }){
   const todayISO = toISO(new Date());
   const inWeek = todayISO >= week && todayISO <= addDays(week, 6);
   const [f, setF] = useState({ title:'', km:'', dur:'', date: inWeek ? todayISO : week, type:'', splits:[] });
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState(null);
   const [openSplits, setOpenSplits] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
   useEffect(() => { if (!editing) setF(x => Object.assign({}, x, { date: (todayISO >= week && todayISO <= addDays(week, 6)) ? todayISO : week })); }, [week]);
 
   const all = useMemo(() => state.runs.slice().sort((a, b) => a.date < b.date ? 1 : -1), [state.runs]);
@@ -2100,13 +2458,14 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
       mutate(d => { d.runs.unshift(Object.assign({ id: uid() }, patch, { updatedAt: Date.now() })); });
     }
     resetForm();
+    setFormOpen(false);
   };
   const startEdit = r => {
-    setEditing(r.id);
+    setEditing(r.id); setFormOpen(true);
     setF({ title: r.title, km: String(r.km), dur: fmtDur(r.sec), date: r.date, type: r.type || '', splits: (r.splits || []).map(s => ({ km: String(s.km), dur: fmtDur(s.sec) })) });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const cancelEdit = () => { setEditing(null); resetForm(); };
+  const cancelEdit = () => { setEditing(null); setFormOpen(false); resetForm(); };
   const delRun = r => {
     if (!confirm('למחוק את "' + r.title + '" (' + r.km + ' ק"מ)? אפשר גם לערוך במקום למחוק — כפתור העיפרון.')) return;
     if (editing === r.id) cancelEdit();
@@ -2125,9 +2484,9 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
     const hasSplits = r.splits && r.splits.length > 0;
     const isOpen = openSplits === r.id;
     return (
-      <div className="glass rounded-2xl p-3">
+      <div className="glass rounded-2xl p-3" style={{ background:'linear-gradient(135deg, rgba(204,255,0,.05), rgba(15,23,42,.4) 45%)' }}>
         <div className="flex items-center gap-3">
-          <div className={'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base ' + (r.src === 'strava' ? 'bg-strava/15 text-strava' : 'bg-ember/15 text-ember')}>
+          <div className={'w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 text-lg border ' + (r.src === 'strava' ? 'bg-strava/15 text-strava border-strava/25' : 'bg-ember/10 text-ember border-ember/20')}>
             {st ? st.emoji : <Icon d={I.activity} className="w-4 h-4"/>}
           </div>
           <div className="flex-1 min-w-0">
@@ -2150,7 +2509,10 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
             <div><div className="font-black text-sm">{fmtDur(r.sec)}</div><div className="text-[8px] text-white/40">זמן</div></div>
           </div>
           <div className="flex flex-col gap-1 shrink-0">
-            <button onClick={() => startEdit(r)} className="w-8 h-7 rounded-lg text-volt/60 bg-volt/5 flex items-center justify-center active:scale-90 transition">
+            <button onClick={() => onShare && onShare(r)} className="w-8 h-7 rounded-lg text-volt/70 bg-volt/10 flex items-center justify-center active:scale-90 transition" title="שתף לסטורי">
+              <Icon d={I.share} className="w-3.5 h-3.5"/>
+            </button>
+            <button onClick={() => startEdit(r)} className="w-8 h-7 rounded-lg text-white/50 bg-white/5 flex items-center justify-center active:scale-90 transition">
               <Icon d={I.pencil} className="w-3.5 h-3.5"/>
             </button>
             <button onClick={() => delRun(r)} className="w-8 h-7 rounded-lg text-white/25 flex items-center justify-center active:scale-90 transition">
@@ -2165,20 +2527,29 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
 
   return (
     <div className="fadein space-y-3">
-      <div className="glass rounded-3xl p-4 space-y-2.5">
+      {!formOpen && (
+        <button onClick={() => { setFormOpen(true); resetForm(); }}
+                className="w-full py-3.5 rounded-3xl bg-volt text-obsidian font-black text-base flex items-center justify-center gap-2 active:scale-[.98] transition glow-volt">
+          <Icon d={I.plus} className="w-5 h-5"/> רשום ריצה חדשה
+        </button>
+      )}
+      <div className="glass rounded-3xl p-4 space-y-2.5" style={{ display: formOpen ? 'block' : 'none' }}>
         <div className="flex items-center justify-between">
           <div className="font-bold flex items-center gap-2">
             <span className={'w-7 h-7 rounded-xl flex items-center justify-center ' + (editing ? 'bg-volt/20 text-volt' : 'bg-ember/20 text-ember')}>
               <Icon d={editing ? I.pencil : I.plus} className="w-4 h-4"/>
             </span>
             {editing ? 'עריכת ריצה' : 'ריצה חדשה'}
-            {!editing && <span className="text-[10px] text-white/30 font-normal">אין הגבלה — כמה שבא לך 🔥</span>}
           </div>
-          {editing ? (
-            <button onClick={cancelEdit} className="text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 active:scale-95 transition">בטל עריכה ✕</button>
-          ) : (!stravaConnected && (
-            <button onClick={onOpenSettings} className="text-[10px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-2.5 py-1 active:scale-95 transition">חבר STRAVA</button>
-          ))}
+          <div className="flex items-center gap-1.5">
+            {!editing && !stravaConnected && (
+              <button onClick={onOpenSettings} className="text-[10px] font-black text-strava bg-strava/10 border border-strava/25 rounded-full px-2.5 py-1 active:scale-95 transition">חבר STRAVA</button>
+            )}
+            <button onClick={editing ? cancelEdit : () => { setFormOpen(false); resetForm(); }}
+                    className="text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 active:scale-95 transition">
+              {editing ? 'בטל עריכה ✕' : 'סגור ✕'}
+            </button>
+          </div>
         </div>
         <div><label className="lbl">סגנון ריצה</label><StylePills value={f.type} onPick={pickStyle}/></div>
         <input className="inp" placeholder="שם הריצה (למשל: ריצת בוקר קלה)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
@@ -2233,10 +2604,11 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings }){
 }
 
 /* ============================== nutrition ============================== */
-function FoodPicker({ state, mutate, onPick, onClose }){
+function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(null);
   const [qty, setQty] = useState('');
+  const [unit, setUnit] = useState('g');
   const [creating, setCreating] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanErr, setScanErr] = useState('');
@@ -2244,8 +2616,8 @@ function FoodPicker({ state, mutate, onPick, onClose }){
   const [nf, setNf] = useState({ name:'', per:'unit', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc:'' });
   const cat = foodCatalog(state);
   const list = q.trim() ? cat.filter(fd => fd.name.indexOf(q.trim()) !== -1) : cat;
-  const pick = fd => { setSel(fd); setQty(fd.per === 'unit' ? '1' : '100'); };
-  const macros = sel ? calcMacros(sel, qty) : null;
+  const pick = fd => { setSel(fd); setUnit('g'); setQty(fd.per === 'unit' ? '1' : '100'); };
+  const macros = sel ? calcMacros(sel, qty, unit) : null;
 
   /* ---- barcode scanner (html5-qrcode, loaded lazily on demand) ---- */
   const [toast, setToast] = useState(null);
@@ -2501,7 +2873,9 @@ function FoodPicker({ state, mutate, onPick, onClose }){
 
   const addNow = () => {
     if (!sel || !(numOr0(qty) > 0)) { alert('הכנס כמות'); return; }
-    onPick(Object.assign({ id: uid(), foodId: sel.id, name: sel.name, qty: String(qty), per: sel.per, unitName: sel.unitName || 'גרם', eaten: true }, calcMacros(sel, qty)));
+    onPick(Object.assign({ id: uid(), foodId: sel.id, name: sel.name, qty: String(qty), per: sel.per,
+                           unit: sel.per === '100g' ? unit : null, unitName: sel.unitName || 'גרם', eaten: true },
+                         calcMacros(sel, qty, unit)));
   };
   const saveCustom = () => {
     if (!nf.name.trim()) { alert('מלא שם למאכל'); return; }
@@ -2587,6 +2961,29 @@ function FoodPicker({ state, mutate, onPick, onClose }){
               <button onClick={() => setShowManual(!showManual)} className={'flex-1 py-2.5 rounded-2xl border text-sm font-bold active:scale-[.98] transition ' + (showManual ? 'bg-sky-400/10 text-sky-300 border-sky-400/30' : 'bg-white/5 text-white/60 border-white/10')}>⌨️ הזן ברקוד ידנית</button>
               <button onClick={() => setCreating(true)} className="flex-1 py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי</button>
             </div>
+            {(state.favMeals || []).length > 0 && onPickMany && (
+              <div>
+                <div className="text-[10px] font-bold text-white/40 mb-1.5">⭐ מועדפים · הוספה בלחיצה אחת</div>
+                <div className="space-y-1">
+                  {(state.favMeals || []).slice(0, 8).map(fv => {
+                    const k = Math.round((fv.items || []).reduce((a, it) => a + numOr0(it.kcal), 0));
+                    const pr = Math.round((fv.items || []).reduce((a, it) => a + numOr0(it.p), 0));
+                    return (
+                      <div key={fv.id} className="flex items-center gap-2 bg-volt/5 border border-volt/15 rounded-2xl px-3 py-2">
+                        <button onClick={() => onPickMany(fv.items)} className="flex-1 min-w-0 text-start active:scale-[.985] transition">
+                          <div className="font-bold text-sm truncate">{fv.icon} {fv.name}</div>
+                          <div className="text-[10px] text-white/40">{(fv.items || []).length} פריטים · {k} קק"ל · {pr} ג׳ חלבון</div>
+                        </button>
+                        <button onClick={() => { if (confirm('להסיר את המועדף?')) mutate(d => { d.favMeals = (d.favMeals || []).filter(x => x.id !== fv.id); (d.deletedFavs = d.deletedFavs || []).push(fv.id); }, 'meals'); }}
+                                className="w-7 h-7 rounded-lg text-white/25 flex items-center justify-center active:scale-90 transition shrink-0">
+                          <Icon d={I.trash} className="w-3.5 h-3.5"/>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {(showManual || scanErr) && (
               <div className="space-y-1.5 fadein">
                 {scanErr && <div className="text-xs text-ember bg-ember/10 border border-ember/25 rounded-xl px-3 py-2">{scanErr}</div>}
@@ -2642,8 +3039,25 @@ function FoodPicker({ state, mutate, onPick, onClose }){
                 {sel.src === 'off' && <span className="text-volt bg-volt/10 border border-volt/25 rounded-full px-2 py-0.5 font-bold">נתונים מ-Open Food Facts · נשמר אצלך ✓</span>}
               </div>
             )}
+            {sel.per === '100g' && (
+              <div>
+                <label className="lbl">יחידת מדידה</label>
+                <div className="flex gap-1.5">
+                  {SERVING_UNITS.map(u => (
+                    <button key={u.id} onClick={() => { setUnit(u.id); setQty(u.id === 'g' ? '100' : '1'); }}
+                            className={'flex-1 py-2 rounded-xl text-xs font-bold border transition active:scale-95 ' +
+                              (unit === u.id ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'bg-white/5 text-white/45 border-white/10')}>
+                      {u.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
-              <label className="lbl">{sel.per === 'unit' ? 'כמות (' + (sel.unitName || 'יחידות') + ')' : 'כמות בגרמים'}</label>
+              <label className="lbl">
+                {sel.per === 'unit' ? 'כמות (' + (sel.unitName || 'יחידות') + ')'
+                  : 'כמות ב' + unitById(unit).label + (unit !== 'g' ? ' (≈ ' + Math.round(numOr0(qty) * unitById(unit).grams) + ' גרם)' : '')}
+              </label>
               <input className="inp text-center font-black text-xl" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}/>
             </div>
             {macros && (
@@ -2678,7 +3092,7 @@ function NutritionTab({ state, week, mutate }){
   const isLegacy = !d2 && Object.keys(legacyChecks).some(k => legacyChecks[k]);
   /* a template section that a materialised day predates (e.g. the snacks bucket
      added later) is appended on the fly — in plan order, so indexes stay stable */
-  const blankSection = m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => Object.assign({}, it, { eaten: false })) });
+  const blankSection = m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => Object.assign({}, it, { eaten: false })) });
   const mergeSections = meals => {
     const out = (meals || []).slice();
     (state.mealPlan || []).forEach(pm => { if (!out.some(m => m.id === pm.id)) out.push(blankSection(pm)); });
@@ -2700,30 +3114,49 @@ function NutritionTab({ state, week, mutate }){
     const w2 = (d.logs[week] = d.logs[week] || {});
     const n2 = (w2.nutri2 = w2.nutri2 || {});
     if (!n2[day]) n2[day] = {
-      meals: (d.mealPlan || []).map(m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) })),
+      meals: (d.mealPlan || []).map(m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) })),
       water: 0, sleep: ''
     };
     /* keep the stored day in sync with template sections added after it began */
     n2[day].meals = n2[day].meals || [];
     (d.mealPlan || []).forEach(pm => {
       if (!n2[day].meals.some(m => m.id === pm.id)) {
-        n2[day].meals.push({ id: pm.id, icon: pm.icon, title: pm.title, items: (pm.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) });
+        n2[day].meals.push({ id: pm.id, icon: pm.icon, title: pm.title, snack: !!pm.snack, items: (pm.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) });
       }
     });
     fn(n2[day], d);
   }, ['week', week]);
 
   const toggleItem = (mi, ii) => withDay(dd => { const it = (dd.meals[mi] || { items: [] }).items[ii]; if (it) it.eaten = !it.eaten; });
+  /* recompute an item from its source food when we know it, otherwise scale the
+     stored macros proportionally — works for qty and unit changes alike */
+  const reprice = (it, d, nextQty, nextUnit) => {
+    const nq = numOr0(nextQty);
+    const un = nextUnit !== undefined ? nextUnit : it.unit;
+    const fd = it.foodId ? foodCatalog(d).find(x => x.id === it.foodId) : null;
+    if (fd && nq > 0) Object.assign(it, calcMacros(fd, nq, un));
+    else {
+      const oldG = numOr0(it.qty) * (it.per === '100g' ? unitById(it.unit).grams : 1);
+      const newG = nq * (it.per === '100g' ? unitById(un).grams : 1);
+      if (oldG > 0 && newG > 0) {
+        const r = newG / oldG;
+        it.kcal = Math.round(it.kcal * r);
+        it.p = Math.round(it.p * r * 10) / 10; it.c = Math.round(it.c * r * 10) / 10; it.f = Math.round(it.f * r * 10) / 10;
+      }
+    }
+    it.qty = String(nextQty);
+    if (nextUnit !== undefined) it.unit = nextUnit;
+  };
   const setItemQty = (mi, ii, q) => withDay((dd, d) => {
     const it = (dd.meals[mi] || { items: [] }).items[ii]; if (!it) return;
-    const nq = numOr0(q);
-    const fd = it.foodId ? foodCatalog(d).find(x => x.id === it.foodId) : null;
-    if (fd && nq > 0) Object.assign(it, calcMacros(fd, nq));
-    else if (nq > 0 && numOr0(it.qty) > 0) {
-      const r = nq / numOr0(it.qty);
-      it.kcal = Math.round(it.kcal * r); it.p = Math.round(it.p * r * 10) / 10; it.c = Math.round(it.c * r * 10) / 10; it.f = Math.round(it.f * r * 10) / 10;
-    }
-    it.qty = q;
+    reprice(it, d, q);
+  });
+  const setItemUnit = (mi, ii, u) => withDay((dd, d) => {
+    const it = (dd.meals[mi] || { items: [] }).items[ii]; if (!it) return;
+    reprice(it, d, it.qty, u);
+  });
+  const setItemName = (mi, ii, nm) => withDay(dd => {
+    const it = (dd.meals[mi] || { items: [] }).items[ii]; if (it) it.name = nm;
   });
   const delItem = (mi, ii) => withDay(dd => { (dd.meals[mi] || { items: [] }).items.splice(ii, 1); });
   const toggleAllMeal = mi => withDay(dd => {
@@ -2732,6 +3165,25 @@ function NutritionTab({ state, week, mutate }){
     (m.items || []).forEach(it => { it.eaten = target; });
   });
   const addItemTo = (mi, item) => withDay(dd => { (dd.meals[mi] || { items: [] }).items.push(item); });
+  const addItemsTo = (mi, items) => withDay(dd => {
+    const tgt = dd.meals[mi] || { items: [] };
+    (items || []).forEach(it => tgt.items.push(Object.assign({}, it, { id: uid(), eaten: true })));
+  });
+  /* save a whole meal for 1-tap logging later */
+  const saveFav = mi => {
+    const m = viewMeals[mi];
+    if (!m || !(m.items || []).length) { alert('אין פריטים בארוחה הזו לשמור'); return; }
+    const name = prompt('שם למועדף:', m.title);
+    if (name === null) return;
+    mutate(d => {
+      d.favMeals = d.favMeals || [];
+      d.favMeals.unshift({ id: uid(), name: (name || m.title).trim() || m.title, icon: m.icon,
+        items: (m.items || []).map(it => ({ foodId: it.foodId || null, name: it.name, qty: it.qty, per: it.per,
+          unit: it.unit || null, unitName: it.unitName, kcal: it.kcal, p: it.p, c: it.c, f: it.f })),
+        updatedAt: Date.now() });
+      d.favMeals = d.favMeals.slice(0, 40);
+    }, 'meals');
+  };
   const addWater = ml => withDay(dd => { dd.water = Math.max(0, numOr0(dd.water) + ml); });
   const setSleep = v => withDay(dd => { dd.sleep = v; });
   const toggleLegacy = mealId => mutate(d => {
@@ -2744,7 +3196,7 @@ function NutritionTab({ state, week, mutate }){
     if (!confirm('לשמור את התפריט של היום הזה כתבנית הקבועה לכל הימים הבאים?')) return;
     mutate(d => {
       const src = ((((d.logs[week] || {}).nutri2) || {})[day] || {}).meals || d.mealPlan;
-      d.mealPlan = src.map(m => ({ id: m.id, icon: m.icon, title: m.title, items: (m.items || []).map(it => ({ id: uid(), foodId: it.foodId || null, name: it.name, qty: it.qty, per: it.per, unitName: it.unitName, kcal: it.kcal, p: it.p, c: it.c, f: it.f })) }));
+      d.mealPlan = src.map(m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => ({ id: uid(), foodId: it.foodId || null, name: it.name, qty: it.qty, per: it.per, unit: it.unit || null, unitName: it.unitName, kcal: it.kcal, p: it.p, c: it.c, f: it.f })) }));
     }, 'meals');
   };
   const setTarget = (k, v) => mutate(d => { d.settings.nutri = Object.assign({}, nutriTargets(d), { [k]: numOr0(v) }); }, 'settings');
@@ -2949,6 +3401,10 @@ function NutritionTab({ state, week, mutate }){
                     <div className="text-[10px] text-white/40">{eaten}/{planned} קק"ל</div>
                   </div>
                   {items.length > 0 && (
+                    <button onClick={() => saveFav(mi)} title="שמור כמועדף"
+                            className="text-[13px] rounded-full px-2 py-1.5 shrink-0 border border-white/10 bg-white/5 text-white/50 active:scale-90 transition">⭐</button>
+                  )}
+                  {items.length > 0 && (
                     <button onClick={() => toggleAllMeal(mi)}
                             className={'text-[10px] font-black rounded-full px-2.5 py-1.5 shrink-0 border transition active:scale-95 ' + (allDone ? 'bg-volt text-obsidian border-volt glow-volt' : 'bg-white/5 text-white/50 border-white/10')}>
                       {allDone ? 'הכל ✓' : 'סמן הכל'}
@@ -2964,13 +3420,26 @@ function NutritionTab({ state, week, mutate }){
                         <Icon d={I.check} className="w-3.5 h-3.5"/>
                       </button>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold truncate leading-tight">{it.name}</div>
+                        <input value={it.name} onChange={e => setItemName(mi, ii, e.target.value)}
+                               className="w-full bg-transparent border-0 outline-none text-sm font-bold leading-tight p-0 truncate"
+                               style={{ fontSize:'14px' }}/>
                         <div className="text-[9px] text-white/40">{it.kcal} קק"ל · ח {it.p} · פ {it.c} · ש {it.f}</div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <input className="inp text-center font-bold" inputMode="decimal" value={it.qty}
-                               onChange={e => setItemQty(mi, ii, e.target.value)} style={{ width:'52px', fontSize:'13px', padding:'4px 4px' }}/>
-                        <span className="text-[9px] text-white/35 truncate" style={{ width:'34px' }}>{it.per === '100g' ? 'גרם' : it.unitName}</span>
+                               onChange={e => setItemQty(mi, ii, e.target.value)} style={{ width:'50px', fontSize:'13px', padding:'4px 4px' }}/>
+                        {it.per === '100g' ? (
+                          <button onClick={() => {
+                                    const i2 = SERVING_UNITS.findIndex(u => u.id === (it.unit || 'g'));
+                                    const nx = SERVING_UNITS[(i2 + 1) % SERVING_UNITS.length];
+                                    setItemUnit(mi, ii, nx.id);
+                                  }}
+                                  title="החלף יחידת מדידה"
+                                  className="text-[9px] font-bold text-volt/80 bg-volt/10 border border-volt/20 rounded-lg px-1.5 py-1 active:scale-90 transition shrink-0"
+                                  style={{ minWidth:'38px' }}>{unitById(it.unit).short}</button>
+                        ) : (
+                          <span className="text-[9px] text-white/35 truncate" style={{ width:'36px' }}>{it.unitName || 'יחידה'}</span>
+                        )}
                       </div>
                       <button onClick={() => delItem(mi, ii)} className="w-7 h-7 rounded-lg text-white/20 flex items-center justify-center active:scale-90 transition shrink-0">
                         <Icon d={I.trash} className="w-3.5 h-3.5"/>
@@ -3006,19 +3475,49 @@ function NutritionTab({ state, week, mutate }){
 
       {picker != null && (
         <FoodPicker state={state} mutate={mutate} onClose={() => setPicker(null)}
-                    onPick={item => { addItemTo(picker, item); setPicker(null); }}/>
+                    onPick={item => { addItemTo(picker, item); setPicker(null); }}
+                    onPickMany={items => { addItemsTo(picker, items); setPicker(null); }}/>
       )}
     </div>
   );
 }
 
 /* ============================== dashboard ============================== */
+/* what to train today: the run day on Fri/Sat, otherwise the next strength
+   template in this week's rotation that still has work left */
+function todaysWorkout(state){
+  const week = weekStartISO(new Date());
+  const dow = new Date().getDay();
+  const runDay = state.templates.find(t => t.runDay || (t.exercises || []).length && (t.exercises || []).every(e => e.check));
+  if ((dow === 5 || dow === 6) && runDay) {
+    const done = (runDay.exercises || []).some(ex => isCheckExDone(state, week, runDay.id, ex));
+    return { tpl: runDay, done, isRun: true };
+  }
+  const lifts = state.templates.filter(t => t !== runDay && (t.exercises || []).some(e => !e.check));
+  for (let i = 0; i < lifts.length; i++) {
+    const p = tplProgress(state, week, lifts[i]);
+    if (p.total > 0 && p.done < p.total) return { tpl: lifts[i], done: false, isRun: false, prog: p };
+  }
+  return { tpl: null, done: true, isRun: false };
+}
+
 function Dashboard({ state, setTab, setOpenTpl, setWeek }){
   const today = toISO(new Date());
   const ts = todayStats(state);
   const st = streak(state);
   const week = weekStartISO(new Date());
+  const targets = nutriTargets(state);
+  const dayIdx = new Date().getDay();
+  const ns = dayNutriSummary(state, week, dayIdx);
+  const burn = dayBurn(state, today);
+  const kcalTarget = Math.round(targets.kcal + burn.total);
+  const kcalLeft = kcalTarget - ns.kcal;
+  const plan = todaysWorkout(state);
+  const wSeries = useMemo(() => state.weights.slice().sort((a, b) => a.date < b.date ? -1 : 1).slice(-8).map(w => numOr0(w.kg)), [state.weights]);
+  const weekAgo = addDays(today, -7);
+  const wPrev = state.weights.filter(w => w.date <= weekAgo)[0];
   const latestW = state.weights.length ? state.weights[0] : null;
+  const wDelta = (latestW && wPrev) ? Math.round((numOr0(latestW.kg) - numOr0(wPrev.kg)) * 10) / 10 : null;
   const prevW = state.weights.length > 1 ? state.weights[1] : null;
   const latestPhoto = state.photos.length ? state.photos.slice().sort((a, b) => a.date < b.date ? 1 : -1)[0] : null;
   const name = state.settings.name;
@@ -3066,6 +3565,75 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
           </div>
         </div>
       </div>
+
+      {/* daily fuel at a glance */}
+      <button onClick={() => go('food')} className="w-full glass rounded-3xl p-4 text-start active:scale-[.985] transition">
+        <div className="flex items-center gap-4">
+          <div className="relative shrink-0" style={{ width:'72px', height:'72px' }}>
+            <Ring pct={kcalTarget ? ns.kcal / kcalTarget : 0} size={72} stroke={6} color={ns.kcal > kcalTarget ? '#FF5A1F' : '#CCFF00'}/>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="font-black text-base leading-none">{Math.abs(kcalLeft)}</span>
+              <span className="text-[8px] text-white/40 mt-0.5">{kcalLeft >= 0 ? 'נשארו' : 'חריגה'}</span>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+              <span className="text-white/50">חלבון 🥩</span>
+              <span><span className={ns.p >= targets.protein * 0.9 ? 'text-volt' : 'text-white'}>{ns.p}</span><span className="text-white/30"> / {targets.protein} ג׳</span></span>
+            </div>
+            <div className="h-2 bg-white/5 rounded-full overflow-hidden mb-2.5" dir="ltr">
+              <div className="h-full rounded-full bg-gradient-to-r from-lime-700 to-volt transition-all duration-500" style={{ width: Math.min(100, ns.p / Math.max(1, targets.protein) * 100) + '%' }}/>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-white/40">
+              <span>{ns.kcal} / {kcalTarget} קק"ל</span>
+              {burn.total > 0 && <span className="text-volt font-bold">+{burn.total} מאימון 🔥</span>}
+            </div>
+          </div>
+        </div>
+      </button>
+
+      {/* today's mission */}
+      {plan.tpl && !plan.done ? (
+        <button onClick={() => openWorkout(plan.tpl.id)}
+                className="w-full rounded-3xl p-4 text-start active:scale-[.985] transition border border-volt/30 bg-volt/10 glow-volt">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{plan.tpl.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold text-volt/70">{plan.isRun ? 'היעד של היום' : 'האימון של היום'}</div>
+              <div className="font-black text-lg italic leading-tight">{plan.tpl.name}</div>
+              <div className="text-[10px] text-white/45 mt-0.5">
+                {plan.isRun ? plan.tpl.sub : (plan.prog ? plan.prog.done + '/' + plan.prog.total + ' סטים הושלמו' : plan.tpl.sub)}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-volt text-obsidian font-black text-sm px-4 py-2.5 shrink-0">התחל ←</div>
+          </div>
+        </button>
+      ) : (
+        <div className="glass rounded-3xl p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🧘</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold text-white/40">יום מנוחה</div>
+              <div className="font-black text-lg italic leading-tight">התאוששות ובנייה</div>
+              <div className="text-[10px] text-white/45 mt-0.5">סיימת את כל האימונים השבוע — תן לגוף לבנות 💪</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+            <div className="bg-black/25 rounded-2xl py-2">
+              <div className={'font-black text-sm ' + (ns.p >= targets.protein * 0.9 ? 'text-volt' : '')}>{ns.p}/{targets.protein}</div>
+              <div className="text-[9px] text-white/40 mt-0.5">חלבון</div>
+            </div>
+            <div className="bg-black/25 rounded-2xl py-2">
+              <div className="font-black text-sm text-sky-300">{ns.water}</div>
+              <div className="text-[9px] text-white/40 mt-0.5">מ"ל מים</div>
+            </div>
+            <div className="bg-black/25 rounded-2xl py-2">
+              <div className="font-black text-sm">{ns.sleep || '—'}</div>
+              <div className="text-[9px] text-white/40 mt-0.5">שעות שינה</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-2">
         <QA icon={I.dumbbell} label="התחל אימון" tab="workouts" color="text-volt"/>
@@ -3129,15 +3697,24 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
         <button onClick={() => go('progress')} className="glass rounded-3xl p-4 text-start active:scale-[.985] transition">
           <div className="flex items-center gap-2 text-white/40 text-[10px] font-bold"><Icon d={I.scale} className="w-3.5 h-3.5"/> משקל גוף</div>
           {latestW ? (
-            <div className="mt-1.5">
-              <span className="font-black text-2xl">{latestW.kg}</span>
-              <span className="text-xs text-white/40 ms-1">ק"ג</span>
-              {prevW && (
-                <span className={'text-[10px] font-bold ms-2 ' + (latestW.kg - prevW.kg >= 0 ? 'text-volt' : 'text-ember')}>
-                  {latestW.kg - prevW.kg >= 0 ? '+' : ''}{Math.round((latestW.kg - prevW.kg) * 10) / 10}
-                </span>
-              )}
-            </div>
+            <React.Fragment>
+              <div className="mt-1.5 flex items-end justify-between gap-2">
+                <div>
+                  <span className="font-black text-2xl">{latestW.kg}</span>
+                  <span className="text-xs text-white/40 ms-1">ק"ג</span>
+                </div>
+                <Sparkline points={wSeries}/>
+              </div>
+              {wDelta != null ? (
+                <div className={'text-[10px] font-bold mt-1 ' + (wDelta > 0 ? 'text-volt' : wDelta < 0 ? 'text-ember' : 'text-white/35')}>
+                  {wDelta > 0 ? '+' : ''}{wDelta} ק"ג השבוע
+                </div>
+              ) : prevW ? (
+                <div className={'text-[10px] font-bold mt-1 ' + (latestW.kg - prevW.kg >= 0 ? 'text-volt' : 'text-ember')}>
+                  {latestW.kg - prevW.kg >= 0 ? '+' : ''}{Math.round((latestW.kg - prevW.kg) * 10) / 10} מהשקילה הקודמת
+                </div>
+              ) : <div className="text-[10px] text-white/30 mt-1">שקילה ראשונה נרשמה</div>}
+            </React.Fragment>
           ) : <div className="mt-1.5 text-white/25 text-sm font-bold">הוסף שקילה ←</div>}
         </button>
         <button onClick={() => go('progress')} className="glass rounded-3xl p-4 text-start active:scale-[.985] transition flex items-center gap-3">
@@ -3186,7 +3763,7 @@ function PhotoViewer({ photo, onClose, onDelete, loadPhoto }){
   );
 }
 
-function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
+function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
   const flat = useMemo(() => {
     const arr = [];
     state.templates.forEach(tpl => tpl.exercises.forEach(ex => {
@@ -3222,6 +3799,8 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
   };
   const [kg, setKg] = useState('');
   const [viewPhoto, setViewPhoto] = useState(null);
+  const [cmpMode, setCmpMode] = useState(false);
+  const [cmpSel, setCmpSel] = useState([]);
   const fileRef = useRef(null);
 
   const prs = useMemo(() => findPRs(state), [state.logs, state.templates]);
@@ -3258,7 +3837,37 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
     <div className="fadein space-y-3">
       {/* ---- PRs ---- */}
       <div className="glass rounded-3xl p-4">
-        <div className="font-black italic mb-2.5 flex items-center gap-2"><Icon d={I.trend} className="w-5 h-5 text-volt"/> הישגים אחרונים</div>
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="font-black italic flex items-center gap-2"><Icon d={I.trend} className="w-5 h-5 text-volt"/> הישגים אחרונים</div>
+          {onStory && (
+            <button onClick={() => onStory({
+                      kicker:'ההתקדמות שלי', title:'PR SHOWCASE', sub: heDate(toISO(new Date())),
+                      stats: [
+                        { v: statusRows.length ? statusRows[0].maxW : '—', l:'שיא אחרון (ק"ג)', color:'#CCFF00' },
+                        { v: curVol >= 1000 ? (Math.round(curVol/100)/10)+'K' : curVol, l:'ק"ג נפח השבוע', color:'#fff' },
+                        { v: ri && ri.fastest ? fmtPace(ri.fastest.sec / ri.fastest.km) : '—', l:'שיא קצב', color:'#FF5A1F' },
+                        { v: prs.length, l:'שיאים חדשים', color:'#CCFF00' }
+                      ],
+                      lines: prs.slice(0, 4).map(pr2 => ({ a: pr2.text.length > 26 ? pr2.text.slice(0,25)+'…' : pr2.text, b: pr2.from + ' → ' + pr2.to }))
+                    })}
+                    className="h-8 px-3 rounded-xl bg-volt/10 border border-volt/25 text-volt flex items-center gap-1.5 text-xs font-bold active:scale-95 transition">
+              <Icon d={I.share} className="w-3.5 h-3.5"/> שתף
+            </button>
+          )}
+        </div>
+        {prs.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 mb-2.5">
+            {prs.slice(0, 6).map((pr2, i) => (
+              <div key={i} className="shrink-0 rounded-2xl px-3 py-2.5 border text-center"
+                   style={{ minWidth:'132px', background:'linear-gradient(160deg, rgba(255,215,0,.16), rgba(204,255,0,.06))', borderColor:'rgba(255,215,0,.35)', boxShadow:'0 0 18px rgba(255,215,0,.12)' }}>
+                <Icon d={I.trophy} className="w-5 h-5 mx-auto" style={{ color:'#FFD84D' }}/>
+                <div className="text-[10px] font-bold text-white/70 truncate mt-1">{pr2.text}</div>
+                <div className="font-black text-lg" style={{ color:'#FFD84D' }}>{pr2.to}</div>
+                <div className="text-[9px] text-white/35">מ־{pr2.from}</div>
+              </div>
+            ))}
+          </div>
+        )}
         {prs.length === 0 && (!ri || ri.paceDelta == null) ? (
           <div className="text-white/30 text-sm text-center py-3">ברגע שתעלה משקלים או תשתפר בריצה — זה יופיע כאן 📈</div>
         ) : (
@@ -3407,7 +4016,7 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
           <button onClick={addWeight} className="px-5 rounded-2xl bg-volt text-obsidian font-black active:scale-95 transition">שמור</button>
         </div>
         {weightData.length > 0
-          ? <TrendChart data={weightData} unitA={'ק"ג'} fmtA={v => String(Math.round(v * 10) / 10)}/>
+          ? <TrendChart data={weightData} unitA={'ק"ג'} tight fmtA={v => String(Math.round(v * 10) / 10)}/>
           : <div className="text-white/25 text-xs text-center py-2">רשום שקילה ראשונה כדי לראות את הגרף</div>}
         {state.weights.slice(0, 5).map(w => (
           <div key={w.id} className="flex items-center justify-between border-t border-white/5 py-2 first:border-0">
@@ -3424,10 +4033,18 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
       <div className="glass rounded-3xl p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="font-black italic">גלריית התקדמות 📸</div>
-          <button onClick={() => fileRef.current && fileRef.current.click()}
-                  className="h-9 px-4 rounded-2xl bg-volt text-obsidian font-black text-sm flex items-center gap-2 active:scale-95 transition glow-volt">
-            <Icon d={I.camera} className="w-4 h-4"/> צלם / העלה
-          </button>
+          <div className="flex gap-1.5">
+            {photosSorted.length >= 2 && (
+              <button onClick={() => { setCmpMode(!cmpMode); setCmpSel([]); }}
+                      className={'h-9 px-3 rounded-2xl text-xs font-bold border active:scale-95 transition ' + (cmpMode ? 'bg-volt/15 text-volt border-volt/40' : 'bg-white/5 text-white/60 border-white/10')}>
+                ⇄ השוואה
+              </button>
+            )}
+            <button onClick={() => fileRef.current && fileRef.current.click()}
+                    className="h-9 px-4 rounded-2xl bg-volt text-obsidian font-black text-sm flex items-center gap-2 active:scale-95 transition glow-volt">
+              <Icon d={I.camera} className="w-4 h-4"/> צלם
+            </button>
+          </div>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile}/>
         </div>
         {photosSorted.length === 0 ? (
@@ -3439,14 +4056,59 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto }){
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {photosSorted.map(p => (
-              <button key={p.id} onClick={() => setViewPhoto(p)} className="relative rounded-2xl overflow-hidden active:scale-95 transition" style={{ aspectRatio:'1' }}>
+              <button key={p.id}
+                      onClick={() => {
+                        if (!cmpMode) { setViewPhoto(p); return; }
+                        setCmpSel(prev => prev.some(x => x.id === p.id) ? prev.filter(x => x.id !== p.id) : (prev.length >= 2 ? [prev[1], p] : prev.concat([p])));
+                      }}
+                      className={'relative rounded-2xl overflow-hidden active:scale-95 transition ' + (cmpMode && cmpSel.some(x => x.id === p.id) ? 'ring-2 ring-volt' : '')}
+                      style={{ aspectRatio:'1' }}>
                 <img src={p.thumb} className="w-full h-full object-cover" alt=""/>
+                {cmpMode && (
+                  <span className={'absolute top-1.5 start-1.5 w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ' + (cmpSel.some(x => x.id === p.id) ? 'bg-volt text-obsidian' : 'bg-black/60 text-white/50 border border-white/25')}>
+                    {cmpSel.findIndex(x => x.id === p.id) >= 0 ? cmpSel.findIndex(x => x.id === p.id) + 1 : ''}
+                  </span>
+                )}
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1">
                   <div className="text-[9px] font-bold text-white/80" dir="ltr">{fromISO(p.date).getDate()}.{fromISO(p.date).getMonth() + 1}.{fromISO(p.date).getFullYear()}</div>
                 </div>
                 {!p.gistId && <div className="absolute top-1.5 end-1.5 w-2 h-2 rounded-full bg-ember" title="ממתין לסנכרון"></div>}
               </button>
             ))}
+          </div>
+        )}
+        {cmpMode && (
+          <div className="mt-3">
+            {cmpSel.length < 2 ? (
+              <div className="text-center text-[11px] text-white/40 py-2">בחר 2 תמונות להשוואה ({cmpSel.length}/2)</div>
+            ) : (
+              <div className="fadein">
+                <div className="grid grid-cols-2 gap-2">
+                  {cmpSel.map((p, i) => (
+                    <div key={p.id} className="rounded-2xl overflow-hidden border border-volt/25 relative">
+                      <img src={p.thumb} className="w-full object-cover" style={{ aspectRatio:'3/4' }} alt=""/>
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 to-transparent px-2 py-1.5 text-center">
+                        <div className="text-[10px] font-black text-volt">{i === 0 ? 'לפני' : 'אחרי'}</div>
+                        <div className="text-[9px] text-white/70" dir="ltr">{fromISO(p.date).getDate()}.{fromISO(p.date).getMonth()+1}.{fromISO(p.date).getFullYear()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {(() => {
+                  const d0 = fromISO(cmpSel[0].date), d1 = fromISO(cmpSel[1].date);
+                  const days = Math.abs(Math.round((d1 - d0) / 86400000));
+                  const w0 = state.weights.filter(w => w.date <= cmpSel[0].date)[0];
+                  const w1 = state.weights.filter(w => w.date <= cmpSel[1].date)[0];
+                  const dw = (w0 && w1) ? Math.round((numOr0(w1.kg) - numOr0(w0.kg)) * 10) / 10 : null;
+                  return (
+                    <div className="mt-2 bg-black/25 border border-white/5 rounded-2xl px-3 py-2 flex items-center justify-between text-xs">
+                      <span className="text-white/50">{days} ימים בין הצילומים</span>
+                      {dw != null && <span className={'font-black ' + (dw >= 0 ? 'text-volt' : 'text-ember')}>{dw >= 0 ? '+' : ''}{dw} ק"ג</span>}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         )}
         <div className="text-[9px] text-white/25 mt-2.5">התמונות נשמרות בג׳יסטים פרטיים בחשבון שלך ומסתנכרנות בין המכשירים. נקודה כתומה = טרם הועלה.</div>
@@ -3476,7 +4138,9 @@ function dayFlags(state, iso){
   }
   const run = state.runs.some(r => r.date === iso);
   const ns = dayNutriSummary(state, wkk, dayIdx);
-  return { strength, run, fullNutrition: ns.full };
+  /* a "perfect" day: trained (lift or run) AND every planned meal ticked */
+  const perfect = ns.full && (strength || run);
+  return { strength, run, fullNutrition: ns.full, perfect };
 }
 
 function daySummary(state, iso){
@@ -3547,9 +4211,11 @@ function CalendarTab({ state, goTo }){
               <button key={iso} onClick={() => setSel(iso)}
                       className={'relative rounded-xl flex flex-col items-center pt-1.5 pb-1 transition active:scale-95 border ' +
                         (isSel ? 'bg-volt text-obsidian border-volt glow-volt' :
+                          f.perfect ? 'bg-amber-300/10 border-amber-300/40' :
                           isToday ? 'bg-white/10 border-white/20' : 'bg-white/[.03] border-transparent') +
                         (inMonth ? '' : ' opacity-30')}
-                      style={{ minHeight:'52px' }}>
+                      style={Object.assign({ minHeight:'52px' }, (f.perfect && !isSel) ? { boxShadow:'0 0 14px rgba(255,216,77,.28)' } : {})}>
+                {f.perfect && !isSel && <span className="absolute top-0.5 end-1 text-[9px]">🏆</span>}
                 <span className={'w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ' +
                   (f.fullNutrition ? (isSel ? 'border-2 border-obsidian/50 ' : 'border-2 border-volt ') : '') +
                   (isSel ? 'text-obsidian' : isToday ? 'text-volt' : 'text-white/80')}>
@@ -3567,6 +4233,7 @@ function CalendarTab({ state, goTo }){
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-volt inline-block"></span> אימון כוח</span>
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-ember inline-block"></span> ריצה</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full border-2 border-volt inline-block"></span> תזונה 100%</span>
+          <span className="flex items-center gap-1">🏆 יום מושלם</span>
         </div>
       </div>
 
@@ -3610,7 +4277,7 @@ function CalendarTab({ state, goTo }){
                       className="w-full flex items-center gap-3 bg-black/25 border border-white/5 rounded-2xl p-3 text-start active:scale-[.985] transition">
                 <span className="text-2xl">🥗</span>
                 <div className="flex-1">
-                  <div className="font-bold text-sm">תזונה · {s.mealsDone}/{s.mealsTotal} {s.mealsDone === s.mealsTotal && s.mealsTotal > 0 ? '✓' : ''}{s.dayKcal > 0 ? ' · ' + s.dayKcal + ' קק"ל' : ''}</div>
+                  <div className="font-bold text-sm">תזונה · {s.mealsDone}/{s.mealsTotal} ({Math.round(s.mealsDone / Math.max(1, s.mealsTotal) * 100)}%) {s.mealsDone === s.mealsTotal && s.mealsTotal > 0 ? '✓' : ''}{s.dayKcal > 0 ? ' · ' + s.dayKcal + ' קק"ל' : ''}</div>
                   <div className="flex gap-1.5 mt-1">
                     {s.mealIcons.map((mi, i) => (
                       <span key={i} className={'text-sm ' + (mi.done ? '' : 'opacity-20')} style={mi.done ? {} : { filter:'grayscale(1)' }}>{mi.icon}</span>
@@ -3835,6 +4502,8 @@ function App(){
   const [openTpl, setOpenTpl] = useState(null);
   const [sync, setSync] = useState({ status: localStorage.getItem(TOKEN_KEY) ? 'ok' : 'off', msg:'', at:0 });
   const [stravaUi, setStravaUi] = useState({ status:'idle', msg:'' });
+  const [storyPreview, setStoryPreview] = useState(null);
+  const openStory = spec => { try { setStoryPreview({ url: drawStoryCard(spec).toDataURL('image/png'), spec }); } catch (e) {} };
   const pushTimer = useRef(null);
   const syncingRef = useRef(false);
   const lastSyncRef = useRef(0);
@@ -4147,15 +4816,37 @@ function App(){
 
       <main className="max-w-xl mx-auto px-4 pt-4" style={{ paddingBottom:'calc(110px + env(safe-area-inset-bottom))' }}>
         {tab === 'home' && <Dashboard state={state} setTab={setTab} setOpenTpl={setOpenTpl} setWeek={setWeek}/>}
-        {tab === 'workouts' && <WorkoutsTab state={state} week={week} mutate={mutate} openTpl={openTpl} setOpenTpl={setOpenTpl}/>}
-        {tab === 'runs' && <RunsTab state={state} week={week} mutate={mutate} stravaConnected={!!(state.settings.strava && state.settings.strava.refreshToken)} onOpenSettings={() => setTab('settings')}/>}
+        {tab === 'workouts' && <WorkoutsTab state={state} week={week} mutate={mutate} openTpl={openTpl} setOpenTpl={setOpenTpl} onStory={openStory}/>}
+        {tab === 'runs' && <RunsTab state={state} week={week} mutate={mutate} stravaConnected={!!(state.settings.strava && state.settings.strava.refreshToken)} onOpenSettings={() => setTab('settings')}
+                                   onShare={r => openStory({
+                                     kicker:'ריצה הושלמה', title: r.title, sub: heDate(r.date),
+                                     stats: [
+                                       { v: r.km, l:'ק"מ', color:'#CCFF00' },
+                                       { v: fmtPace(r.sec / Math.max(r.km, .01)), l:'דק׳/ק"מ', color:'#FF5A1F' },
+                                       { v: fmtDur(r.sec), l:'זמן', color:'#fff' },
+                                       { v: Math.round(r.km * ((state.weights[0] && numOr0(state.weights[0].kg)) || 74)), l:'קק"ל', color:'#CCFF00' }
+                                     ],
+                                     lines: (r.splits || []).slice(0, 4).map((sp, i) => ({ a: 'קטע ' + (i + 1) + ' · ' + sp.km + ' ק"מ', b: fmtPace(sp.sec / Math.max(sp.km, .01)) }))
+                                   })}/>}
         {tab === 'food' && <NutritionTab state={state} week={week} mutate={mutate}/>}
-        {tab === 'progress' && <ProgressTab state={state} mutate={mutate} loadPhoto={loadPhoto} addPhoto={addPhoto} delPhoto={delPhoto}/>}
+        {tab === 'progress' && <ProgressTab state={state} mutate={mutate} loadPhoto={loadPhoto} addPhoto={addPhoto} delPhoto={delPhoto} onStory={openStory}/>}
         {tab === 'calendar' && <CalendarTab state={state} goTo={goTo}/>}
         {tab === 'settings' && <SettingsTab state={state} sync={sync} syncNow={syncNow} replaceState={replaceState} mutate={mutate}
                                             stravaUi={stravaUi} stravaConnect={stravaConnect} stravaDisconnect={stravaDisconnect} stravaImport={stravaImport}
                                             onBack={() => setTab('home')}/>}
       </main>
+
+      {storyPreview && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 p-5 fadein" style={{ background:'rgba(0,0,0,.92)' }} onClick={() => setStoryPreview(null)}>
+          <img src={storyPreview.url} alt="" onClick={e => e.stopPropagation()}
+               style={{ maxHeight:'70vh', maxWidth:'100%', borderRadius:'22px', boxShadow:'0 30px 70px rgba(0,0,0,.8)' }}/>
+          <div className="flex gap-2 w-full max-w-xs" onClick={e => e.stopPropagation()}>
+            <button onClick={async () => { await shareStory(storyPreview.spec); setStoryPreview(null); }}
+                    className="flex-1 py-3 rounded-2xl bg-volt text-obsidian font-black active:scale-[.98] transition glow-volt">שתף / שמור ⚡</button>
+            <button onClick={() => setStoryPreview(null)} className="px-5 py-3 rounded-2xl bg-white/10 text-white/70 font-bold active:scale-95 transition">סגור</button>
+          </div>
+        </div>
+      )}
 
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-obsidian/90 border-t border-white/5" style={{ backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)' }}>
         <div className="max-w-xl mx-auto grid grid-cols-6 px-1 pt-1.5" style={{ paddingBottom:'max(env(safe-area-inset-bottom), 10px)' }}>
