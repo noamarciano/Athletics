@@ -712,6 +712,14 @@ function greet(){
   if (h >= 17 && h <= 21) return 'ערב טוב';
   return 'לילה טוב';
 }
+/* chart colours as hex — CSS var() cannot take an appended alpha suffix
+   ("var(--x)66" is invalid and silently kills the whole gradient) */
+const CHART = {
+  train:{ c:'#9BE86B', c2:'#6FCF4A' },
+  fuel: { c:'#6FDCF7', c2:'#33B6DC' },
+  rec:  { c:'#B39CFB', c2:'#8A6FF0' },
+  over: '#FF6B57'
+};
 const HYPE = ['אלוף','תותח','מפלצת','אגדה','חיה','אריה','גלדיאטור','טנק','ביסט','בוס','שועל קרבות','ברזל'];
 function hypeWord(){ return HYPE[Math.floor(Math.random() * HYPE.length)]; }
 const QUOTES = [
@@ -3952,9 +3960,9 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
         <div className="flex items-center gap-3.5 mt-5 relative">
           <div className="relative shrink-0" style={{ width:'150px', height:'150px' }}>
             <ArcGauge size={150} rings={[
-              { p: dayTrain, c:'#9BE86B', c2:'#6FCF4A', rest: train.state === 'rest' },
-              { p: fuelPct, c:'#6FDCF7', c2:'#33B6DC' },
-              { p: recPct, c:'#B39CFB', c2:'#8A6FF0' }
+              { p: dayTrain, c: CHART.train.c, c2: CHART.train.c2, rest: train.state === 'rest' },
+              { p: fuelPct, c: CHART.fuel.c, c2: CHART.fuel.c2 },
+              { p: recPct, c: CHART.rec.c, c2: CHART.rec.c2 }
             ]}/>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex flex-col items-center justify-center text-center"
@@ -3967,12 +3975,12 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
           </div>
           <div className="flex-1 min-w-0 space-y-2.5">
             {[
-              { k:'אימון', c:'var(--c-train)', p: dayTrain, rest: train.state === 'rest',
+              { k:'אימון', c: CHART.train.c, p: dayTrain, rest: train.state === 'rest',
                 v: train.state === 'rest' ? 'מנוחה' : train.state === 'run' ? 'ריצה ✓'
                    : train.state === 'pending' ? '—' : train.sets + ' סטים' },
-              { k:'תזונה', c:'var(--c-fuel)', p: fuelPct, over: fuelPct > 1,
+              { k:'תזונה', c: CHART.fuel.c, p: fuelPct, over: fuelPct > 1,
                 v: ns.kcal.toLocaleString() + ' / ' + kcalTarget.toLocaleString() },
-              { k:'התאוששות', c:'var(--c-rec)', p: recPct,
+              { k:'התאוששות', c: CHART.rec.c, p: recPct,
                 v: (ns.sleep ? ns.sleep + ' שע׳' : '—') + ' · ' + (Math.round(ns.water / 100) / 10) + 'ל׳' }
             ].map((r, i) => (
               <div key={i}>
@@ -3992,7 +4000,7 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
                     {r.rest ? (
                       <div className="h-full rounded-full" style={{ width:'100%', backgroundImage:'repeating-linear-gradient(90deg, rgba(179,156,251,.5) 0 3px, transparent 3px 9px)' }}/>
                     ) : (
-                      <div className="h-full rounded-full" style={{ width: Math.max(r.p > 0 ? 4 : 0, Math.min(100, r.p * 100)) + '%', background: r.over ? 'linear-gradient(90deg, rgba(255,107,87,.55), var(--coral))' : 'linear-gradient(90deg,' + r.c + '66,' + r.c + ')', boxShadow:'0 0 10px ' + (r.over ? 'var(--coral)' : r.c) + '88', transition:'width .6s var(--ease)' }}/>
+                      <div className="h-full rounded-full" style={{ width: Math.max(r.p > 0 ? 4 : 0, Math.min(100, r.p * 100)) + '%', background:'linear-gradient(90deg,' + (r.over ? CHART.over : r.c) + '55,' + (r.over ? CHART.over : r.c) + ')', boxShadow:'0 0 10px ' + (r.over ? CHART.over : r.c) + '99', transition:'width .6s var(--ease)' }}/>
                     )}
                   </div>
                   <span className="text-[9px] font-black t-num shrink-0 text-end" style={{ width:'30px', color: r.rest ? 'var(--c-rec)' : r.over ? 'var(--coral)' : 'rgba(255,255,255,.34)' }}>
