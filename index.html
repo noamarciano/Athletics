@@ -4066,6 +4066,23 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
             );
           })}
         </div>
+        {/* legend — the dots and the gold cell are meaningless without it */}
+        <div className="flex items-center justify-center flex-wrap gap-x-3 gap-y-1 mt-2.5 pt-2.5" style={{ borderTop:'1px solid rgba(255,255,255,.05)' }}>
+          {[
+            { c: CHART.train.c, l:'אימון כוח' },
+            { c: CHART.fuel.c, l:'ריצה' },
+            { c: CHART.rec.c, l:'תזונה מלאה' }
+          ].map((x, i) => (
+            <span key={i} className="flex items-center gap-1">
+              <span className="w-[5px] h-[5px] rounded-full" style={{ background:x.c, boxShadow:'0 0 6px ' + x.c }}></span>
+              <span className="t-label" style={{ fontSize:'8px', letterSpacing:'.06em' }}>{x.l}</span>
+            </span>
+          ))}
+          <span className="flex items-center gap-1">
+            <span className="w-[9px] h-[9px] rounded-[3px]" style={{ background:'rgba(255,215,94,.20)', border:'1px solid rgba(255,215,94,.45)' }}></span>
+            <span className="t-label" style={{ fontSize:'8px', letterSpacing:'.06em' }}>יום מושלם</span>
+          </span>
+        </div>
       </div>
 
       {/* today's mission */}
