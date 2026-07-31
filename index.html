@@ -1484,60 +1484,28 @@ function DialogHost(){
   );
 }
 
-/* ---------- 9:16 story card renderer (1080x1920, branded) ---------- */
+/* ---------- 9:16 story card renderer (1080x1920, branded) ----------
+   Same language as the app: obsidian base, aurora bloom, film grain, optical glass tiles. */
+function noiseTile(){
+  const n = document.createElement('canvas');
+  n.width = n.height = 128;
+  const nx = n.getContext('2d');
+  const img = nx.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 120 + ((i * 2654435761) % 137);       /* cheap deterministic hash — no Math.random */
+    img.data[i] = img.data[i+1] = img.data[i+2] = v & 255;
+    img.data[i+3] = 255;
+  }
+  nx.putImageData(img, 0, 0);
+  return n;
+}
+
 function drawStoryCard(spec){
-  const W = 1080, H = 1920;
+  const W = 1080, H = 1920, PAD = 84;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
-  g.fillStyle = '#0B0B0C'; g.fillRect(0, 0, W, H);
-  /* volt + ember ambient glow */
-  const glow = (x, y, r, col, a) => {
-    const rg = g.createRadialGradient(x, y, 0, x, y, r);
-    rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)');
-    g.globalAlpha = a; g.fillStyle = rg; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
-  };
-  glow(880, 220, 620, '#CCFF00', .16);
-  glow(180, 1500, 640, '#FF5A1F', .12);
 
-  g.textAlign = 'right';
-  g.fillStyle = '#fff';
-  g.font = '900 italic 74px Rubik, Assistant, sans-serif';
-  g.fillText('ATHLETICS', W - 80, 168);
-  g.fillStyle = 'rgba(255,255,255,.35)';
-  g.font = '700 26px Rubik, sans-serif';
-  g.fillText('LEAN BULK ENGINE', W - 80, 212);
-  /* bolt mark */
-  g.fillStyle = '#CCFF00';
-  g.beginPath();
-  const bx = 96, by = 128, bs = 5.4;
-  [[13,2],[3,14],[12,14],[11,22],[21,10],[12,10]].forEach((pt, i) => {
-    const x = bx + pt[0] * bs, y = by + pt[1] * bs;
-    i ? g.lineTo(x, y) : g.moveTo(x, y);
-  });
-  g.closePath(); g.fill();
-
-  g.fillStyle = 'rgba(204,255,0,.85)';
-  g.font = '800 34px Rubik, sans-serif';
-  g.fillText(spec.kicker || '', W - 80, 330);
-  g.fillStyle = '#fff';
-  g.font = '900 italic 92px Rubik, sans-serif';
-  const title = String(spec.title || '');
-  g.fillText(title.length > 22 ? title.slice(0, 21) + '…' : title, W - 80, 440);
-  if (spec.sub) {
-    g.fillStyle = 'rgba(255,255,255,.45)';
-    g.font = '600 34px Rubik, sans-serif';
-    g.fillText(spec.sub, W - 80, 496);
-  }
-
-  /* stat tiles */
-  const stats = (spec.stats || []).slice(0, 4);
-  const cols = stats.length <= 2 ? stats.length : 2;
-  const rows = Math.ceil(stats.length / cols);
-  const gap = 34, padX = 80;
-  const tw = (W - padX * 2 - gap * (cols - 1)) / Math.max(1, cols);
-  const th = 250;
-  const top = 600;
   const rr = (x, y, w, h, r) => {
     g.beginPath();
     g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
@@ -1545,46 +1513,157 @@ function drawStoryCard(spec){
     g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
     g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath();
   };
+  const glow = (x, y, r, col, a) => {
+    const rg = g.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = a; g.fillStyle = rg; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  };
+  /* one optical-glass panel: gradient fill, hairline border, specular top sweep */
+  const glass = (x, y, w, h, r, accent) => {
+    if (accent) { g.save(); rr(x, y, w, h, r); g.clip(); glow(x + w * .3, y + h * .1, w * 1.1, accent, .17); g.restore(); }
+    const lg = g.createLinearGradient(x, y, x, y + h);
+    lg.addColorStop(0, 'rgba(255,255,255,.075)');
+    lg.addColorStop(1, 'rgba(255,255,255,.022)');
+    rr(x, y, w, h, r); g.fillStyle = lg; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.10)'; g.lineWidth = 2; g.stroke();
+    g.save(); rr(x, y, w, h, r); g.clip();
+    const sp = g.createLinearGradient(x, y, x + w, y);
+    sp.addColorStop(0, 'rgba(255,255,255,0)');
+    sp.addColorStop(.5, 'rgba(255,255,255,.34)');
+    sp.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = sp; g.fillRect(x, y, w, 2);
+    g.restore();
+  };
+  const F = (weight, size, italic) => (italic ? 'italic ' : '') + weight + ' ' + size + 'px Rubik, Assistant, sans-serif';
+  const track = v => { try { g.letterSpacing = v; } catch (e) {} };
+
+  /* ---- obsidian base + living aurora ---- */
+  g.fillStyle = '#07080C'; g.fillRect(0, 0, W, H);
+  glow(920, 280, 820, '#D7FF3E', .20);
+  glow(90, 1020, 880, '#4FE3FF', .15);
+  glow(800, 1720, 780, '#A78BFA', .17);
+
+  /* ---- film grain ---- */
+  try {
+    const pat = g.createPattern(noiseTile(), 'repeat');
+    g.globalAlpha = .045; g.globalCompositeOperation = 'overlay';
+    g.fillStyle = pat; g.fillRect(0, 0, W, H);
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  } catch (e) {}
+
+  /* ---- header: wordmark + lime bolt badge (mirrors the app chrome) ---- */
+  const badge = 116, bxr = W - PAD - badge;
+  glow(bxr + badge / 2, 150, 240, '#D7FF3E', .30);
+  rr(bxr, 92, badge, badge, 34); g.fillStyle = '#D7FF3E'; g.fill();
+  g.fillStyle = '#07080C';
+  g.beginPath();
+  const bs = 3.9, bx = bxr + 24, by = 116;
+  [[13,2],[3,14],[12,14],[11,22],[21,10],[12,10]].forEach((pt, i) => {
+    const x = bx + pt[0] * bs, y = by + pt[1] * bs;
+    i ? g.lineTo(x, y) : g.moveTo(x, y);
+  });
+  g.closePath(); g.fill();
+
+  g.textAlign = 'right';
+  g.fillStyle = '#fff'; track('-4px');
+  g.font = F(900, 72, true);
+  g.fillText('ATHLETICS', bxr - 34, 146);
+  track('7px');
+  g.fillStyle = 'rgba(255,255,255,.34)';
+  g.font = F(700, 22);
+  g.fillText('LEAN BULK ENGINE', bxr - 34, 190);
+  track('0px');
+
+  /* ---- title block ---- */
+  g.fillStyle = 'rgba(215,255,62,.9)'; track('4px');
+  g.font = F(800, 30);
+  g.fillText(String(spec.kicker || '').toUpperCase(), W - PAD, 356);
+  track('-5px');
+  g.fillStyle = '#fff';
+  g.font = F(900, 96, true);
+  const title = String(spec.title || '');
+  g.fillText(title.length > 21 ? title.slice(0, 20) + '…' : title, W - PAD, 472);
+  track('0px');
+  const footer = spec.footer || heDate(toISO(new Date()));
+  if (spec.sub && spec.sub !== footer) {
+    g.fillStyle = 'rgba(255,255,255,.42)';
+    g.font = F(600, 32);
+    g.fillText(spec.sub, W - PAD, 528);
+  }
+  /* lime rule under the title, right-anchored like the app's quote bar */
+  const ru = g.createLinearGradient(W - PAD, 0, W - PAD - 260, 0);
+  ru.addColorStop(0, '#D7FF3E'); ru.addColorStop(1, 'rgba(215,255,62,0)');
+  g.fillStyle = ru; g.fillRect(W - PAD - 260, 566, 260, 5);
+
+  /* ---- stat tiles ---- */
+  const stats = (spec.stats || []).slice(0, 4);
+  const cols = stats.length <= 2 ? Math.max(1, stats.length) : 2;
+  const rows = Math.ceil(stats.length / cols);
+  const gap = 30;
+  const tw = (W - PAD * 2 - gap * (cols - 1)) / cols;
+  const th = 248, top = 646;
   stats.forEach((stt, i) => {
     const col = i % cols, row = Math.floor(i / cols);
-    const x = W - padX - tw - col * (tw + gap);
+    const x = W - PAD - tw - col * (tw + gap);
     const y = top + row * (th + gap);
-    g.fillStyle = 'rgba(255,255,255,.045)';
-    rr(x, y, tw, th, 40); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 2; g.stroke();
+    const acc = stt.color && stt.color !== '#fff' ? stt.color : null;
+    glass(x, y, tw, th, 42, acc);
     g.textAlign = 'center';
-    g.fillStyle = stt.color || '#CCFF00';
-    g.font = '900 96px Rubik, sans-serif';
-    g.fillText(String(stt.v), x + tw / 2, y + 140);
-    g.fillStyle = 'rgba(255,255,255,.5)';
-    g.font = '700 32px Rubik, sans-serif';
-    g.fillText(String(stt.l), x + tw / 2, y + 196);
+    g.fillStyle = stt.color || '#9BE86B'; track('-5px');
+    g.font = F(900, 94);
+    g.fillText(String(stt.v), x + tw / 2, y + 146);
+    track('3px');
+    g.fillStyle = 'rgba(255,255,255,.45)';
+    g.font = F(800, 26);
+    g.fillText(String(stt.l).toUpperCase(), x + tw / 2, y + 200);
+    track('0px');
     g.textAlign = 'right';
   });
 
-  /* optional highlight rows (splits / PRs) */
-  let hy = top + rows * (th + gap) + 30;
+  /* ---- highlight rows ---- */
+  let hy = top + rows * (th + gap) + 26;
   (spec.lines || []).slice(0, 5).forEach(ln => {
-    g.fillStyle = 'rgba(255,255,255,.05)';
-    rr(padX, hy, W - padX * 2, 96, 30); g.fill();
-    g.fillStyle = '#fff';
-    g.font = '700 38px Rubik, sans-serif';
-    g.fillText(String(ln.a), W - padX - 36, hy + 60);
+    glass(PAD, hy, W - PAD * 2, 98, 32);
+    g.fillStyle = 'rgba(255,255,255,.92)';
+    g.font = F(700, 36);
+    g.fillText(String(ln.a), W - PAD - 38, hy + 62);
     g.textAlign = 'left';
-    g.fillStyle = ln.color || '#CCFF00';
-    g.font = '900 42px Rubik, sans-serif';
-    g.fillText(String(ln.b), padX + 36, hy + 60);
+    g.fillStyle = ln.color || '#9BE86B'; track('-3px');
+    g.font = F(900, 40);
+    g.fillText(String(ln.b), PAD + 38, hy + 62);
+    track('0px');
     g.textAlign = 'right';
     hy += 118;
   });
 
-  g.fillStyle = 'rgba(255,255,255,.3)';
-  g.font = '600 30px Rubik, sans-serif';
-  g.fillText(spec.footer || heDate(toISO(new Date())), W - 80, H - 90);
+  /* ---- signature arcs fill the tail of the card so it never reads as empty ---- */
+  const tail = (H - 190) - hy;
+  if (tail > 320) {
+    const cy = hy + tail / 2, cx = W / 2, R0 = Math.min(300, tail * .40);
+    const arcs = [{ r: R0, c: '#9BE86B', p: .82 }, { r: R0 - 52, c: '#6FDCF7', p: .64 }, { r: R0 - 104, c: '#B39CFB', p: .46 }];
+    g.save();
+    g.globalAlpha = .30;
+    g.lineCap = 'round';
+    g.lineWidth = 16;
+    const S = (-125) * Math.PI / 180, SW = 250 * Math.PI / 180;
+    arcs.forEach(a => {
+      g.strokeStyle = 'rgba(255,255,255,.05)';
+      g.beginPath(); g.arc(cx, cy, a.r, S, S + SW); g.stroke();
+      g.strokeStyle = a.c;
+      g.beginPath(); g.arc(cx, cy, a.r, S, S + SW * a.p); g.stroke();
+    });
+    g.restore();
+  }
+
+  /* ---- footer ---- */
+  g.fillStyle = 'rgba(255,255,255,.28)'; track('2px');
+  g.font = F(600, 28);
+  g.fillText(footer, W - PAD, H - 96);
   g.textAlign = 'left';
-  g.fillStyle = 'rgba(204,255,0,.55)';
-  g.font = '800 30px Rubik, sans-serif';
-  g.fillText('#ATHLETICS', 80, H - 90);
+  g.fillStyle = 'rgba(215,255,62,.6)'; track('5px');
+  g.font = F(800, 28);
+  g.fillText('#ATHLETICS', PAD, H - 96);
+  track('0px');
   return c;
 }
 /* share sheet — native share when available, download otherwise */
@@ -2027,7 +2106,7 @@ function SplitsEditor({ splits, setSplits, onApplySum }){
   return (
     <div className="glass-2 rounded-2xl p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold text-white/50">⏱️ ספליטים — זמן לכל קטע</span>
+        <span className="text-[11px] font-bold text-white/50 flex items-center gap-1.5"><Icon d={I.timer} className="w-3.5 h-3.5" style={{ color:'rgba(255,255,255,.4)' }}/> ספליטים — זמן לכל קטע</span>
         {rows.length > 0 && <span className="text-[10px] text-white/35">סה"כ {sum.km} ק"מ · {fmtDur(sum.sec)}</span>}
       </div>
       {rows.map((s, i) => {
@@ -2189,7 +2268,7 @@ function RestTimer({ trigger }){
         <div className="fixed bottom-24 inset-x-0 z-50 flex justify-center pointer-events-none">
           <button onClick={() => { clearTimeout(flashTimer.current); setFlash(false); }}
                   className="pointer-events-auto flex items-center gap-2 rounded-full px-6 py-3 bg-volt text-obsidian shadow-2xl glow-volt fadein font-black text-lg animate-pulse">
-            ⏰ הזמן נגמר — סט חדש! 💪
+            הזמן נגמר — סט חדש
           </button>
         </div>
       )}
@@ -2275,7 +2354,7 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
         </div>
         {run ? (
           <div className="mt-3 flex items-center gap-3 bg-black/25 border border-volt/20 rounded-2xl p-3">
-            <span className="text-2xl">🏃</span>
+            <RunGlyph type="easy" size={38}/>
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm truncate">{run.title}</div>
               <div className="text-[10px] text-white/40">{run.km} ק"מ · {fmtDur(run.sec)} · {fmtPace(run.sec / Math.max(run.km, .01))} דק'/ק"מ</div>
@@ -2363,7 +2442,7 @@ function ExerciseHistorySheet({ state, tplId, ex, variant, onClose }){
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60 shrink-0"><Icon d={I.x} className="w-4 h-4"/></button>
         </div>
         {rows.length === 0 ? (
-          <div className="text-center text-white/30 text-sm py-6">עוד אין היסטוריה לתרגיל הזה — הסטים של היום יהיו הראשונים 💪</div>
+          <div className="text-center text-white/30 text-sm py-6">עוד אין היסטוריה לתרגיל הזה — הסטים של היום יהיו הראשונים</div>
         ) : rows.map(r => (
           <div key={r.week} className="glass-2 rounded-2xl p-3">
             <div className="flex items-center justify-between mb-2">
@@ -2460,7 +2539,7 @@ function FridayRunBlock({ state, week, tpl, mutate }){
         <span className="text-xs text-white/40">קצב מחושב</span>
         <span className="font-black text-xl text-volt text-glow">{(eff.km > 0 && eff.sec > 0) ? fmtPace(eff.sec / eff.km) : '—'}<span className="text-[10px] text-white/40 font-normal ms-1">דק' / ק"מ</span></span>
       </div>
-      <button onClick={save} className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">{mode === 'edit' ? 'עדכן ריצה 💾' : 'שמור ריצה ⚡'}</button>
+      <button onClick={save} className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">{mode === 'edit' ? 'עדכן ריצה' : 'שמור ריצה'}</button>
       {mode !== 'edit' && <div className="text-[10px] text-white/30 text-center">נשמר ישירות ליומן הריצות — והשבוע מסומן כהושלם אוטומטית</div>}
     </div>
   );
@@ -2493,7 +2572,7 @@ function FridayRunBlock({ state, week, tpl, mutate }){
       {(run && mode !== 'edit') ? (
         <div className="rounded-[24px] p-4 bg-volt/10 border border-volt/25 fadein">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{st ? st.emoji : '🏃'}</span>
+            <RunGlyph type={(st && st.id) || 'easy'} size={44}/>
             <div className="flex-1 min-w-0">
               <div className="font-bold truncate">{run.title}</div>
               <div className="text-[11px] text-white/40">{heDate(run.date)}{st ? ' · ' + st.label : ''}</div>
@@ -2685,8 +2764,8 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack, onStory }){
               <div className="t-cap mt-1.5">{tpl.sub}</div>
             </div>
             {isRunDay && (runDayDone
-              ? <span className="text-[10px] font-black text-obsidian bg-volt rounded-full px-2.5 py-1 glow-volt shrink-0">הושלם השבוע ✓</span>
-              : <span className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 shrink-0">ממתין לריצה 🏃</span>)}
+              ? <span className="text-[10px] font-black text-obsidian bg-volt rounded-full px-2.5 py-1 glow-volt shrink-0">הושלם השבוע</span>
+              : <span className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 shrink-0">ממתין לריצה</span>)}
           </div>
         )}
         {!isRunDay && (
@@ -2829,7 +2908,7 @@ function RunChart({ runs }){
   const [sel, setSel] = useState(null);
   useEffect(() => { setSel(data.length ? data.length - 1 : null); }, [data.length]);
   if (data.length === 0) return (
-    <div className="text-center py-10 text-white/30 text-sm">אין ריצות עדיין — רשום את הריצה הראשונה שלך 🏃</div>
+    <div className="text-center py-10 text-white/30 text-sm">אין ריצות עדיין — רשום את הריצה הראשונה שלך</div>
   );
   const W = 640, H = 250, L = 40, R = 46, T = 16, B = 30;
   const kmMax = Math.max.apply(null, data.map(r => r.km).concat([1])) * 1.2;
@@ -2895,7 +2974,7 @@ function RunChart({ runs }){
           if (data.length > 1 && fi >= 0 && fi !== bi) tags.push(
             <g key="pk-pace">
               <circle cx={X(fi)} cy={Yp(paces2[fi])} r="6" fill="none" stroke="#9BE86B" strokeWidth="1.5" opacity=".55"/>
-              <text x={X(fi)} y={Yp(paces2[fi]) - 11} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#9BE86B">⚡{fmtPace(paces2[fi])}</text>
+              <text x={X(fi)} y={Yp(paces2[fi]) - 11} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#9BE86B">{fmtPace(paces2[fi])}</text>
             </g>);
           return tags;
         })()}
@@ -2996,7 +3075,7 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare
               {heDate(r.date)}
               {hasSplits && (
                 <button onClick={() => setOpenSplits(isOpen ? null : r.id)} className="text-volt font-bold inline-flex items-center gap-0.5 active:scale-95 transition">
-                  · ⏱️ {r.splits.length} ספליטים <Icon d={isOpen ? I.chevUp : I.chevDown} className="w-3 h-3"/>
+                  · {r.splits.length} ספליטים <Icon d={isOpen ? I.chevUp : I.chevDown} className="w-3 h-3"/>
                 </button>
               )}
             </div>
@@ -3052,7 +3131,7 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare
             )}
             <button onClick={editing ? cancelEdit : () => { setFormOpen(false); resetForm(); }}
                     className="text-[10px] font-bold text-white/50 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 active:scale-95 transition">
-              {editing ? 'בטל עריכה ✕' : 'סגור ✕'}
+              {editing ? 'בטל עריכה' : 'סגור'}
             </button>
           </div>
         </div>
@@ -3074,7 +3153,7 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare
         </div>
         <button onClick={saveRun}
                 className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">
-          {editing ? 'עדכן ריצה 💾' : 'הוסף ריצה ⚡'}
+          {editing ? 'עדכן ריצה' : 'הוסף ריצה'}
         </button>
       </div>
 
@@ -3197,12 +3276,12 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
       const key = bcKey(code);
       const local = cat.find(fd => fd.bc && bcKey(fd.bc) === key);
       if (local) {
-        flashToast('✅ מוצר נמצא: ' + local.name, 'ok');
+        flashToast('מוצר נמצא: ' + local.name, 'ok');
         pick(local);
         return;
       }
       setLookup(bcDigits(code) || String(code));
-      flashToast('🔎 מחפש במאגר העולמי…', 'wait');
+      flashToast('מחפש במאגר העולמי…', 'wait');
       /* try the cleaned code first, then padding/symbology variants */
       let prod = null;
       const cands = bcCandidates(code);
@@ -3211,11 +3290,11 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
       if (prod) {
         /* cache it forever so the next scan is instant + offline */
         mutate(d => { if (!(d.foods || []).some(x => x.bc && bcKey(x.bc) === bcKey(prod.bc))) d.foods.push(prod); }, 'meals');
-        flashToast('✅ מוצר נמצא: ' + prod.name, 'ok');
+        flashToast('מוצר נמצא: ' + prod.name, 'ok');
         pick(prod);
       } else {
         const clean = bcDigits(code) || String(code).trim();
-        flashToast('🆕 ברקוד חדש - הוסף נתונים פעם אחת', 'new');
+        flashToast('ברקוד חדש — הוסף נתונים פעם אחת', 'new');
         setNf({ name:'', per:'100g', unitName:'יחידה', kcal:'', p:'', c:'', f:'', bc: clean });
         setCreating(true);
       }
@@ -3395,7 +3474,7 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
       <div className="w-full max-w-xl rounded-t-3xl border border-white/10 p-4 space-y-2.5 fadein" onClick={e => e.stopPropagation()}
            style={{ background:'rgba(13,16,24,.98)', backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)', maxHeight:'82vh', overflowY:'auto', paddingBottom:'max(env(safe-area-inset-bottom), 16px)' }}>
         <div className="flex items-center justify-between">
-          <div className="font-black italic">הוספת מאכל 🍽️</div>
+          <div className="font-black italic">הוספת מאכל</div>
           <button onClick={close} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60"><Icon d={I.x} className="w-4 h-4"/></button>
         </div>
         {/* native camera/gallery capture — always mounted so both views can use it */}
@@ -3408,7 +3487,7 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
         )}
         {decoded && (
           <div className="rounded-2xl px-3.5 py-2 border border-white/15 bg-black/40 fadein">
-            <div className="text-[10px] text-white/40 font-bold mb-0.5">🔍 המחרוזת שנקראה מהברקוד</div>
+            <div className="text-[10px] text-white/40 font-bold mb-0.5">המחרוזת שנקראה מהברקוד</div>
             <div className="font-black text-volt" dir="ltr" style={{ fontSize:'17px', letterSpacing:'.06em' }}>{decoded.raw}</div>
             {decoded.clean !== decoded.raw && (
               <div className="text-[10px] text-white/40 mt-0.5" dir="ltr">→ מנורמל: {decoded.clean}</div>
@@ -3445,8 +3524,8 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
                 </div>
               </div>
             </div>
-            <div className="text-center text-[10px] text-white/40">יישר את הברקוד בתוך המסגרת — הזיהוי אוטומטי, תרגיש רטט/ביפ 📳</div>
-            <button onClick={() => photoRef.current && photoRef.current.click()} className="w-full py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt font-bold text-sm active:scale-[.98] transition">📸 צלם תמונה של הברקוד</button>
+            <div className="text-center text-[10px] text-white/40">יישר את הברקוד בתוך המסגרת — הזיהוי אוטומטי, תרגיש רטט/ביפ</div>
+            <button onClick={() => photoRef.current && photoRef.current.click()} className="w-full py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt font-bold text-sm active:scale-[.98] transition"><span className="inline-flex items-center justify-center gap-2"><Icon d={I.camera} className="w-4 h-4"/> צלם תמונה של הברקוד</span></button>
             <div className="flex gap-2">
               <button onClick={() => { stopScan(); setShowManual(true); }} className="flex-1 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/70 font-bold text-sm active:scale-[.98] transition">⌨️ הזן ברקוד ידנית</button>
               <button onClick={stopScan} className="px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/50 font-bold text-sm active:scale-[.98] transition">בטל ✕</button>
@@ -3459,16 +3538,16 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
             {/* primary path: the native iOS camera (autofocus + flash + sharp still) */}
             <button onClick={() => photoRef.current && photoRef.current.click()}
                     className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-base flex items-center justify-center gap-2 active:scale-[.98] transition glow-volt">
-              📷 סרוק ברקוד (צלם)
+              <Icon d={I.camera} className="w-[18px] h-[18px]"/> סרוק ברקוד (צלם)
             </button>
-            <button onClick={startScan} className="w-full py-2 rounded-2xl bg-white/5 border border-white/10 text-white/60 text-xs font-bold active:scale-[.98] transition">🎥 סריקה רציפה בווידאו (ניסיוני)</button>
+            <button onClick={startScan} className="w-full py-2 rounded-2xl bg-white/5 border border-white/10 text-white/60 text-xs font-bold active:scale-[.98] transition">סריקה רציפה בווידאו (ניסיוני)</button>
             <div className="flex gap-2">
               <button onClick={() => setShowManual(!showManual)} className={'flex-1 py-2.5 rounded-2xl border text-sm font-bold active:scale-[.98] transition ' + (showManual ? 'bg-sky-400/10 text-sky-300 border-sky-400/30' : 'bg-white/5 text-white/60 border-white/10')}>⌨️ הזן ברקוד ידנית</button>
-              <button onClick={() => setCreating(true)} className="flex-1 py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition">➕ מאכל חדש משלי</button>
+              <button onClick={() => setCreating(true)} className="flex-1 py-2.5 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-sm font-bold active:scale-[.98] transition"><span className="inline-flex items-center justify-center gap-1.5"><Icon d={I.plus} className="w-3.5 h-3.5"/> מאכל חדש משלי</span></button>
             </div>
             {(state.favMeals || []).length > 0 && onPickMany && (
               <div>
-                <div className="text-[10px] font-bold text-white/40 mb-1.5">⭐ מועדפים · הוספה בלחיצה אחת</div>
+                <div className="text-[10px] font-bold text-white/40 mb-1.5">מועדפים · הוספה בלחיצה אחת</div>
                 <div className="space-y-1">
                   {(state.favMeals || []).slice(0, 8).map(fv => {
                     const k = Math.round((fv.items || []).reduce((a, it) => a + numOr0(it.kcal), 0));
@@ -3502,20 +3581,20 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
               {list.slice(0, 40).map(fd => (
                 <button key={fd.id} onClick={() => pick(fd)} className="w-full flex items-center gap-2 bg-white/5 border border-white/5 rounded-2xl px-3 py-2.5 text-start active:scale-[.985] transition">
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm truncate">{fd.name}{fd.custom ? ' ⭐' : ''}</div>
+                    <div className="font-bold text-sm truncate">{fd.name}''</div>
                     <div className="text-[10px] text-white/40">{fd.per === 'unit' ? 'ל־' + (fd.unitName || 'יחידה') : 'ל־100 גרם'} · {fd.kcal} קק"ל · {fd.p} ג׳ חלבון</div>
                   </div>
                   <Icon d={I.plus} className="w-4 h-4 text-volt shrink-0"/>
                 </button>
               ))}
-              {list.length === 0 && <div className="text-center text-white/30 text-sm py-4">לא נמצא — צור מאכל חדש למעלה ⬆️</div>}
+              {list.length === 0 && <div className="text-center text-white/30 text-sm py-4">לא נמצא — צור מאכל חדש למעלה</div>}
             </div>
           </React.Fragment>
         )}
         {creating && (
           <div className="space-y-2 fadein">
-            <div className="font-bold text-sm">{nf.bc ? '🆕 מוצר חדש לברקוד ' : 'מאכל חדש'}{nf.bc && <span dir="ltr" className="text-volt">{nf.bc}</span>}</div>
-            {nf.bc && <div className="text-[10px] text-white/35">מלא פעם אחת לפי התווית (ל־100 גרם) — ובכל סריקה עתידית זה יזוהה אוטומטית ⚡</div>}
+            <div className="font-bold text-sm">{nf.bc ? 'מוצר חדש לברקוד ' : 'מאכל חדש'}{nf.bc && <span dir="ltr" className="text-volt">{nf.bc}</span>}</div>
+            {nf.bc && <div className="text-[10px] text-white/35">מלא פעם אחת לפי התווית (ל־100 גרם) — ובכל סריקה עתידית זה יזוהה אוטומטית</div>}
             <input className="inp font-bold" placeholder="שם המאכל" value={nf.name} onChange={e => setNf({ ...nf, name: e.target.value })}/>
             <div className="flex gap-1.5">
               <button onClick={() => setNf({ ...nf, per:'unit' })} className={'flex-1 py-2 rounded-xl text-xs font-bold border transition ' + (nf.per === 'unit' ? 'bg-volt/15 text-volt border-volt/40' : 'bg-white/5 text-white/40 border-white/10')}>ערכים ליחידה</button>
@@ -3540,7 +3619,7 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
             <div className="font-bold text-lg">{sel.name}</div>
             {sel.bc && (
               <div className="text-[10px] text-white/35 flex items-center gap-1.5 flex-wrap">
-                <span dir="ltr">📷 {sel.bc}</span>
+                <span dir="ltr" className="inline-flex items-center gap-1.5"><Icon d={I.camera} className="w-3 h-3"/>{sel.bc}</span>
                 {sel.src === 'off' && <span className="text-volt bg-volt/10 border border-volt/25 rounded-full px-2 py-0.5 font-bold">נתונים מ-Open Food Facts · נשמר אצלך ✓</span>}
               </div>
             )}
@@ -3585,7 +3664,7 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
                 <div className="glass-2 rounded-xl py-2"><div className="font-black">{macros.f}</div><div className="text-[9px] text-white/40">שומן</div></div>
               </div>
             )}
-            <button onClick={addNow} className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">הוסף לארוחה ⚡</button>
+            <button onClick={addNow} className="w-full py-3 rounded-2xl bg-volt text-obsidian font-black text-lg active:scale-[.98] transition glow-volt">הוסף לארוחה</button>
           </div>
         )}
       </div>
@@ -3733,9 +3812,9 @@ function NutritionTab({ state, week, mutate }){
   const sleepOk = numOr0(sleep) >= 7;
   const protOk = eatP >= targets.protein * 0.9;
   const score = (sleepOk ? 1 : 0) + (protOk ? 1 : 0) + (trained ? 1 : 0);
-  const recovery = score === 3 ? { t:'התאוששות אופטימלית לבניית שריר ⚡', c:'bg-volt/15 text-volt border-volt/30' }
-    : score === 2 ? { t:'התאוששות טובה 💪', c:'bg-volt/5 text-volt/80 border-volt/15' }
-    : score === 1 ? { t:'התאוששות חלקית 😴', c:'bg-ember/10 text-ember border-ember/25' }
+  const recovery = score === 3 ? { t:'התאוששות אופטימלית לבניית שריר', c:'bg-volt/15 text-volt border-volt/30' }
+    : score === 2 ? { t:'התאוששות טובה', c:'bg-volt/5 text-volt/80 border-volt/15' }
+    : score === 1 ? { t:'התאוששות חלקית', c:'bg-ember/10 text-ember border-ember/25' }
     : { t:'עדכן שינה, חלבון ואימון להערכת ההתאוששות', c:'bg-white/5 text-white/40 border-white/10' };
 
   const MacroBar = ({ label, val, target, tone }) => {
@@ -3759,12 +3838,12 @@ function NutritionTab({ state, week, mutate }){
 
   const ws = weekNutriStats(state, week, targets);
   const wStatus = ws.days === 0
-    ? { t:'עוד לא נרשמו ימים השבוע — תתחיל לסמן ⚡', c:'bg-white/5 text-white/40 border-white/10' }
+    ? { t:'עוד לא נרשמו ימים השבוע — תתחיל לסמן', c:'bg-white/5 text-white/40 border-white/10' }
     : Math.abs(ws.diffPct) <= 5
-      ? { t:'🎯 שבוע מושלם לשמירה ובניית שריר', c:'bg-volt/15 text-volt border-volt/35 glow-volt' }
+      ? { t:'שבוע מושלם לשמירה ובניית שריר', c:'bg-volt/15 text-volt border-volt/35 glow-volt' }
       : ws.diffPct > 5
-        ? { t:'⚖️ חריגה שבועית קלה — מומלץ לקזז ' + Math.abs(ws.totalDiff).toLocaleString() + ' קק"ל בימים הקרובים', c:'bg-ember/10 text-ember border-ember/30' }
-        : { t:'⚡ גירעון שבועי קל — דחוף עוד פחמימה/חלבון', c:'bg-sky-400/10 text-sky-300 border-sky-400/30' };
+        ? { t:'חריגה שבועית קלה — מומלץ לקזז ' + Math.abs(ws.totalDiff).toLocaleString() + ' קק"ל בימים הקרובים', c:'bg-ember/10 text-ember border-ember/30' }
+        : { t:'גירעון שבועי קל — דחוף עוד פחמימה/חלבון', c:'bg-sky-400/10 text-sky-300 border-sky-400/30' };
 
   return (
     <div className="fadein space-y-3">
@@ -3785,8 +3864,8 @@ function NutritionTab({ state, week, mutate }){
           })}
         </div>
         <div className="flex gap-1.5">
-          <button onClick={() => setView('day')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'day' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>📅 יומי</button>
-          <button onClick={() => setView('week')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'week' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>📊 שבועי</button>
+          <button onClick={() => setView('day')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'day' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>יומי</button>
+          <button onClick={() => setView('week')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'week' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>שבועי</button>
         </div>
       </div>
 
@@ -3847,7 +3926,7 @@ function NutritionTab({ state, week, mutate }){
       {isLegacy ? (
         <React.Fragment>
           <div className="glass rounded-[24px] p-4 text-center">
-            <div className="text-white/50 text-sm font-bold">יום מהמעקב הקודם (צ'קליסט) 📋</div>
+            <div className="text-white/50 text-sm font-bold">יום מהמעקב הקודם (צ'קליסט)</div>
             <div className="text-white/30 text-xs mt-1">הסימונים ההיסטוריים נשמרו — אפשר להמשיך לסמן כרגיל</div>
             <button onClick={() => withDay(() => {})} className="mt-2.5 px-4 py-2 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-xs font-bold active:scale-95 transition">עבור למעקב המאקרו החדש ליום זה ←</button>
           </div>
@@ -3885,8 +3964,8 @@ function NutritionTab({ state, week, mutate }){
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-[9px] font-bold text-white/40 bg-white/5 rounded-full px-2 py-1">בסיס {targets.kcal}</span>
-                  {burn.strengthKcal > 0 && <span className="text-[9px] font-bold text-volt bg-volt/10 border border-volt/20 rounded-full px-2 py-1">🏋️ אימון +{burn.strengthKcal}</span>}
-                  {burn.runKcal > 0 && <span className="text-[9px] font-bold text-ember bg-ember/10 border border-ember/20 rounded-full px-2 py-1">🏃 ריצה +{burn.runKcal}</span>}
+                  {burn.strengthKcal > 0 && <span className="text-[9px] font-bold text-volt bg-volt/10 border border-volt/20 rounded-full px-2 py-1">אימון +{burn.strengthKcal}</span>}
+                  {burn.runKcal > 0 && <span className="text-[9px] font-bold text-ember bg-ember/10 border border-ember/20 rounded-full px-2 py-1">ריצה +{burn.runKcal}</span>}
                 </div>
               </div>
             </div>
@@ -3916,7 +3995,7 @@ function NutritionTab({ state, week, mutate }){
 
           <div className="glass rounded-[24px] p-4">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">😴</span>
+              <Icon d={I.timer} className="w-6 h-6" style={{ color:'#B39CFB' }}/>
               <div className="flex-1">
                 <div className="text-[10px] font-bold text-white/50 mb-1">שעות שינה הלילה</div>
                 <input className="inp text-center font-black" inputMode="decimal" placeholder="7.5" value={sleep} onChange={e => setSleep(e.target.value)} style={{ maxWidth:'110px' }}/>
@@ -3963,7 +4042,7 @@ function NutritionTab({ state, week, mutate }){
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  {items.length === 0 && <div className="text-center text-white/25 text-xs py-2">ריק — הוסף כאן כל דבר שאכלת מחוץ לתפריט 🍫</div>}
+                  {items.length === 0 && <div className="text-center text-white/25 text-xs py-2">ריק — הוסף כאן כל דבר שאכלת מחוץ לתפריט</div>}
                   {items.map((it, ii) => (
                     <div key={it.id || ii} className={'flex items-center gap-2 rounded-[15px] ps-2 pe-1.5 py-2 border ' + (it.eaten ? 'border-transparent' : 'glass-2 border-transparent')}
                          style={it.eaten ? { background:'linear-gradient(160deg,' + CHART.train.c + '1E,' + CHART.train.c + '08)', border:'1px solid ' + CHART.train.c + '33' } : {}}>
@@ -4007,10 +4086,10 @@ function NutritionTab({ state, week, mutate }){
             );
           })}
 
-          <button onClick={saveAsTemplate} className="w-full glass rounded-2xl py-3 text-white/50 text-xs font-bold active:scale-[.98] transition">📌 שמור את התפריט של היום כתבנית הקבועה לכל יום</button>
+          <button onClick={saveAsTemplate} className="w-full glass rounded-2xl py-3 text-white/50 text-xs font-bold active:scale-[.98] transition">שמור את התפריט של היום כתבנית הקבועה לכל יום</button>
 
           <button onClick={() => setShowTargets(!showTargets)} className="w-full glass rounded-2xl py-2.5 text-white/40 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[.98] transition">
-            יעדים יומיים ⚙️ <Icon d={showTargets ? I.chevUp : I.chevDown} className="w-3.5 h-3.5"/>
+            יעדים יומיים <Icon d={showTargets ? I.chevUp : I.chevDown} className="w-3.5 h-3.5"/>
           </button>
           {showTargets && (
             <div className="glass rounded-[24px] p-4 grid grid-cols-3 gap-2 fadein">
@@ -4165,7 +4244,7 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
           <div className="flex-1 min-w-0 space-y-2.5">
             {[
               { k:'אימון', c: CHART.train.c, p: dayTrain, rest: train.state === 'rest',
-                v: train.state === 'rest' ? 'מנוחה' : train.state === 'run' ? 'ריצה ✓'
+                v: train.state === 'rest' ? 'מנוחה' : train.state === 'run' ? 'ריצה'
                    : train.state === 'pending' ? '—' : train.sets + ' סטים' },
               { k:'תזונה', c: CHART.fuel.c, p: fuelPct, over: fuelPct > 1,
                 v: ns.kcal.toLocaleString() + ' / ' + kcalTarget.toLocaleString() },
@@ -4297,11 +4376,11 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
       ) : (
         <div className="glass rounded-[24px] p-4">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🧘</span>
+            <Icon d={RUN_ART.recovery} className="w-7 h-7" style={{ color:'#B39CFB' }}/>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-bold text-white/40">יום מנוחה</div>
               <div className="font-black text-lg italic leading-tight">התאוששות ובנייה</div>
-              <div className="text-[10px] text-white/45 mt-0.5">סיימת את כל האימונים השבוע — תן לגוף לבנות 💪</div>
+              <div className="text-[10px] text-white/45 mt-0.5">סיימת את כל האימונים השבוע — תן לגוף לבנות</div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 mt-3 text-center">
@@ -5590,7 +5669,7 @@ function App(){
       }
       if (news.length) mutate(d => { d.runs = news.concat(d.runs); });
       localStorage.setItem('athletics.strava.last', String(Date.now()));
-      setStravaUi({ status:'ok', msg: news.length ? ('יובאו ' + news.length + ' ריצות חדשות ✓') : 'הכל מעודכן — אין ריצות חדשות ✓' });
+      setStravaUi({ status:'ok', msg: news.length ? ('יובאו ' + news.length + ' ריצות חדשות') : 'הכל מעודכן — אין ריצות חדשות ✓' });
     } catch (e) {
       setStravaUi({ status:'error', msg: String(e.message || e).slice(0, 160) });
     }
@@ -5628,7 +5707,7 @@ function App(){
               athlete: j.athlete ? ((j.athlete.firstname || '') + ' ' + (j.athlete.lastname || '')).trim() : ''
             });
           }, 'settings');
-          setStravaUi({ status:'ok', msg:'סטרבה חוברה בהצלחה ✓ מייבא ריצות...' });
+          setStravaUi({ status:'ok', msg:'סטרבה חוברה בהצלחה · מייבא ריצות…' });
           stravaImport(false);
         } catch (e) {
           setStravaUi({ status:'error', msg:'החיבור נכשל: ' + String(e.message || e).slice(0, 120) });
@@ -5742,7 +5821,7 @@ function App(){
                style={{ maxHeight:'70vh', maxWidth:'100%', borderRadius:'22px', boxShadow:'0 30px 70px rgba(0,0,0,.8)' }}/>
           <div className="flex gap-2 w-full max-w-xs" onClick={e => e.stopPropagation()}>
             <button onClick={async () => { await shareStory(storyPreview.spec); setStoryPreview(null); }}
-                    className="flex-1 py-3 rounded-2xl bg-volt text-obsidian font-black active:scale-[.98] transition glow-volt">שתף / שמור ⚡</button>
+                    className="flex-1 py-3 rounded-2xl bg-volt text-obsidian font-black active:scale-[.98] transition glow-volt">שתף / שמור</button>
             <button onClick={() => setStoryPreview(null)} className="px-5 py-3 rounded-2xl bg-white/10 text-white/70 font-bold active:scale-95 transition">סגור</button>
           </div>
         </div>
