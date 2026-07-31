@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>ATHLETICS</title>
-<meta name="theme-color" content="#0B0B0C"/>
+<meta name="theme-color" content="#07080C"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -168,6 +168,9 @@ button:active,[role=button]:active{ transform:scale(.975); }
 .shimmer{ background-size:200% 100%; animation:shim 2.6s linear infinite; }
 @keyframes shim{ to{ background-position:-200% 0; } }
 .no-scrollbar::-webkit-scrollbar{ display:none; } .no-scrollbar{ scrollbar-width:none; }
+/* soft fade at the ends of a horizontal rail so cards dissolve instead of getting sliced */
+.edge-fade{ -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);
+            mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%); }
 
 /* ---------- scanner ---------- */
 @keyframes scanline{ 0%,100%{ top:4px;} 50%{ top:calc(100% - 6px);} }
@@ -194,7 +197,7 @@ button:active,[role=button]:active{ transform:scale(.975); }
 </head>
 <body class="bg-obsidian text-white font-rubik">
 <div id="root">
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0B0B0C">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#07080C">
     <div class="splash-bolt">&#9889;</div>
     <div style="font-weight:900;font-style:italic;letter-spacing:.05em;font-size:28px;color:#fff">ATHLETICS</div>
     <div style="color:rgba(255,255,255,.3);font-size:11px;letter-spacing:.45em">LOADING</div>
@@ -1183,7 +1186,7 @@ function findPRs(state){
       if (h.length >= 2) {
         const last = h[h.length - 1];
         const bestPrev = Math.max.apply(null, h.slice(0, -1).map(p => p.maxW));
-        if (last.maxW > bestPrev && bestPrev > 0) out.push({ icon:'🏋️', text: o.label, from: bestPrev + ' ק"ג', to: last.maxW + ' ק"ג', week: last.week });
+        if (last.maxW > bestPrev && bestPrev > 0) out.push({ icon:'trophy', text: o.label, from: bestPrev + ' ק"ג', to: last.maxW + ' ק"ג', week: last.week });
       }
     });
   }));
@@ -1620,6 +1623,7 @@ const I = {
   flame:'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z',
   camera:['M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z','M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
   scale:['M12 3v3','M18.5 5.5L16 8','M5.5 5.5L8 8','M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9z'],
+  bodyscale:['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z','M12 12l4.2-4.2','M12 3v1.6','M21 12h-1.6','M3 12h1.6'],
   calendar:['M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z','M16 2v4','M8 2v4','M3 10h18'],
   grip:['M9 5h.01','M9 12h.01','M9 19h.01','M15 5h.01','M15 12h.01','M15 19h.01'],
   trophy:['M6 4h12v4a6 6 0 0 1-12 0z','M6 6H4a2 2 0 0 0 2 2','M18 6h2a2 2 0 0 1-2 2','M10 14h4','M12 14v4','M8 21h8'],
@@ -1827,6 +1831,26 @@ function ArcGauge({ rings, size = 168 }){
   );
 }
 
+/* unified section head — glyph tile + italic title + optional right slot */
+function SectionHead({ icon, title, sub, tone, right, className }){
+  const c = tone || 'rgba(255,255,255,.72)';
+  return (
+    <div className={'flex items-center gap-2.5 ' + (className || 'mb-3')}>
+      <span className="w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0"
+            style={{ background:'color-mix(in srgb, ' + c + ' 13%, transparent)',
+                     border:'1px solid color-mix(in srgb, ' + c + ' 26%, transparent)',
+                     boxShadow:'inset 0 1px 0 rgba(255,255,255,.10)' }}>
+        <Icon d={icon} className="w-[17px] h-[17px]" style={{ color:c }}/>
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="font-black italic leading-none truncate" style={{ fontSize:'15px' }}>{title}</div>
+        {sub && <div className="t-label mt-1 truncate" style={{ fontSize:'8.5px' }}>{sub}</div>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
 function Ring({ pct, size = 44, stroke = 4, color = '#D7FF3E' }){
   const r = (size - stroke) / 2, c = 2 * Math.PI * r;
   return (
@@ -1843,7 +1867,7 @@ function Ring({ pct, size = 44, stroke = 4, color = '#D7FF3E' }){
 function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
   const [sel, setSel] = useState(data.length ? data.length - 1 : null);
   useEffect(() => { setSel(data.length ? data.length - 1 : null); }, [data.length, data.map(d => d.a).join(',')]);
-  if (!data.length) return <div className="text-center py-8 text-white/25 text-sm">אין עדיין נתונים — תתחיל לרשום 💪</div>;
+  if (!data.length) return <div className="text-center py-8 t-label" style={{ fontSize:'10px' }}>אין עדיין נתונים — תתחיל לרשום</div>;
   const W = 640, H = 220, L = 42, R = 46, T = 14, B = 26;
   const fa = fmtA || (v => String(Math.round(v * 10) / 10));
   const fb = fmtB || (v => String(Math.round(v)));
@@ -1877,8 +1901,8 @@ function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
       <svg viewBox={'0 0 ' + W + ' ' + H} className="w-full select-none">
         <defs>
           <linearGradient id="gta" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#CCFF00" stopOpacity=".24"/>
-            <stop offset="100%" stopColor="#6FDCF7" stopOpacity="0"/>
+            <stop offset="0%" stopColor="#9BE86B" stopOpacity=".28"/>
+            <stop offset="100%" stopColor="#9BE86B" stopOpacity="0"/>
           </linearGradient>
         </defs>
         {[.15, .5, .85].map(f => {
@@ -1886,22 +1910,22 @@ function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
           return (
             <g key={f}>
               <line x1={L} x2={W - R} y1={y} y2={y} stroke="rgba(255,255,255,.05)"/>
-              <text x={L - 7} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(111,220,247,.5)">{fa(v)}</text>
+              <text x={L - 7} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(155,232,107,.55)">{fa(v)}</text>
             </g>
           );
         })}
         {hasB && [.2, .8].map(f => {
           const v = bmin + (bmax - bmin) * f;
-          return <text key={f} x={W - R + 7} y={Yb(v) + 3} fontSize="9" fill="rgba(155,232,107,.6)">{fb(v)}</text>;
+          return <text key={f} x={W - R + 7} y={Yb(v) + 3} fontSize="9" fill="rgba(111,220,247,.6)">{fb(v)}</text>;
         })}
         {area && <path d={area} fill="url(#gta)"/>}
-        {hasB && data.filter(d => d.b > 0).length > 1 && <polyline points={bPts} fill="none" stroke="#9BE86B" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" opacity=".9"/>}
-        {data.length > 1 && <polyline points={aPts} fill="none" stroke="#6FDCF7" strokeWidth="2.5" strokeLinejoin="round" style={{ filter:'drop-shadow(0 0 8px rgba(111,220,247,.55))' }}/>}
+        {hasB && data.filter(d => d.b > 0).length > 1 && <polyline points={bPts} fill="none" stroke="#6FDCF7" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" opacity=".85"/>}
+        {data.length > 1 && <polyline points={aPts} fill="none" stroke="#9BE86B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter:'drop-shadow(0 0 9px rgba(155,232,107,.5))' }}/>}
         {data.map((d, i) => (
           <g key={i}>
             {sel === i && <line x1={X(i)} x2={X(i)} y1={T} y2={H - B} stroke="rgba(255,255,255,.15)" strokeDasharray="3 3"/>}
-            <circle cx={X(i)} cy={Ya(d.a)} r={sel === i ? 5 : 3.5} fill={sel === i ? '#6FDCF7' : '#07080C'} stroke="#6FDCF7" strokeWidth="2"/>
-            {hasB && d.b > 0 && <circle cx={X(i)} cy={Yb(d.b)} r={sel === i ? 4 : 3} fill={sel === i ? '#9BE86B' : '#07080C'} stroke="#9BE86B" strokeWidth="1.5"/>}
+            <circle cx={X(i)} cy={Ya(d.a)} r={sel === i ? 5 : 3.5} fill={sel === i ? '#9BE86B' : '#07080C'} stroke="#9BE86B" strokeWidth="2"/>
+            {hasB && d.b > 0 && <circle cx={X(i)} cy={Yb(d.b)} r={sel === i ? 4 : 3} fill={sel === i ? '#6FDCF7' : '#07080C'} stroke="#6FDCF7" strokeWidth="1.5"/>}
             <rect x={X(i) - 14} y={T} width="28" height={H - T - B} fill="transparent" onClick={() => setSel(i)} style={{ cursor:'pointer' }}/>
           </g>
         ))}
@@ -1910,11 +1934,11 @@ function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
           : null))}
       </svg>
       {s && (
-        <div dir="rtl" className="mt-2 bg-black/30 rounded-2xl px-4 py-2 flex items-center justify-between gap-2 border border-white/5">
-          <span className="text-xs font-bold text-white/50">{s.label}</span>
+        <div dir="rtl" className="mt-2 glass-2 rounded-[16px] px-4 py-2.5 flex items-center justify-between gap-2">
+          <span className="t-label" style={{ fontSize:'9.5px' }}>{s.label}</span>
           <div className="flex gap-4 text-center">
-            <div><span className="font-black text-volt">{fa(s.a)}</span><span className="text-[9px] text-white/40 ms-1">{unitA || ''}</span></div>
-            {hasB && s.b > 0 && <div><span className="font-black text-ember">{fb(s.b)}</span><span className="text-[9px] text-white/40 ms-1">{unitB || ''}</span></div>}
+            <div><span className="font-black t-num" style={{ color:'#9BE86B' }}>{fa(s.a)}</span><span className="t-label ms-1" style={{ fontSize:'8px' }}>{unitA || ''}</span></div>
+            {hasB && s.b > 0 && <div><span className="font-black t-num" style={{ color:'#6FDCF7' }}>{fb(s.b)}</span><span className="t-label ms-1" style={{ fontSize:'8px' }}>{unitB || ''}</span></div>}
           </div>
         </div>
       )}
@@ -1962,7 +1986,7 @@ function Sparkline({ points }){
   const up = points[points.length - 1] >= points[0];
   return (
     <svg width={W} height={H} dir="ltr" className="shrink-0">
-      <polyline points={pts} fill="none" stroke={up ? '#CCFF00' : '#FF5A1F'} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+      <polyline points={pts} fill="none" stroke={up ? '#9BE86B' : '#FF6B57'} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -2051,8 +2075,10 @@ function BarChart({ items, unit }){
       {items.map((it, i) => (
         <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
           <div className="text-[9px] text-white/50 font-bold">{it.v ? it.v : ''}</div>
-          <div className="w-full rounded-t-lg bg-gradient-to-t from-lime-700/40 to-volt transition-all duration-500"
-               style={{ height: Math.max(3, (it.v / max) * 74) + 'px', opacity: it.v ? 1 : .12 }}></div>
+          <div className="w-full rounded-t-[7px]"
+               style={{ height: Math.max(3, (it.v / max) * 74) + 'px', opacity: it.v ? 1 : .12,
+                        background:'linear-gradient(180deg,' + CHART.train.c + ',' + CHART.train.c + '3D)',
+                        boxShadow: it.v ? '0 0 12px ' + CHART.train.c + '55' : 'none', transition:'height .6s var(--ease)' }}></div>
           <div className="text-[8px] text-white/35">{it.label}</div>
         </div>
       ))}
@@ -2257,7 +2283,7 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
             <button onClick={() => setSetField(ex.id, 0, 'done')}
                     className={'mt-3 w-full py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition active:scale-[.98] ' +
                       (manualDone ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 border border-white/10 text-white/60')}>
-              <Icon d={I.check} className="w-5 h-5"/>{manualDone ? 'בוצע! 🔥' : 'סמן כבוצע'}
+              <Icon d={I.check} className="w-5 h-5"/>{manualDone ? 'בוצע!' : 'סמן כבוצע'}
             </button>
             <div className="mt-2 text-[10px] text-white/30 text-center">טיפ: רשום את הריצה בטאב «ריצה» ביום שישי — והיא תסומן כאן אוטומטית</div>
           </React.Fragment>
@@ -2615,10 +2641,10 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack, onStory }){
             <button onClick={() => onStory({
                       kicker:'אימון הושלם', title: tpl.name, sub: tpl.sub,
                       stats: [
-                        { v: prog.done + '/' + prog.total, l:'סטים', color:'#CCFF00' },
+                        { v: prog.done + '/' + prog.total, l:'סטים', color: CHART.train.c },
                         { v: ton.toLocaleString(), l:'ק"ג נפח', color:'#fff' },
-                        { v: tpl.exercises.length, l:'תרגילים', color:'#FF5A1F' },
-                        { v: Math.round(pct * 100) + '%', l:'הושלם', color:'#CCFF00' }
+                        { v: tpl.exercises.length, l:'תרגילים', color: CHART.fuel.c },
+                        { v: Math.round(pct * 100) + '%', l:'הושלם', color: CHART.train.c }
                       ],
                       lines: tpl.exercises.slice(0, 4).map(ex2 => {
                         const ss = getSetsByKey(state, week, tpl.id, exKey(ex2, getActiveVariant(state, week, tpl.id, ex2)), ex2.sets).filter(x => x.done);
@@ -2824,7 +2850,7 @@ function RunChart({ runs }){
           <linearGradient id="gkm" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#6FDCF7" stopOpacity=".40"/>
             <stop offset="55%" stopColor="#6FDCF7" stopOpacity=".13"/>
-            <stop offset="100%" stopColor="#CCFF00" stopOpacity="0"/>
+            <stop offset="100%" stopColor="#9BE86B" stopOpacity="0"/>
           </linearGradient>
         </defs>
         {[.25, .5, .75, 1].map(f => {
@@ -2832,22 +2858,22 @@ function RunChart({ runs }){
           return (
             <g key={f}>
               <line x1={L} x2={W - R} y1={y} y2={y} stroke="rgba(255,255,255,.05)"/>
-              <text x={L - 7} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(204,255,0,.45)">{v.toFixed(1)}</text>
+              <text x={L - 7} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(155,232,107,.5)">{v.toFixed(1)}</text>
             </g>
           );
         })}
         {[.15, .5, .85].map(f => {
           const v = pMin + (pMax - pMin) * f;
-          return <text key={f} x={W - R + 7} y={Yp(v) + 3} fontSize="9" fill="rgba(255,90,31,.6)">{fmtPace(v)}</text>;
+          return <text key={f} x={W - R + 7} y={Yp(v) + 3} fontSize="9" fill="rgba(111,220,247,.6)">{fmtPace(v)}</text>;
         })}
         {area && <path d={area} fill="url(#gkm)"/>}
-        {data.length > 1 && <polyline points={pPts} fill="none" stroke="#FF5A1F" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" opacity=".85"/>}
-        {data.length > 1 && <polyline points={kmPts} fill="none" stroke="#CCFF00" strokeWidth="2.5" strokeLinejoin="round" style={{ filter:'drop-shadow(0 0 6px rgba(204,255,0,.5))' }}/>}
+        {data.length > 1 && <polyline points={pPts} fill="none" stroke="#6FDCF7" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" opacity=".85"/>}
+        {data.length > 1 && <polyline points={kmPts} fill="none" stroke="#9BE86B" strokeWidth="2.5" strokeLinejoin="round" style={{ filter:'drop-shadow(0 0 8px rgba(155,232,107,.55))' }}/>}
         {data.map((r, i) => (
           <g key={r.id}>
             {sel === i && <line x1={X(i)} x2={X(i)} y1={T} y2={H - B} stroke="rgba(255,255,255,.15)" strokeDasharray="3 3"/>}
-            <circle cx={X(i)} cy={Ykm(r.km)} r={sel === i ? 5 : 3.5} fill={sel === i ? '#CCFF00' : '#0B0B0C'} stroke="#CCFF00" strokeWidth="2"/>
-            <circle cx={X(i)} cy={Yp(paceOf(r))} r={sel === i ? 4 : 3} fill={sel === i ? '#FF5A1F' : '#0B0B0C'} stroke="#FF5A1F" strokeWidth="1.5"/>
+            <circle cx={X(i)} cy={Ykm(r.km)} r={sel === i ? 5 : 3.5} fill={sel === i ? '#9BE86B' : '#07080C'} stroke="#9BE86B" strokeWidth="2"/>
+            <circle cx={X(i)} cy={Yp(paceOf(r))} r={sel === i ? 4 : 3} fill={sel === i ? '#6FDCF7' : '#07080C'} stroke="#6FDCF7" strokeWidth="1.5"/>
             <rect x={X(i) - 14} y={T} width="28" height={H - T - B} fill="transparent" onClick={() => setSel(i)} style={{ cursor:'pointer' }}/>
           </g>
         ))}
@@ -3769,7 +3795,7 @@ function NutritionTab({ state, week, mutate }){
                 <div className="text-white/40 text-[10px] mt-1">{ws.days} ימים נרשמו · שבוע {weekNum(week)}</div>
               </div>
               <div className="relative w-[72px] h-[72px]">
-                <Ring pct={ws.goal ? ws.avgKcal / ws.goal : 0} size={72} stroke={6} color={ws.diffPct > 5 ? '#FF5A1F' : '#CCFF00'}/>
+                <Ring pct={ws.goal ? ws.avgKcal / ws.goal : 0} size={72} stroke={6} color={ws.diffPct > 5 ? CHART.over : CHART.fuel.c}/>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="font-black text-base leading-none">{ws.avgKcal}</span>
                   <span className="text-[8px] text-white/40 mt-0.5">ממוצע/יום</span>
@@ -3795,7 +3821,12 @@ function NutritionTab({ state, week, mutate }){
                 <div className="text-[9px] text-white/40 mt-0.5">יעד יומי ממוצע</div>
               </div>
             </div>
-            {ws.avgBurn > 0 && <div className="text-[10px] text-white/35 text-center mt-2">כולל שריפה ממוצעת מאימונים: +{ws.avgBurn} קק"ל ליום 🔥</div>}
+            {ws.avgBurn > 0 && (
+              <div className="flex items-center justify-center gap-1.5 mt-2 t-label" style={{ fontSize:'9.5px' }}>
+                <Icon d={I.flame} className="w-3 h-3" style={{ color:'var(--c-train)' }}/>
+                כולל שריפה ממוצעת מאימונים · +{ws.avgBurn} קק"ל ליום
+              </div>
+            )}
           </div>
 
           <div className="glass rounded-[24px] p-4">
@@ -4166,7 +4197,11 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
             <div className="flex items-center gap-2 pt-1">
               <span className="t-label shrink-0" style={{ letterSpacing:'.08em' }}>חלבון</span>
               <span className="text-[11px] font-bold t-num shrink-0" style={{ color:'var(--c-train)' }}>{ns.p}<span className="text-white/25">/{targets.protein}</span></span>
-              {burn.total > 0 && <span className="ms-auto text-[9px] font-black shrink-0 whitespace-nowrap" style={{ color:'var(--c-train)' }}>+{burn.total} 🔥</span>}
+              {burn.total > 0 && (
+                <span className="ms-auto flex items-center gap-1 shrink-0 whitespace-nowrap text-[9px] font-black t-num" style={{ color:'var(--c-train)' }}>
+                  <Icon d={I.flame} className="w-3 h-3"/>+{burn.total}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -4320,7 +4355,7 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
           <div className="flex-1 min-w-0">
             <div className="text-[13px] font-bold">{mom.cur.sessions} אימונים · {mom.cur.trainedDays} ימי אימון</div>
             <div className="t-cap" style={{ fontSize:'10px' }}>
-              {mom.cur.sessions > mom.prev.sessions ? 'קצב טוב יותר משבוע שעבר 🔥'
+              {mom.cur.sessions > mom.prev.sessions ? 'קצב טוב יותר משבוע שעבר'
                 : mom.cur.sessions === mom.prev.sessions ? 'שומר על הקצב'
                 : 'שבוע שעבר היו ' + mom.prev.sessions + ' — יש מה להשלים'}
             </div>
@@ -4509,60 +4544,72 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
     <div className="fadein space-y-3">
       {/* ---- PRs ---- */}
       <div className="glass rounded-[24px] p-4">
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="font-black italic flex items-center gap-2"><Icon d={I.trend} className="w-5 h-5 text-volt"/> הישגים אחרונים</div>
-          {onStory && (
+        <SectionHead icon={I.trophy} title="הישגים אחרונים" sub="שיאים חדשים · 14 יום אחרונים" tone="var(--gold)" className="mb-3"
+          right={onStory && (
             <button onClick={() => onStory({
                       kicker:'ההתקדמות שלי', title:'PR SHOWCASE', sub: heDate(toISO(new Date())),
                       stats: [
-                        { v: statusRows.length ? statusRows[0].maxW : '—', l:'שיא אחרון (ק"ג)', color:'#CCFF00' },
+                        { v: statusRows.length ? statusRows[0].maxW : '—', l:'שיא אחרון (ק"ג)', color: CHART.train.c },
                         { v: curVol >= 1000 ? (Math.round(curVol/100)/10)+'K' : curVol, l:'ק"ג נפח השבוע', color:'#fff' },
-                        { v: ri && ri.fastest ? fmtPace(ri.fastest.sec / ri.fastest.km) : '—', l:'שיא קצב', color:'#FF5A1F' },
-                        { v: prs.length, l:'שיאים חדשים', color:'#CCFF00' }
+                        { v: ri && ri.fastest ? fmtPace(ri.fastest.sec / ri.fastest.km) : '—', l:'שיא קצב', color:'#FFD75E' },
+                        { v: prs.length, l:'שיאים חדשים', color: CHART.train.c }
                       ],
                       lines: prs.slice(0, 4).map(pr2 => ({ a: pr2.text.length > 26 ? pr2.text.slice(0,25)+'…' : pr2.text, b: pr2.from + ' → ' + pr2.to }))
                     })}
-                    className="h-8 px-3 rounded-xl bg-volt/10 border border-volt/25 text-volt flex items-center gap-1.5 text-xs font-bold active:scale-95 transition">
+                    className="h-9 px-3.5 rounded-[14px] shrink-0 flex items-center gap-1.5 text-xs font-bold active:scale-[.98] transition"
+                    style={{ background:'rgba(255,215,94,.12)', border:'1px solid rgba(255,215,94,.28)', color:'var(--gold)' }}>
               <Icon d={I.share} className="w-3.5 h-3.5"/> שתף
             </button>
-          )}
-        </div>
+          )}/>
         {prs.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 mb-2.5">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1 mb-3 edge-fade">
             {prs.slice(0, 6).map((pr2, i) => (
-              <div key={i} className="shrink-0 rounded-2xl px-3 py-2.5 border text-center"
-                   style={{ minWidth:'132px', background:'linear-gradient(160deg, rgba(255,215,0,.16), rgba(204,255,0,.06))', borderColor:'rgba(255,215,0,.35)', boxShadow:'0 0 18px rgba(255,215,0,.12)' }}>
-                <Icon d={I.trophy} className="w-5 h-5 mx-auto" style={{ color:'#FFD84D' }}/>
-                <div className="text-[10px] font-bold text-white/70 truncate mt-1">{pr2.text}</div>
-                <div className="font-black text-lg" style={{ color:'#FFD84D' }}>{pr2.to}</div>
-                <div className="text-[9px] text-white/35">מ־{pr2.from}</div>
+              <div key={i} className="shrink-0 rounded-[20px] px-3 py-3 text-center relative overflow-hidden"
+                   style={{ width:'146px', background:'linear-gradient(160deg, rgba(255,215,94,.18), rgba(240,169,59,.04))', border:'1px solid rgba(255,215,94,.30)', boxShadow:'0 8px 22px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12)' }}>
+                <span className="absolute inset-0 pointer-events-none" style={{ background:'radial-gradient(circle at 30% 10%, rgba(255,215,94,.24), transparent 62%)' }}></span>
+                <span className="relative w-9 h-9 rounded-[13px] mx-auto flex items-center justify-center"
+                      style={{ background:'rgba(255,215,94,.16)', border:'1px solid rgba(255,215,94,.32)' }}>
+                  <Icon d={I.trophy} className="w-[18px] h-[18px]" style={{ color:'var(--gold)' }}/>
+                </span>
+                <div className="t-cap truncate mt-2 relative" style={{ fontSize:'9.5px' }}>{pr2.text}</div>
+                <div className="t-metric mt-0.5 relative truncate" style={{ fontSize:'21px', color:'var(--gold)' }}>{pr2.to}</div>
+                <div className="t-label mt-1 relative truncate" style={{ fontSize:'8px' }}>מ־{pr2.from}</div>
               </div>
             ))}
           </div>
         )}
         {prs.length === 0 && (!ri || ri.paceDelta == null) ? (
-          <div className="text-white/30 text-sm text-center py-3">ברגע שתעלה משקלים או תשתפר בריצה — זה יופיע כאן 📈</div>
+          <div className="text-center py-5">
+            <span className="w-12 h-12 rounded-[17px] mx-auto flex items-center justify-center"
+                  style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.08)' }}>
+              <Icon d={I.trend} className="w-5 h-5" style={{ color:'rgba(255,255,255,.28)' }}/>
+            </span>
+            <div className="t-label mt-2.5" style={{ fontSize:'10px' }}>ברגע שתעלה משקלים או תשתפר בריצה — זה יופיע כאן</div>
+          </div>
         ) : (
           <div className="space-y-1.5">
             {ri && ri.paceDelta != null && ri.paceDelta !== 0 && (
-              <div className="flex items-center gap-3 glass-2 rounded-2xl p-3">
-                <span className="text-xl">🏃</span>
-                <div className="flex-1 text-sm font-bold">קצב ריצה (14 יום אחרונים)</div>
-                <span className={'text-xs font-black ' + (ri.paceDelta > 0 ? 'text-volt' : 'text-ember')}>
+              <div className="flex items-center gap-3 glass-2 rounded-[16px] p-3">
+                <RunGlyph type="tempo" size={34}/>
+                <div className="flex-1 text-[13px] font-bold">קצב ריצה · 14 יום</div>
+                <span className="text-[11px] font-black t-num" style={{ color: ri.paceDelta > 0 ? CHART.train.c : CHART.over }}>
                   {ri.paceDelta > 0 ? 'מהיר ב־' + ri.paceDelta + ' שנ׳/ק"מ ↑' : 'איטי ב־' + Math.abs(ri.paceDelta) + ' שנ׳/ק"מ'}
                 </span>
               </div>
             )}
             {prs.map((p, i) => (
-              <div key={i} className="flex items-center gap-3 glass-2 rounded-2xl p-3">
-                <span className="text-xl">{p.icon}</span>
+              <div key={i} className="flex items-center gap-3 glass-2 rounded-[16px] p-3">
+                <span className="w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0"
+                      style={{ background:'rgba(255,215,94,.12)', border:'1px solid rgba(255,215,94,.26)' }}>
+                  <Icon d={I.trophy} className="w-4 h-4" style={{ color:'var(--gold)' }}/>
+                </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold truncate">{p.text}</div>
-                  <div className="text-[10px] text-white/40">שבוע {weekNum(p.week)}</div>
+                  <div className="text-[13px] font-bold truncate">{p.text}</div>
+                  <div className="t-cap" style={{ fontSize:'9.5px' }}>שבוע {weekNum(p.week)}</div>
                 </div>
-                <span className="text-xs font-black text-white/40">{p.from}</span>
-                <Icon d={I.chevL} className="w-3.5 h-3.5 text-volt"/>
-                <span className="text-xs font-black text-volt">{p.to}</span>
+                <span className="text-[11px] font-black t-num text-white/35">{p.from}</span>
+                <Icon d={I.chevL} className="w-3 h-3" style={{ color:'var(--gold)' }}/>
+                <span className="text-[12px] font-black t-num" style={{ color:'var(--gold)' }}>{p.to}</span>
               </div>
             ))}
           </div>
@@ -4571,23 +4618,20 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
 
       {/* ---- strength: summary first, zero clicks ---- */}
       <div className="glass rounded-[24px] p-4">
-        <div className="font-black italic mb-2.5">התקדמות בכוח 🏋️</div>
+        <SectionHead icon={I.dumbbell} title="התקדמות בכוח" sub="נפח, שיאים ומגמה לפי שבוע" tone="#9BE86B"/>
 
         <div className="grid grid-cols-3 gap-2 mb-3">
-          <div className="glass-2 rounded-2xl py-2.5 text-center">
-            <div className="font-black text-volt">{curVol >= 1000 ? (Math.round(curVol / 100) / 10) + 'K' : curVol}</div>
-            <div className="text-[9px] text-white/40 mt-0.5">ק"ג נפח השבוע</div>
-          </div>
-          <div className="glass-2 rounded-2xl py-2.5 text-center">
-            <div className={'font-black ' + (volDeltaPct == null ? 'text-white/40' : volDeltaPct >= 0 ? 'text-volt' : 'text-ember')}>
-              {volDeltaPct == null ? '—' : (volDeltaPct >= 0 ? '+' : '') + volDeltaPct + '%'}
+          {[
+            { v: curVol >= 1000 ? (Math.round(curVol / 100) / 10) + 'K' : curVol, l:'ק"ג נפח השבוע', c: CHART.train.c },
+            { v: volDeltaPct == null ? '—' : (volDeltaPct >= 0 ? '+' : '') + volDeltaPct + '%', l:'מול שבוע שעבר',
+              c: volDeltaPct == null ? 'rgba(255,255,255,.4)' : volDeltaPct >= 0 ? CHART.train.c : CHART.over },
+            { v: prs.length, l:'שיאים אחרונים', c:'var(--gold)' }
+          ].map((x, i) => (
+            <div key={i} className="glass-2 rounded-[16px] py-3 text-center">
+              <div className="t-metric" style={{ fontSize:'19px', color:x.c }}>{x.v}</div>
+              <div className="t-label mt-1.5" style={{ fontSize:'8px' }}>{x.l}</div>
             </div>
-            <div className="text-[9px] text-white/40 mt-0.5">מול שבוע שעבר</div>
-          </div>
-          <div className="glass-2 rounded-2xl py-2.5 text-center">
-            <div className="font-black">{prs.length}</div>
-            <div className="text-[9px] text-white/40 mt-0.5">שיאים אחרונים</div>
-          </div>
+          ))}
         </div>
 
         {volData.length >= 2 ? (
@@ -4607,15 +4651,15 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
             {statusRows.slice(0, showAllEx ? 999 : 6).map(r => (
               <div key={r.key} className="flex items-center gap-2.5 py-2 border-b border-white/5 last:border-0">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold truncate">{r.label}</div>
-                  <div className="text-[9px] text-white/35">{r.tplName} · שבוע {weekNum(r.week)}</div>
+                  <div className="text-[13px] font-bold truncate">{r.label}</div>
+                  <div className="t-cap" style={{ fontSize:'9.5px' }}>{r.tplName} · שבוע {weekNum(r.week)}</div>
                 </div>
                 <Sparkline points={r.hist}/>
                 <div className="text-end shrink-0" style={{ minWidth:'64px' }}>
-                  <div className="font-black">{r.maxW} <span className="text-[9px] text-white/40 font-normal">ק"ג</span></div>
+                  <div className="font-black t-num">{r.maxW} <span className="t-label" style={{ fontSize:'8px' }}>ק"ג</span></div>
                   {r.delta != null && r.delta !== 0
-                    ? <div className={'text-[10px] font-black ' + (r.delta > 0 ? 'text-volt' : 'text-ember')}>{r.delta > 0 ? '+' + r.delta + ' ↑' : r.delta + ' ↓'}</div>
-                    : <div className="text-[10px] text-white/30 font-bold">{r.delta === 0 ? 'ללא שינוי' : 'חדש'}</div>}
+                    ? <div className="text-[10px] font-black t-num" style={{ color: r.delta > 0 ? CHART.train.c : CHART.over }}>{r.delta > 0 ? '+' + r.delta + ' ↑' : r.delta + ' ↓'}</div>
+                    : <div className="t-label" style={{ fontSize:'9px' }}>{r.delta === 0 ? 'ללא שינוי' : 'חדש'}</div>}
                 </div>
               </div>
             ))}
@@ -4638,7 +4682,7 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
                 <button key={t.id} onClick={() => pickTpl(t.id)}
                         className={'px-3.5 py-2 rounded-2xl text-xs font-bold border transition active:scale-95 whitespace-nowrap shrink-0 flex items-center gap-1.5 ' +
                           (selTpl === t.id ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'glass text-white/50 border-white/10')}>
-                  <span>{t.icon}</span>{t.name}
+                  <DayGlyph tpl={t} size={20} tone={selTpl === t.id ? 'var(--lime)' : 'rgba(255,255,255,.45)'}/>{t.name}
                 </button>
               ))}
             </div>
@@ -4647,8 +4691,8 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
                            onChange={setSelKey} placeholder="בחר תרגיל"/>
             </div>
             <div className="flex gap-3 text-[10px] font-bold mb-1">
-              <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> משקל שיא (ק"ג)</span>
-              <span className="flex items-center gap-1 text-ember"><span className="w-2.5 h-0.5 bg-ember inline-block rounded-full"></span> נפח שבועי</span>
+              <span className="flex items-center gap-1" style={{ color:'#9BE86B' }}><span className="w-2.5 h-0.5 inline-block rounded-full" style={{ background:'#9BE86B' }}></span> משקל שיא</span>
+              <span className="flex items-center gap-1" style={{ color:'#6FDCF7' }}><span className="w-2.5 h-0.5 inline-block rounded-full" style={{ background:'#6FDCF7' }}></span> נפח שבועי</span>
             </div>
             <TrendChart data={strengthData} unitA={'ק"ג'} unitB={'ק"ג נפח'}/>
           </div>
@@ -4657,20 +4701,18 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
 
       {/* ---- running ---- */}
       <div className="glass rounded-[24px] p-4">
-        <div className="font-black italic mb-2.5">התקדמות בריצה 🏃</div>
+        <SectionHead icon={I.activity} title="התקדמות בריצה" sub="קצב, מרחק ונפח שבועי" tone="#6FDCF7"/>
         <div className="grid grid-cols-3 gap-2 mb-3">
-          <div className="glass-2 rounded-2xl py-2.5 text-center">
-            <div className="font-black text-ember">{ri && ri.fastest ? fmtPace(ri.fastest.sec / ri.fastest.km) : '—'}</div>
-            <div className="text-[9px] text-white/40 mt-0.5">שיא קצב</div>
-          </div>
-          <div className="glass-2 rounded-2xl py-2.5 text-center">
-            <div className="font-black text-volt">{ri && ri.longest ? ri.longest.km : '—'}</div>
-            <div className="text-[9px] text-white/40 mt-0.5">ריצה הכי ארוכה</div>
-          </div>
-          <div className="glass-2 rounded-2xl py-2.5 text-center">
-            <div className="font-black">{ri ? Math.round(ri.total * 10) / 10 : 0}</div>
-            <div className="text-[9px] text-white/40 mt-0.5">סה"כ ק"מ</div>
-          </div>
+          {[
+            { v: ri && ri.fastest ? fmtPace(ri.fastest.sec / ri.fastest.km) : '—', l:'שיא קצב', c:'var(--gold)' },
+            { v: ri && ri.longest ? ri.longest.km : '—', l:'ריצה הכי ארוכה', c: CHART.fuel.c },
+            { v: ri ? Math.round(ri.total * 10) / 10 : 0, l:'סה"כ ק"מ', c:'#fff' }
+          ].map((x, i) => (
+            <div key={i} className="glass-2 rounded-[16px] py-3 text-center">
+              <div className="t-metric" style={{ fontSize:'19px', color:x.c }}>{x.v}</div>
+              <div className="t-label mt-1.5" style={{ fontSize:'8px' }}>{x.l}</div>
+            </div>
+          ))}
         </div>
         <div className="text-[10px] font-bold text-white/40 mb-1">ק"מ לפי שבוע (8 שבועות אחרונים)</div>
         {ri && <BarChart items={ri.weeks}/>}
@@ -4678,24 +4720,30 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
 
       {/* ---- body ---- */}
       <div className="glass rounded-[24px] p-4">
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="font-black italic">מעקב גוף ⚖️</div>
-          {bmi && <span className="text-[10px] font-bold text-white/40 bg-white/5 rounded-full px-2.5 py-1">BMI {bmi}</span>}
-        </div>
+        <SectionHead icon={I.bodyscale} title="מעקב גוף" sub="שקילות ומגמת משקל" tone="#B39CFB"
+          right={bmi && <span className="t-num text-[10px] font-black shrink-0 rounded-full px-2.5 py-1"
+                              style={{ background:'rgba(179,156,251,.12)', border:'1px solid rgba(179,156,251,.24)', color:'#B39CFB' }}>BMI {bmi}</span>}/>
         <div className="flex gap-2 mb-3">
           <input className="inp flex-1 text-center font-bold" inputMode="decimal" placeholder={latestW ? 'שקילה חדשה (אחרונה: ' + latestW.kg + ')' : 'משקל בק"ג (למשל 78.5)'}
                  value={kg} onChange={e => setKg(e.target.value)}/>
-          <button onClick={addWeight} className="px-5 rounded-2xl bg-volt text-obsidian font-black active:scale-95 transition">שמור</button>
+          <button onClick={addWeight} disabled={!numOr0(kg)}
+                  className="w-[76px] shrink-0 rounded-[16px] font-black text-sm active:scale-[.98] transition"
+                  style={ numOr0(kg)
+                    ? { background:'var(--lime)', color:'#07080C', boxShadow:'0 6px 20px rgba(215,255,62,.22)' }
+                    : { background:'rgba(255,255,255,.05)', color:'rgba(255,255,255,.28)', border:'1px solid rgba(255,255,255,.08)' } }>שמור</button>
         </div>
         {weightData.length > 0
           ? <TrendChart data={weightData} unitA={'ק"ג'} tight fmtA={v => String(Math.round(v * 10) / 10)}/>
           : <div className="text-white/25 text-xs text-center py-2">רשום שקילה ראשונה כדי לראות את הגרף</div>}
         {state.weights.slice(0, 5).map(w => (
-          <div key={w.id} className="flex items-center justify-between border-t border-white/5 py-2 first:border-0">
-            <span className="text-xs text-white/40">{heDate(w.date)}</span>
-            <div className="flex items-center gap-2">
-              <span className="font-black">{w.kg} <span className="text-[10px] text-white/40 font-normal">ק"ג</span></span>
-              <button onClick={() => delWeight(w)} className="text-white/20 active:scale-90 transition"><Icon d={I.trash} className="w-3.5 h-3.5"/></button>
+          <div key={w.id} className="flex items-center justify-between border-t border-white/5 py-2.5 first:border-0">
+            <span className="t-label" style={{ fontSize:'9.5px' }}>{heDate(w.date)}</span>
+            <div className="flex items-center gap-2.5">
+              <span className="font-black t-num">{w.kg} <span className="t-label" style={{ fontSize:'8px' }}>ק"ג</span></span>
+              <button onClick={() => delWeight(w)} className="w-7 h-7 rounded-[10px] flex items-center justify-center active:scale-90 transition"
+                      style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.07)' }}>
+                <Icon d={I.trash} className="w-3.5 h-3.5" style={{ color:'rgba(255,255,255,.3)' }}/>
+              </button>
             </div>
           </div>
         ))}
@@ -4703,26 +4751,27 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
 
       {/* ---- photos ---- */}
       <div className="glass rounded-[24px] p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-black italic">גלריית התקדמות 📸</div>
-          <div className="flex gap-1.5">
+        <SectionHead icon={I.history} title="גלריית התקדמות" sub="הראיה הכי טובה לשינוי"
+          right={<div className="flex gap-1.5 shrink-0">
             {photosSorted.length >= 2 && (
               <button onClick={() => { setCmpMode(!cmpMode); setCmpSel([]); }}
-                      className={'h-9 px-3 rounded-2xl text-xs font-bold border active:scale-95 transition ' + (cmpMode ? 'bg-volt/15 text-volt border-volt/40' : 'bg-white/5 text-white/60 border-white/10')}>
-                ⇄ השוואה
+                      className={'h-9 px-3 rounded-[14px] text-xs font-bold border active:scale-[.98] transition ' + (cmpMode ? 'bg-volt/15 text-volt border-volt/40' : 'bg-white/5 text-white/60 border-white/10')}>
+                השוואה
               </button>
             )}
             <button onClick={() => fileRef.current && fileRef.current.click()}
-                    className="h-9 px-4 rounded-2xl bg-volt text-obsidian font-black text-sm flex items-center gap-2 active:scale-95 transition glow-volt">
+                    className="h-9 px-4 rounded-[14px] bg-volt text-obsidian font-black text-sm flex items-center gap-1.5 active:scale-[.98] transition glow-volt">
               <Icon d={I.camera} className="w-4 h-4"/> צלם
             </button>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile}/>
-        </div>
+          </div>}/>
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile}/>
         {photosSorted.length === 0 ? (
           <div className="text-center py-6">
-            <div className="text-3xl mb-1.5">📷</div>
-            <div className="text-white/40 text-sm font-bold">אין תמונות עדיין</div>
+            <span className="w-14 h-14 rounded-[19px] mx-auto flex items-center justify-center mb-2.5"
+                  style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.08)' }}>
+              <Icon d={I.camera} className="w-6 h-6" style={{ color:'rgba(255,255,255,.3)' }}/>
+            </span>
+            <div className="text-white/45 text-sm font-bold">אין תמונות עדיין</div>
             <div className="text-white/25 text-xs mt-0.5">צלם תמונה אחרי אימון — עוד חודשיים תגיד תודה</div>
           </div>
         ) : (
@@ -5444,8 +5493,7 @@ function App(){
     <div className="min-h-screen">
       <DialogHost/>
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex:-1 }}>
-        <div className="absolute -top-32 -end-32 w-96 h-96 rounded-full" style={{ background:'radial-gradient(circle,#CCFF00,transparent 70%)', opacity:.07 }}></div>
-        <div className="absolute top-1/2 -start-40 w-96 h-96 rounded-full" style={{ background:'radial-gradient(circle,#FF5A1F,transparent 70%)', opacity:.05 }}></div>
+
       </div>
 
       <header className="sticky top-0 z-40" style={{ paddingTop:'env(safe-area-inset-top)', background:'linear-gradient(180deg, rgba(9,10,15,.92), rgba(9,10,15,.72))', borderBottom:'1px solid rgba(255,255,255,.06)', backdropFilter:'blur(22px) saturate(150%)', WebkitBackdropFilter:'blur(22px) saturate(150%)' }}>
@@ -5495,10 +5543,10 @@ function App(){
                                    onShare={r => openStory({
                                      kicker:'ריצה הושלמה', title: r.title, sub: heDate(r.date),
                                      stats: [
-                                       { v: r.km, l:'ק"מ', color:'#CCFF00' },
-                                       { v: fmtPace(r.sec / Math.max(r.km, .01)), l:'דק׳/ק"מ', color:'#FF5A1F' },
+                                       { v: r.km, l:'ק"מ', color:'#6FDCF7' },
+                                       { v: fmtPace(r.sec / Math.max(r.km, .01)), l:'דק׳/ק"מ', color:'#9BE86B' },
                                        { v: fmtDur(r.sec), l:'זמן', color:'#fff' },
-                                       { v: Math.round(r.km * ((state.weights[0] && numOr0(state.weights[0].kg)) || 74)), l:'קק"ל', color:'#CCFF00' }
+                                       { v: Math.round(r.km * ((state.weights[0] && numOr0(state.weights[0].kg)) || 74)), l:'קק"ל', color:'#9BE86B' }
                                      ],
                                      lines: (r.splits || []).slice(0, 4).map((sp, i) => ({ a: 'קטע ' + (i + 1) + ' · ' + sp.km + ' ק"מ', b: fmtPace(sp.sec / Math.max(sp.km, .01)) }))
                                    })}/>}
