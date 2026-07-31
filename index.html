@@ -131,6 +131,8 @@ button:active,[role=button]:active{ transform:scale(.975); }
 .t-num{ font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
 .t-label{ font-size:9.5px; font-weight:800; color:var(--ink-3); letter-spacing:.14em; text-transform:uppercase; }
 .t-cap{ font-size:11px; font-weight:600; color:var(--ink-3); letter-spacing:0; }
+/* prose caption — t-label's tracking + uppercase mangles full Hebrew sentences */
+.t-note{ font-size:10.5px; font-weight:600; color:var(--ink-3); letter-spacing:0; line-height:1.65; }
 .t-sec{ color:var(--ink-2); }
 
 /* ---------- glow ---------- */
@@ -165,6 +167,8 @@ button:active,[role=button]:active{ transform:scale(.975); }
 .pop-in{ animation:popin .32s var(--ease-out); }
 @keyframes popin{ from{ opacity:0; transform:scale(.93) translateY(12px);} to{ opacity:1; transform:none; } }
 .spin{ animation:spin 1s linear infinite; } @keyframes spin{ to{ transform:rotate(360deg);} }
+.pulse-dot{ animation:pulseDot 1.3s ease-in-out infinite; }
+@keyframes pulseDot{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.35; transform:scale(.8);} }
 .shimmer{ background-size:200% 100%; animation:shim 2.6s linear infinite; }
 @keyframes shim{ to{ background-position:-200% 0; } }
 .no-scrollbar::-webkit-scrollbar{ display:none; } .no-scrollbar{ scrollbar-width:none; }
@@ -1867,7 +1871,7 @@ function Ring({ pct, size = 44, stroke = 4, color = '#D7FF3E' }){
 function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
   const [sel, setSel] = useState(data.length ? data.length - 1 : null);
   useEffect(() => { setSel(data.length ? data.length - 1 : null); }, [data.length, data.map(d => d.a).join(',')]);
-  if (!data.length) return <div className="text-center py-8 t-label" style={{ fontSize:'10px' }}>אין עדיין נתונים — תתחיל לרשום</div>;
+  if (!data.length) return <div className="text-center py-8 t-note">אין עדיין נתונים — תתחיל לרשום</div>;
   const W = 640, H = 220, L = 42, R = 46, T = 14, B = 26;
   const fa = fmtA || (v => String(Math.round(v * 10) / 10));
   const fb = fmtB || (v => String(Math.round(v)));
@@ -3472,7 +3476,7 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
                     return (
                       <div key={fv.id} className="flex items-center gap-2 bg-volt/5 border border-volt/15 rounded-2xl px-3 py-2">
                         <button onClick={() => onPickMany(fv.items)} className="flex-1 min-w-0 text-start active:scale-[.985] transition">
-                          <div className="font-bold text-sm truncate">{fv.icon} {fv.name}</div>
+                          <div className="font-bold text-sm truncate">{fv.name}</div>
                           <div className="text-[10px] text-white/40">{(fv.items || []).length} פריטים · {k} קק"ל · {pr} ג׳ חלבון</div>
                         </button>
                         <button onClick={() => { uiConfirm('להסיר את המועדף?', { title: fv.name, danger:true, okText:'הסר' }).then(ok => { if (ok) mutate(d => { d.favMeals = (d.favMeals || []).filter(x => x.id !== fv.id); (d.deletedFavs = d.deletedFavs || []).push(fv.id); }, 'meals'); }); }}
@@ -4279,7 +4283,7 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
         <button onClick={() => openWorkout(plan.tpl.id)}
                 className="w-full rounded-[24px] p-4 text-start active:scale-[.985] transition border border-volt/30 bg-volt/10 glow-volt">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{plan.tpl.icon}</span>
+            <DayGlyph tpl={plan.tpl} size={46} tone="var(--lime)"/>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-bold text-volt/70">{plan.isRun ? 'היעד של היום' : 'האימון של היום'}</div>
               <div className="font-black text-lg italic leading-tight">{plan.tpl.name}</div>
@@ -4584,7 +4588,7 @@ function ProgressTab({ state, mutate, loadPhoto, addPhoto, delPhoto, onStory }){
                   style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.08)' }}>
               <Icon d={I.trend} className="w-5 h-5" style={{ color:'rgba(255,255,255,.28)' }}/>
             </span>
-            <div className="t-label mt-2.5" style={{ fontSize:'10px' }}>ברגע שתעלה משקלים או תשתפר בריצה — זה יופיע כאן</div>
+            <div className="t-note mt-2.5">ברגע שתעלה משקלים או תשתפר בריצה — זה יופיע כאן</div>
           </div>
         ) : (
           <div className="space-y-1.5">
@@ -5059,7 +5063,7 @@ function CalendarTab({ state, goTo }){
                 <Icon d={I.calendar} className="w-6 h-6" style={{ color:'rgba(255,255,255,.28)' }}/>
               </span>
               <div className="text-white/45 text-sm font-bold">עוד לא הגענו לשם</div>
-              <div className="t-label mt-1" style={{ fontSize:'9.5px' }}>היום הזה עדיין לפניך</div>
+              <div className="t-note mt-1">היום הזה עדיין לפניך</div>
             </div>
           ) : (
             /* rest is a planned part of a 5-day week — present it as recovery, never as a miss */
@@ -5071,7 +5075,7 @@ function CalendarTab({ state, goTo }){
                 <Icon d={RUN_ART.recovery} className="w-6 h-6" style={{ color:'#B39CFB' }}/>
               </span>
               <div className="font-black italic mt-2.5 relative" style={{ fontSize:'15px' }}>יום התאוששות</div>
-              <div className="t-label mt-1.5 relative leading-relaxed" style={{ fontSize:'9.5px' }}>
+              <div className="t-note mt-1.5 relative px-2">
                 השריר נבנה במנוחה, לא באימון — יום בלי לוג הוא חלק מהתוכנית
               </div>
               <div className="flex items-center justify-center gap-2 mt-3 relative">
@@ -5199,146 +5203,191 @@ function SettingsTab({ state, sync, syncNow, replaceState, mutate, stravaUi, str
   };
 
   const statusInfo = {
-    off:     { c:'bg-white/20',  t:'לא מחובר לסנכרון' },
-    pending: { c:'bg-ember',     t:'שינויים ממתינים...' },
-    syncing: { c:'bg-ember',     t:'מסנכרן...' },
-    ok:      { c:'bg-volt',      t:'מסונכרן ✓' + (sync.at ? ' · ' + new Date(sync.at).toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' }) : '') },
-    error:   { c:'bg-red-500',   t:'שגיאת סנכרון' },
-  }[sync.status] || { c:'bg-white/20', t:'' };
+    off:     { c:'rgba(255,255,255,.25)', t:'לא מחובר לסנכרון' },
+    pending: { c:'var(--gold)',           t:'שינויים ממתינים…' },
+    syncing: { c:'var(--gold)',           t:'מסנכרן…' },
+    ok:      { c:'#9BE86B',               t:'מסונכרן' + (sync.at ? ' · ' + new Date(sync.at).toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' }) : '') },
+    error:   { c:'var(--coral)',          t:'שגיאת סנכרון' },
+  }[sync.status] || { c:'rgba(255,255,255,.25)', t:'' };
+
+  const initial = (state.settings.name || 'A').trim().charAt(0).toUpperCase();
 
   return (
     <div className="fadein space-y-3">
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1 text-white/60 text-sm font-bold active:scale-95 transition">
-          <Icon d={I.chevR} className="w-5 h-5"/> חזרה
+      <div className="flex items-center justify-between mb-1">
+        <button onClick={onBack} className="h-10 px-3.5 rounded-[14px] flex items-center gap-1.5 text-sm font-bold active:scale-[.98] transition"
+                style={{ background:'rgba(255,255,255,.045)', border:'1px solid rgba(255,255,255,.07)', color:'rgba(255,255,255,.6)' }}>
+          <Icon d={I.chevR} className="w-[18px] h-[18px]"/> חזרה
         </button>
-        <div className="font-black italic text-lg">הגדרות</div>
+        <div className="font-black italic" style={{ fontSize:'19px' }}>הגדרות</div>
       </div>
 
-      {/* profile */}
-      <div className="glass rounded-[24px] p-5 space-y-2.5">
-        <div className="font-bold text-white/70 text-sm">פרופיל 👤</div>
-        <div>
-          <label className="lbl">שם (לברכה בדשבורד)</label>
-          <input className="inp" placeholder="נועם" value={state.settings.name} onChange={e => updSettings({ name: e.target.value })}/>
-        </div>
-        <div>
-          <label className="lbl">גובה (ס"מ) — לחישוב BMI</label>
-          <input className="inp text-center font-bold" inputMode="numeric" placeholder="178" value={state.settings.height} onChange={e => updSettings({ height: e.target.value })}/>
-        </div>
-        <div className="text-[10px] text-white/30">שקילות ותמונות התקדמות נמצאות בטאב «התקדמות».</div>
-      </div>
-
-      {/* strava */}
-      <div className="glass rounded-[24px] p-5">
-        <div className="flex items-center justify-between">
-          <div className="font-black italic text-lg flex items-center gap-2">
-            <span className="w-7 h-7 rounded-xl bg-strava flex items-center justify-center text-white font-black text-sm">S</span>
-            Strava
+      {/* ---- profile ---- */}
+      <div className="glass rounded-[24px] p-4">
+        <div className="flex items-center gap-3 mb-3.5">
+          <span className="w-[52px] h-[52px] rounded-[18px] flex items-center justify-center shrink-0 relative overflow-hidden"
+                style={{ background:'linear-gradient(160deg, rgba(215,255,62,.20), rgba(159,232,0,.05))', border:'1px solid rgba(215,255,62,.30)' }}>
+            <span className="absolute inset-0 pointer-events-none" style={{ background:'radial-gradient(circle at 30% 15%, rgba(215,255,62,.26), transparent 64%)' }}></span>
+            <span className="t-metric relative" style={{ fontSize:'22px', color:'var(--lime)' }}>{initial}</span>
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="font-black italic leading-none truncate" style={{ fontSize:'16px' }}>{state.settings.name || 'הפרופיל שלי'}</div>
+            <div className="t-label mt-1.5" style={{ fontSize:'8.5px' }}>
+              {state.settings.height ? state.settings.height + ' ס"מ' : 'גובה לא הוגדר'} · {state.weights.length} שקילות · {state.runs.length} ריצות
+            </div>
           </div>
-          {sv.refreshToken
-            ? <span className="text-xs font-bold text-volt">מחובר ✓ {sv.athlete || ''}</span>
-            : <span className="text-xs font-bold text-white/40">לא מחובר</span>}
         </div>
-        {stravaUi.msg && <div className={'mt-2 text-xs rounded-xl px-3 py-2 border ' + (stravaUi.status === 'error' ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-volt bg-volt/10 border-volt/20')}>{stravaUi.msg}</div>}
+        <div className="space-y-2.5">
+          <div>
+            <label className="lbl">שם (לברכה בדשבורד)</label>
+            <input className="inp" placeholder="נועם" value={state.settings.name} onChange={e => updSettings({ name: e.target.value })}/>
+          </div>
+          <div>
+            <label className="lbl">גובה (ס"מ) — לחישוב BMI</label>
+            <input className="inp text-center font-bold t-num" inputMode="numeric" placeholder="178" value={state.settings.height} onChange={e => updSettings({ height: e.target.value })}/>
+          </div>
+        </div>
+        <div className="t-note mt-3">שקילות ותמונות התקדמות נמצאות בטאב «התקדמות».</div>
+      </div>
 
+      {/* ---- gist sync ---- */}
+      <div className="glass rounded-[24px] p-4">
+        <SectionHead icon={I.refresh} title="סנכרון מק ↔ אייפון" sub="גיבוי חי בג׳יסט פרטי" tone="#9BE86B"
+          right={
+            <span className="flex items-center gap-1.5 shrink-0 rounded-full px-2.5 py-1.5"
+                  style={{ background:'rgba(255,255,255,.045)', border:'1px solid rgba(255,255,255,.07)' }}>
+              <span className={'w-2 h-2 rounded-full shrink-0 ' + (sync.status === 'syncing' ? 'pulse-dot' : '')}
+                    style={{ background: statusInfo.c, boxShadow:'0 0 8px ' + statusInfo.c }}></span>
+              <span className="t-label whitespace-nowrap" style={{ fontSize:'8.5px' }}>{statusInfo.t}</span>
+            </span>
+          }/>
+        {sync.status === 'error' && (
+          <div className="mb-3 rounded-[14px] px-3 py-2.5 text-[11px] break-all" dir="ltr"
+               style={{ background:'rgba(255,107,87,.09)', border:'1px solid rgba(255,107,87,.24)', color:'var(--coral)' }}>{sync.msg}</div>
+        )}
+        <label className="lbl">טוקן GitHub · הרשאת gist בלבד</label>
+        <input className="inp" dir="ltr" type="password" placeholder="ghp_…" value={tok} onChange={e => setTok(e.target.value)}/>
+        <div className="flex gap-2 mt-2">
+          <button onClick={saveTok} disabled={!tok.trim()}
+                  className="flex-1 py-3 rounded-[16px] font-black text-sm active:scale-[.98] transition"
+                  style={ tok.trim()
+                    ? { background:'var(--lime)', color:'#07080C', boxShadow:'0 6px 20px rgba(215,255,62,.2)' }
+                    : { background:'rgba(255,255,255,.05)', color:'rgba(255,255,255,.28)', border:'1px solid rgba(255,255,255,.08)' } }>
+            {connected ? 'עדכן טוקן' : 'התחבר'}
+          </button>
+          <button onClick={() => syncNow(false)} disabled={!connected}
+                  className="flex-1 py-3 rounded-[16px] font-bold text-sm active:scale-[.98] transition"
+                  style={{ background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.09)',
+                           color: connected ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.25)' }}>
+            סנכרן עכשיו
+          </button>
+          {connected && (
+            <button onClick={disconnect} className="px-3.5 rounded-[16px] font-bold text-xs active:scale-[.98] transition"
+                    style={{ background:'rgba(255,107,87,.1)', border:'1px solid rgba(255,107,87,.22)', color:'var(--coral)' }}>נתק</button>
+          )}
+        </div>
+        {state.settings.gistId && (
+          <div className="t-label mt-2.5" style={{ fontSize:'8.5px' }} dir="ltr">Gist: {state.settings.gistId}</div>
+        )}
+        <div className="mt-3.5 pt-3 space-y-2" style={{ borderTop:'1px solid rgba(255,255,255,.05)' }}>
+          {[<React.Fragment key="a">צור טוקן <a className="font-bold underline" style={{ color:'var(--lime)' }} href="https://github.com/settings/tokens/new?scopes=gist&description=ATHLETICS%20Sync" target="_blank" rel="noopener">בקישור הזה</a> (classic · הרשאת gist מסומנת) → Generate.</React.Fragment>,
+            <React.Fragment key="b">הדבק אותו כאן ולחץ <b>התחבר</b>.</React.Fragment>,
+            <React.Fragment key="c">חזור על זה באייפון עם <b>אותו טוקן</b> — הכל מתמזג אוטומטית.</React.Fragment>].map((txt, i) => (
+            <div key={i} className="flex items-start gap-2.5">
+              <span className="w-[18px] h-[18px] rounded-[7px] shrink-0 flex items-center justify-center t-num mt-[1px]"
+                    style={{ fontSize:'9px', background:'rgba(215,255,62,.1)', border:'1px solid rgba(215,255,62,.22)', color:'var(--lime)' }}>{i + 1}</span>
+              <span className="text-[11px] leading-relaxed" style={{ color:'var(--ink-2)' }}>{txt}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ---- strava ---- */}
+      <div className="glass rounded-[24px] p-4">
+        <SectionHead icon={I.activity} title="Strava" sub="ייבוא ריצות אוטומטי" tone="#FC4C02"
+          right={sv.refreshToken
+            ? <span className="t-num text-[9.5px] font-black shrink-0 rounded-full px-2.5 py-1 truncate" style={{ maxWidth:'110px', background:'rgba(155,232,107,.12)', border:'1px solid rgba(155,232,107,.28)', color:'#9BE86B' }}>מחובר {sv.athlete || ''}</span>
+            : <span className="t-label shrink-0 rounded-full px-2.5 py-1" style={{ fontSize:'8.5px', background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.07)' }}>לא מחובר</span>}/>
+        {stravaUi.msg && (
+          <div className="mb-3 rounded-[14px] px-3 py-2.5 text-[11px]"
+               style={ stravaUi.status === 'error'
+                 ? { background:'rgba(255,107,87,.09)', border:'1px solid rgba(255,107,87,.24)', color:'var(--coral)' }
+                 : { background:'rgba(155,232,107,.09)', border:'1px solid rgba(155,232,107,.24)', color:'#9BE86B' } }>{stravaUi.msg}</div>
+        )}
         {!sv.refreshToken ? (
-          <div className="mt-3 space-y-2">
-            <div className="text-xs text-white/50 leading-relaxed">
+          <div className="space-y-2">
+            <div className="text-[11px] leading-relaxed" style={{ color:'var(--ink-2)' }}>
               חיבור חד־פעמי (2 דקות): צור אפליקציית API אישית בחשבון הסטרבה שלך —{' '}
-              <a className="text-strava underline font-bold" href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>.
+              <a className="font-bold underline" style={{ color:'var(--strava, #FC4C02)' }} href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>.
               <br/>ב־<b>Authorization Callback Domain</b> רשום את הדומיין של האפליקציה (למשל <b dir="ltr">localhost</b> או <b dir="ltr">שלך.github.io</b>), והעתק לכאן:
             </div>
             <input className="inp" dir="ltr" inputMode="numeric" placeholder="Client ID" value={sv.clientId || ''} onChange={e => updStrava({ clientId: e.target.value.trim() })}/>
             <input className="inp" dir="ltr" type="password" placeholder="Client Secret" value={sv.clientSecret || ''} onChange={e => updStrava({ clientSecret: e.target.value.trim() })}/>
             <button onClick={stravaConnect} disabled={!(sv.clientId && sv.clientSecret)}
-                    className="w-full py-3 rounded-2xl bg-strava text-white font-black active:scale-[.98] transition disabled:opacity-30">
-              התחבר ל-Strava →
+                    className="w-full py-3 rounded-[16px] font-black text-sm active:scale-[.98] transition flex items-center justify-center gap-2"
+                    style={ (sv.clientId && sv.clientSecret)
+                      ? { background:'#FC4C02', color:'#fff', boxShadow:'0 6px 20px rgba(252,76,2,.24)' }
+                      : { background:'rgba(255,255,255,.05)', color:'rgba(255,255,255,.28)', border:'1px solid rgba(255,255,255,.08)' } }>
+              התחבר ל-Strava <Icon d={I.chevL} className="w-4 h-4"/>
             </button>
-            <div className="text-[10px] text-white/30">הריצות יימשכו אוטומטית (כולל מרחק, זמן וקצב) בכל פתיחת אפליקציה. ה-Secret נשמר רק אצלך (מכשיר + ג׳יסט פרטי).</div>
+            <div className="t-note mt-1">הריצות יימשכו אוטומטית (כולל מרחק, זמן וקצב) בכל פתיחת אפליקציה. ה-Secret נשמר רק אצלך (מכשיר + ג׳יסט פרטי).</div>
           </div>
         ) : (
-          <div className="mt-3 space-y-2">
-            <div className="text-xs text-white/50">ייבוא אוטומטי רץ בכל פתיחה. אפשר גם ידנית:</div>
+          <div className="space-y-2">
+            <div className="t-note">ייבוא אוטומטי רץ בכל פתיחה. אפשר גם ידנית:</div>
             <div className="flex gap-2">
-              <button onClick={() => stravaImport(false)} className="flex-1 py-2.5 rounded-2xl bg-strava/15 text-strava border border-strava/25 font-bold active:scale-[.98] transition">
-                {stravaUi.status === 'syncing' ? 'מייבא...' : 'ייבא ריצות עכשיו'}
+              <button onClick={() => stravaImport(false)} className="flex-1 py-3 rounded-[16px] font-bold text-sm active:scale-[.98] transition"
+                      style={{ background:'rgba(252,76,2,.14)', border:'1px solid rgba(252,76,2,.28)', color:'#FC4C02' }}>
+                {stravaUi.status === 'syncing' ? 'מייבא…' : 'ייבא ריצות עכשיו'}
               </button>
-              <button onClick={stravaDisconnect} className="px-4 rounded-2xl bg-white/5 border border-white/10 text-white/50 font-bold text-xs active:scale-95 transition">נתק</button>
+              <button onClick={stravaDisconnect} className="px-4 rounded-[16px] font-bold text-xs active:scale-[.98] transition"
+                      style={{ background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.09)', color:'rgba(255,255,255,.5)' }}>נתק</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* gist sync */}
-      <div className="glass rounded-[24px] p-5">
-        <div className="flex items-center justify-between">
-          <div className="font-black italic text-lg flex items-center gap-2">
-            <Icon d={I.refresh} className={'w-5 h-5 text-volt ' + (sync.status === 'syncing' ? 'spin' : '')}/>
-            סנכרון מק ↔ אייפון
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={'w-2.5 h-2.5 rounded-full ' + statusInfo.c}></span>
-            <span className="text-xs text-white/50 font-semibold">{statusInfo.t}</span>
-          </div>
+      {/* ---- iphone install ---- */}
+      <div className="glass rounded-[24px] p-4">
+        <SectionHead icon={I.download} title="התקנה באייפון" sub="אפליקציה עם אייקון משלה"/>
+        <div className="space-y-2">
+          {['פתח את כתובת האפליקציה ב-Safari.', 'לחץ על כפתור השיתוף (הריבוע עם החץ).', 'בחר «הוסף למסך הבית».'].map((t, i) => (
+            <div key={i} className="flex items-start gap-2.5">
+              <span className="w-[18px] h-[18px] rounded-[7px] shrink-0 flex items-center justify-center t-num mt-[1px]"
+                    style={{ fontSize:'9px', background:'rgba(255,255,255,.055)', border:'1px solid rgba(255,255,255,.09)', color:'rgba(255,255,255,.5)' }}>{i + 1}</span>
+              <span className="text-[11px] leading-relaxed" style={{ color:'var(--ink-2)' }}>{t}</span>
+            </div>
+          ))}
         </div>
-        {sync.status === 'error' && <div className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 break-all" dir="ltr">{sync.msg}</div>}
-
-        <div className="mt-4 space-y-2">
-          <label className="lbl">GitHub Personal Access Token (הרשאת gist בלבד)</label>
-          <input className="inp" dir="ltr" type="password" placeholder="ghp_..." value={tok} onChange={e => setTok(e.target.value)}/>
-          <div className="flex gap-2">
-            <button onClick={saveTok} className="flex-1 py-2.5 rounded-2xl bg-volt text-obsidian font-black active:scale-[.98] transition disabled:opacity-30" disabled={!tok.trim()}>
-              {connected ? 'עדכן טוקן' : 'התחבר'}
-            </button>
-            <button onClick={() => syncNow(false)} className="flex-1 py-2.5 rounded-2xl bg-white/5 border border-white/10 font-bold active:scale-[.98] transition disabled:opacity-30" disabled={!connected}>
-              סנכרן עכשיו
-            </button>
-            {connected && (
-              <button onClick={disconnect} className="px-3 rounded-2xl bg-ember/15 text-ember font-bold text-xs active:scale-95 transition">נתק</button>
-            )}
-          </div>
-          {state.settings.gistId && (
-            <div className="text-[10px] text-white/30 pt-1" dir="ltr">Gist: {state.settings.gistId}</div>
-          )}
-        </div>
-        <ol className="mt-3 space-y-1.5 text-white/50 text-xs list-decimal ps-4 leading-relaxed">
-          <li>
-            צור טוקן:{' '}
-            <a className="text-volt underline font-bold" href="https://github.com/settings/tokens/new?scopes=gist&description=ATHLETICS%20Sync" target="_blank" rel="noopener">לחץ כאן</a>{' '}
-            (classic · הרשאת gist כבר מסומנת) → Generate.
-          </li>
-          <li>הדבק כאן ולחץ <b>התחבר</b>.</li>
-          <li>חזור על זה באייפון עם <b>אותו טוקן</b> — הכל מתמזג אוטומטית.</li>
-        </ol>
       </div>
 
-      {/* iphone install */}
-      <div className="glass rounded-[24px] p-5">
-        <div className="font-bold mb-3 text-white/70 text-sm">התקנה באייפון 📱</div>
-        <ol className="space-y-1.5 text-white/50 text-xs list-decimal ps-4 leading-relaxed">
-          <li>פתח את כתובת האפליקציה ב-Safari.</li>
-          <li>לחץ על כפתור השיתוף (הריבוע עם החץ).</li>
-          <li>בחר <b>הוסף למסך הבית</b> — תקבל אייקון ⚡ כמו אפליקציה אמיתית.</li>
-        </ol>
-      </div>
-
-      {/* backup */}
-      <div className="glass rounded-[24px] p-5 space-y-2">
-        <div className="font-bold text-white/70 text-sm mb-1">גיבוי מקומי</div>
+      {/* ---- backup ---- */}
+      <div className="glass rounded-[24px] p-4">
+        <SectionHead icon={I.clipboard} title="גיבוי מקומי" sub="קובץ JSON על המכשיר"/>
         <div className="flex gap-2">
-          <button onClick={doExport} className="flex-1 py-2.5 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm flex items-center justify-center gap-2 active:scale-[.98] transition">
-            <Icon d={I.download} className="w-4 h-4 text-volt"/> ייצוא JSON
+          <button onClick={doExport} className="flex-1 py-3 rounded-[16px] font-bold text-sm flex items-center justify-center gap-2 active:scale-[.98] transition"
+                  style={{ background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.09)' }}>
+            <Icon d={I.download} className="w-4 h-4" style={{ color:'#9BE86B' }}/> ייצוא
           </button>
-          <button onClick={() => fileRef.current && fileRef.current.click()} className="flex-1 py-2.5 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm flex items-center justify-center gap-2 active:scale-[.98] transition">
-            <Icon d={I.upload} className="w-4 h-4 text-ember"/> ייבוא JSON
+          <button onClick={() => fileRef.current && fileRef.current.click()} className="flex-1 py-3 rounded-[16px] font-bold text-sm flex items-center justify-center gap-2 active:scale-[.98] transition"
+                  style={{ background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.09)' }}>
+            <Icon d={I.upload} className="w-4 h-4" style={{ color:'#6FDCF7' }}/> ייבוא
           </button>
           <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={doImport}/>
         </div>
-        <button onClick={doReset} className="w-full py-2 rounded-2xl text-red-400/60 text-xs font-bold active:scale-[.98] transition">איפוס כל הנתונים במכשיר</button>
       </div>
 
-      <div className="text-center text-[10px] text-white/20 pb-2 tracking-[.3em]">ATHLETICS · LEAN BULK ENGINE ⚡</div>
+      {/* ---- danger zone ---- */}
+      <div className="rounded-[24px] p-4" style={{ background:'rgba(255,107,87,.05)', border:'1px solid rgba(255,107,87,.16)' }}>
+        <SectionHead icon={I.trash} title="אזור מסוכן" sub="הפעולה הזו לא הפיכה במכשיר" tone="var(--coral)" className="mb-3"/>
+        <button onClick={doReset} className="w-full py-3 rounded-[16px] font-bold text-sm active:scale-[.98] transition"
+                style={{ background:'rgba(255,107,87,.1)', border:'1px solid rgba(255,107,87,.26)', color:'var(--coral)' }}>
+          איפוס כל הנתונים במכשיר
+        </button>
+        <div className="t-note mt-2.5 text-center">הגיבוי בג׳יסט לא נמחק — אפשר לשחזר משם.</div>
+      </div>
+
+      <div className="text-center t-label pt-1 pb-2" style={{ fontSize:'8.5px', letterSpacing:'.34em' }}>ATHLETICS · LEAN BULK ENGINE</div>
     </div>
   );
 }
