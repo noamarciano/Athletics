@@ -1652,6 +1652,41 @@ function muscleArt(text){
   if (/אירובי|ריצה/.test(s)) return MUSCLE_ART.cardio;
   return MUSCLE_ART.barbell;
 }
+/* meal glyphs — replace the 🌅🥤🥪🍮🌙🥨 emoji in the nutrition cards */
+const MEAL_ART = {
+  sunrise: ['M12 3v2','M5.6 6.6l1.4 1.4','M18.4 6.6L17 8','M3 14h18','M6 18h12','M8 14a4 4 0 0 1 8 0'],
+  shake:   ['M7 4h10l-1 3H8z','M8 7h8l-1 12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z','M9.5 12h5'],
+  sandwich:['M4 8.5l8-4 8 4-8 3.5z','M4 12l8 3.5 8-3.5','M4 15.5L12 19l8-3.5'],
+  pudding: ['M7 9h10l-1 9a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z','M7 9a5 5 0 0 1 10 0','M10 5.5c0-1 2-1 2-2.5'],
+  moon:    ['M12 3.5a8.5 8.5 0 1 0 8.5 8.5A6.6 6.6 0 0 1 12 3.5z'],
+  snack:   ['M5 10.5h14l-1.2 8a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z','M8 10.5V8a4 4 0 0 1 8 0v2.5','M9.5 15h5'],
+  plate:   ['M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z','M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z']
+};
+function mealArt(m){
+  const t = String((m && m.title) || '') + ' ' + String((m && m.icon) || '');
+  if (/בוקר|🌅/.test(t)) return MEAL_ART.sunrise;
+  if (/אימון|שייק|חלבון בשייקר|🥤/.test(t)) return MEAL_ART.shake;
+  if (/ביניים|צהריים|🥪/.test(t)) return MEAL_ART.sandwich;
+  if (/מעדן|🍮/.test(t)) return MEAL_ART.pudding;
+  if (/ערב|🌙/.test(t)) return MEAL_ART.moon;
+  if (/נשנוש|תוספ|🥨/.test(t)) return MEAL_ART.snack;
+  return MEAL_ART.plate;
+}
+function MealGlyph({ meal, size = 42, done }){
+  const c = done ? CHART.train.c : CHART.fuel.c;
+  const g = size * 0.52;
+  return (
+    <div className="rounded-[14px] flex items-center justify-center shrink-0 relative overflow-hidden"
+         style={{ width:size, height:size, background:'linear-gradient(160deg,' + c + '20,' + c + '07)', border:'1px solid ' + c + '38' }}>
+      <span className="absolute inset-0 pointer-events-none" style={{ background:'radial-gradient(circle at 32% 22%,' + c + '2B, transparent 66%)' }}></span>
+      <svg width={g} height={g} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"
+           strokeLinecap="round" strokeLinejoin="round" style={{ position:'relative' }}>
+        {mealArt(meal).map((d, i) => <path key={i} d={d}/>)}
+      </svg>
+    </div>
+  );
+}
+
 /* designed day-glyphs — replace the 🏋️/🌪️/🏃 emoji in workout headers.
    Push = outward drive, Pull = inward draw, Run = motion, Rest = crescent. */
 const DAY_ART = {
@@ -3443,6 +3478,18 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
                 {sel.src === 'off' && <span className="text-volt bg-volt/10 border border-volt/25 rounded-full px-2 py-0.5 font-bold">נתונים מ-Open Food Facts · נשמר אצלך ✓</span>}
               </div>
             )}
+            {sel.per === 'unit' && (
+              <div>
+                <label className="lbl">יחידת מדידה</label>
+                <div className="flex gap-1.5">
+                  <span className="flex-1 py-2 rounded-xl text-xs font-black text-center border"
+                        style={{ background: CHART.train.c + '26', color: CHART.train.c, borderColor: CHART.train.c + '5C' }}>
+                    {sel.unitName || 'יחידה'}
+                  </span>
+                </div>
+                <div className="t-cap mt-1.5" style={{ fontSize:'9.5px' }}>המוצר הזה נמדד ביחידות — הזן כמה יחידות אכלת</div>
+              </div>
+            )}
             {sel.per === '100g' && (
               <div>
                 <label className="lbl">יחידת מדידה</label>
@@ -3574,6 +3621,17 @@ function NutritionTab({ state, week, mutate }){
     (items || []).forEach(it => tgt.items.push(Object.assign({}, it, { id: uid(), eaten: true })));
   });
   /* save a whole meal for 1-tap logging later */
+  const renameMeal = async (mi, m) => {
+    const name = await uiPrompt('השם הזה יעודכן בתפריט הקבוע ובכל הימים הבאים.', m.title, { title:'שם הארוחה', okText:'שמור' });
+    if (name === null || !name.trim()) return;
+    mutate(d => {
+      const pm = (d.mealPlan || []).find(x => x.id === m.id);
+      if (pm) pm.title = name.trim();
+      const dd = (((d.logs[week] || {}).nutri2) || {})[day];
+      const sm = dd && (dd.meals || []).find(x => x.id === m.id);
+      if (sm) sm.title = name.trim();
+    }, 'meals');
+  };
   const saveFav = async mi => {
     const m = viewMeals[mi];
     if (!m || !(m.items || []).length) { uiToast('אין פריטים בארוחה הזו לשמור', 'warn'); return; }
@@ -3614,17 +3672,24 @@ function NutritionTab({ state, week, mutate }){
     : score === 1 ? { t:'התאוששות חלקית 😴', c:'bg-ember/10 text-ember border-ember/25' }
     : { t:'עדכן שינה, חלבון ואימון להערכת ההתאוששות', c:'bg-white/5 text-white/40 border-white/10' };
 
-  const MacroBar = ({ label, val, target, color }) => (
-    <div>
-      <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-        <span className="text-white/50">{label}</span>
-        <span><span className={color}>{val}</span><span className="text-white/30"> / {target} ג׳</span></span>
+  const MacroBar = ({ label, val, target, tone }) => {
+    const over = val > target * 1.15;
+    const c = over ? CHART.over : tone;
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-1.5 gap-2">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{ background:c, boxShadow:'0 0 7px ' + c }}></span>
+            <span className="t-label" style={{ letterSpacing:'.08em' }}>{label}</span>
+          </span>
+          <span className="text-[11px] font-bold t-num shrink-0" style={{ color:c }}>{val}<span className="text-white/25"> / {target} ג׳</span></span>
+        </div>
+        <div className="h-[6px] rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,.07)' }} dir="ltr">
+          <div className="h-full rounded-full" style={{ width: Math.min(100, val / Math.max(1, target) * 100) + '%', background:'linear-gradient(90deg,' + c + '55,' + c + ')', boxShadow:'0 0 10px ' + c + '88', transition:'width .6s var(--ease)' }}/>
+        </div>
       </div>
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden" dir="ltr">
-        <div className={'h-full rounded-full transition-all duration-500 ' + (val > target * 1.15 ? 'bg-ember' : 'bg-gradient-to-r from-volt/60 to-volt')} style={{ width: Math.min(100, val / Math.max(1, target) * 100) + '%' }}/>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const ws = weekNutriStats(state, week, targets);
   const wStatus = ws.days === 0
@@ -3723,7 +3788,7 @@ function NutritionTab({ state, week, mutate }){
                 <div className={'w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition ' + (done ? 'bg-volt border-volt text-obsidian glow-volt' : 'border-white/15 text-transparent')}>
                   <Icon d={I.check} className="w-4 h-4"/>
                 </div>
-                <span className="text-2xl leading-none mt-0.5">{m.icon}</span>
+                <MealGlyph meal={m} size={34}/>
                 <div className="min-w-0">
                   <div className={'font-bold leading-snug ' + (done ? 'text-volt' : '')}>{m.title}</div>
                   <div className={'text-xs leading-relaxed mt-1 ' + (done ? 'text-white/30' : 'text-white/45')}>{m.desc}</div>
@@ -3737,7 +3802,7 @@ function NutritionTab({ state, week, mutate }){
           <div className="glass rounded-[24px] p-4">
             <div className="flex items-center gap-4">
               <div className="relative shrink-0" style={{ width:'110px', height:'110px' }}>
-                <Ring pct={eatK / Math.max(1, kcalTarget)} size={110} stroke={9} color={eatK > kcalTarget ? '#FF5A1F' : '#CCFF00'}/>
+                <Ring pct={eatK / Math.max(1, kcalTarget)} size={110} stroke={9} color={eatK > kcalTarget ? CHART.over : CHART.fuel.c}/>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="font-black text-2xl leading-none">{eatK}</span>
                   <span className="text-[9px] text-white/40 mt-0.5">מתוך {kcalTarget}</span>
@@ -3755,21 +3820,24 @@ function NutritionTab({ state, week, mutate }){
               </div>
             </div>
             <div className="mt-3.5 space-y-2.5">
-              <MacroBar label="חלבון 🥩" val={eatP} target={targets.protein} color="text-volt"/>
-              <MacroBar label="פחמימות 🍚" val={eatC} target={targets.carbs} color="text-white"/>
-              <MacroBar label="שומן 🥑" val={eatF} target={targets.fat} color="text-ember"/>
+              <MacroBar label="חלבון" val={eatP} target={targets.protein} tone={CHART.train.c}/>
+              <MacroBar label="פחמימות" val={eatC} target={targets.carbs} tone={CHART.fuel.c}/>
+              <MacroBar label="שומן" val={eatF} target={targets.fat} tone={CHART.rec.c}/>
             </div>
             <div className="mt-3.5">
               <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-                <span className="text-white/50">מים 💧</span>
-                <span className="text-sky-300">{water} <span className="text-white/30">/ {targets.water} מ"ל</span></span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-[6px] h-[6px] rounded-full" style={{ background: CHART.fuel.c, boxShadow:'0 0 7px ' + CHART.fuel.c }}></span>
+                  <span className="t-label" style={{ letterSpacing:'.08em' }}>מים</span>
+                </span>
+                <span className="text-[11px] font-bold t-num" style={{ color: CHART.fuel.c }}>{water}<span className="text-white/25"> / {targets.water} מ"ל</span></span>
               </div>
-              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mb-2" dir="ltr">
-                <div className="h-full rounded-full bg-gradient-to-r from-sky-700 to-sky-300 transition-all duration-500" style={{ width: Math.min(100, water / Math.max(1, targets.water) * 100) + '%' }}/>
+              <div className="h-[6px] rounded-full overflow-hidden mb-2.5" style={{ background:'rgba(255,255,255,.07)' }} dir="ltr">
+                <div className="h-full rounded-full" style={{ width: Math.min(100, water / Math.max(1, targets.water) * 100) + '%', background:'linear-gradient(90deg,' + CHART.fuel.c + '55,' + CHART.fuel.c + ')', boxShadow:'0 0 10px ' + CHART.fuel.c + '88', transition:'width .6s var(--ease)' }}/>
               </div>
               <div className="flex gap-1.5">
-                <button onClick={() => addWater(250)} className="flex-1 py-1.5 rounded-xl bg-sky-400/10 border border-sky-400/25 text-sky-300 text-xs font-bold active:scale-95 transition">+250 מ"ל</button>
-                <button onClick={() => addWater(500)} className="flex-1 py-1.5 rounded-xl bg-sky-400/10 border border-sky-400/25 text-sky-300 text-xs font-bold active:scale-95 transition">+500 מ"ל</button>
+                <button onClick={() => addWater(250)} className="flex-1 py-2 rounded-[13px] text-xs font-black transition" style={{ background: CHART.fuel.c + '1A', color: CHART.fuel.c, border:'1px solid ' + CHART.fuel.c + '3D' }}>+250 מ"ל</button>
+                <button onClick={() => addWater(500)} className="flex-1 py-2 rounded-[13px] text-xs font-black transition" style={{ background: CHART.fuel.c + '1A', color: CHART.fuel.c, border:'1px solid ' + CHART.fuel.c + '3D' }}>+500 מ"ל</button>
                 <button onClick={() => addWater(-250)} className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-xs font-bold active:scale-95 transition">−250</button>
               </div>
             </div>
@@ -3798,29 +3866,39 @@ function NutritionTab({ state, week, mutate }){
             const allDone = items.length > 0 && items.every(it => it.eaten);
             return (
               <div key={m.id || mi} className={'rounded-[24px] p-4 border transition ' + (allDone ? 'bg-volt/10 border-volt/25' : 'glass border-transparent')}>
-                <div className="flex items-center gap-2.5 mb-2">
-                  <span className="text-2xl">{m.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className={'font-bold ' + (allDone ? 'text-volt' : '')}>{m.title}</div>
-                    <div className="text-[10px] text-white/40">{eaten}/{planned} קק"ל</div>
-                  </div>
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <MealGlyph meal={m} size={42} done={allDone}/>
+                  <button onClick={() => renameMeal(mi, m)} className="flex-1 min-w-0 text-start">
+                    <div className="font-black text-[15px] flex items-center gap-1.5" style={allDone ? { color: CHART.train.c } : {}}>
+                      <span className="truncate">{m.title}</span>
+                      <Icon d={I.pencil} className="w-3 h-3 shrink-0" style={{ opacity:.28 }}/>
+                    </div>
+                    <div className="t-cap mt-0.5" style={{ fontSize:'10px' }}>{eaten}/{planned} קק"ל</div>
+                  </button>
                   {items.length > 0 && (
                     <button onClick={() => saveFav(mi)} title="שמור כמועדף"
-                            className="text-[13px] rounded-full px-2 py-1.5 shrink-0 border border-white/10 bg-white/5 text-white/50 active:scale-90 transition">⭐</button>
+                            className="w-8 h-8 rounded-[11px] glass-2 flex items-center justify-center shrink-0"
+                            style={{ color:'var(--gold)' }}>
+                      <Icon d={I.trophy} className="w-[15px] h-[15px]"/>
+                    </button>
                   )}
                   {items.length > 0 && (
                     <button onClick={() => toggleAllMeal(mi)}
-                            className={'text-[10px] font-black rounded-full px-2.5 py-1.5 shrink-0 border transition active:scale-95 ' + (allDone ? 'bg-volt text-obsidian border-volt glow-volt' : 'bg-white/5 text-white/50 border-white/10')}>
-                      {allDone ? 'הכל ✓' : 'סמן הכל'}
+                            className="text-[10px] font-black rounded-full px-3 py-2 shrink-0 border transition"
+                            style={allDone ? { background: CHART.train.c, color:'#0A0C12', borderColor: CHART.train.c }
+                                           : { background:'rgba(255,255,255,.05)', color:'rgba(255,255,255,.5)', borderColor:'rgba(255,255,255,.10)' }}>
+                      {allDone ? '✓' : 'סמן הכל'}
                     </button>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   {items.length === 0 && <div className="text-center text-white/25 text-xs py-2">ריק — הוסף כאן כל דבר שאכלת מחוץ לתפריט 🍫</div>}
                   {items.map((it, ii) => (
-                    <div key={it.id || ii} className={'flex items-center gap-2 rounded-2xl ps-2 pe-1.5 py-1.5 border transition ' + (it.eaten ? 'bg-volt/10 border-volt/20' : 'bg-black/25 border-white/5')}>
+                    <div key={it.id || ii} className={'flex items-center gap-2 rounded-[15px] ps-2 pe-1.5 py-2 border ' + (it.eaten ? 'border-transparent' : 'glass-2 border-transparent')}
+                         style={it.eaten ? { background:'linear-gradient(160deg,' + CHART.train.c + '1E,' + CHART.train.c + '08)', border:'1px solid ' + CHART.train.c + '33' } : {}}>
                       <button onClick={() => toggleItem(mi, ii)}
-                              className={'w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition active:scale-90 ' + (it.eaten ? 'bg-volt border-volt text-obsidian' : 'border-white/15 text-transparent')}>
+                              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                              style={it.eaten ? { background: CHART.train.c, color:'#0A0C12', boxShadow:'0 0 12px ' + CHART.train.c + '66' } : { border:'2px solid rgba(255,255,255,.16)', color:'transparent' }}>
                         <Icon d={I.check} className="w-3.5 h-3.5"/>
                       </button>
                       <div className="flex-1 min-w-0">
