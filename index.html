@@ -1652,6 +1652,36 @@ function muscleArt(text){
   if (/אירובי|ריצה/.test(s)) return MUSCLE_ART.cardio;
   return MUSCLE_ART.barbell;
 }
+/* run-style glyphs — replace the emoji on the style pills and run cards */
+const RUN_ART = {
+  easy:     ['M6 14h3l2-3 2 6 2-4h3'],
+  recovery: ['M12 4.5c3.2 3 5 5.4 5 8a5 5 0 0 1-10 0c0-2.6 1.8-5 5-8z'],
+  tempo:    ['M4 15l4-5 3.5 3L20 5','M20 5v5','M20 5h-5'],
+  interval: ['M4 17V9','M8.5 17V5','M13 17v-6','M17.5 17V7','M4 20h16'],
+  long:     ['M3 18l5-8 3.5 5L15 9l6 9z','M15 9l-1.6 2.6'],
+  race:     ['M6 3v18','M6 4.5h11l-2.4 3.6L17 12H6z']
+};
+function runArt(id){ return RUN_ART[id] || RUN_ART.easy; }
+function runTone(id){
+  if (id === 'tempo' || id === 'race') return CHART.over;
+  if (id === 'interval') return CHART.train.c;
+  if (id === 'recovery') return CHART.rec.c;
+  return CHART.fuel.c;
+}
+function RunGlyph({ type, size = 40, muted }){
+  const c = muted ? 'rgba(255,255,255,.45)' : runTone(type);
+  const g = size * 0.52;
+  return (
+    <div className="rounded-[13px] flex items-center justify-center shrink-0 relative overflow-hidden"
+         style={{ width:size, height:size, background:'linear-gradient(160deg,' + (muted ? 'rgba(255,255,255,.07)' : c + '20') + ',' + (muted ? 'rgba(255,255,255,.02)' : c + '07') + ')', border:'1px solid ' + (muted ? 'rgba(255,255,255,.09)' : c + '38') }}>
+      <svg width={g} height={g} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.9"
+           strokeLinecap="round" strokeLinejoin="round">
+        {runArt(type).map((d, i) => <path key={i} d={d}/>)}
+      </svg>
+    </div>
+  );
+}
+
 /* meal glyphs — replace the 🌅🥤🥪🍮🌙🥨 emoji in the nutrition cards */
 const MEAL_ART = {
   sunrise: ['M12 3v2','M5.6 6.6l1.4 1.4','M18.4 6.6L17 8','M3 14h18','M6 18h12','M8 14a4 4 0 0 1 8 0'],
@@ -1848,7 +1878,7 @@ function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
         <defs>
           <linearGradient id="gta" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#CCFF00" stopOpacity=".24"/>
-            <stop offset="100%" stopColor="#CCFF00" stopOpacity="0"/>
+            <stop offset="100%" stopColor="#6FDCF7" stopOpacity="0"/>
           </linearGradient>
         </defs>
         {[.15, .5, .85].map(f => {
@@ -1856,22 +1886,22 @@ function TrendChart({ data, fmtA, fmtB, unitA, unitB, tight }){
           return (
             <g key={f}>
               <line x1={L} x2={W - R} y1={y} y2={y} stroke="rgba(255,255,255,.05)"/>
-              <text x={L - 7} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(204,255,0,.45)">{fa(v)}</text>
+              <text x={L - 7} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(111,220,247,.5)">{fa(v)}</text>
             </g>
           );
         })}
         {hasB && [.2, .8].map(f => {
           const v = bmin + (bmax - bmin) * f;
-          return <text key={f} x={W - R + 7} y={Yb(v) + 3} fontSize="9" fill="rgba(255,90,31,.6)">{fb(v)}</text>;
+          return <text key={f} x={W - R + 7} y={Yb(v) + 3} fontSize="9" fill="rgba(155,232,107,.6)">{fb(v)}</text>;
         })}
         {area && <path d={area} fill="url(#gta)"/>}
-        {hasB && data.filter(d => d.b > 0).length > 1 && <polyline points={bPts} fill="none" stroke="#FF5A1F" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" opacity=".85"/>}
-        {data.length > 1 && <polyline points={aPts} fill="none" stroke="#CCFF00" strokeWidth="2.5" strokeLinejoin="round" style={{ filter:'drop-shadow(0 0 6px rgba(204,255,0,.5))' }}/>}
+        {hasB && data.filter(d => d.b > 0).length > 1 && <polyline points={bPts} fill="none" stroke="#9BE86B" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" opacity=".9"/>}
+        {data.length > 1 && <polyline points={aPts} fill="none" stroke="#6FDCF7" strokeWidth="2.5" strokeLinejoin="round" style={{ filter:'drop-shadow(0 0 8px rgba(111,220,247,.55))' }}/>}
         {data.map((d, i) => (
           <g key={i}>
             {sel === i && <line x1={X(i)} x2={X(i)} y1={T} y2={H - B} stroke="rgba(255,255,255,.15)" strokeDasharray="3 3"/>}
-            <circle cx={X(i)} cy={Ya(d.a)} r={sel === i ? 5 : 3.5} fill={sel === i ? '#CCFF00' : '#0B0B0C'} stroke="#CCFF00" strokeWidth="2"/>
-            {hasB && d.b > 0 && <circle cx={X(i)} cy={Yb(d.b)} r={sel === i ? 4 : 3} fill={sel === i ? '#FF5A1F' : '#0B0B0C'} stroke="#FF5A1F" strokeWidth="1.5"/>}
+            <circle cx={X(i)} cy={Ya(d.a)} r={sel === i ? 5 : 3.5} fill={sel === i ? '#6FDCF7' : '#07080C'} stroke="#6FDCF7" strokeWidth="2"/>
+            {hasB && d.b > 0 && <circle cx={X(i)} cy={Yb(d.b)} r={sel === i ? 4 : 3} fill={sel === i ? '#9BE86B' : '#07080C'} stroke="#9BE86B" strokeWidth="1.5"/>}
             <rect x={X(i) - 14} y={T} width="28" height={H - T - B} fill="transparent" onClick={() => setSel(i)} style={{ cursor:'pointer' }}/>
           </g>
         ))}
@@ -1943,9 +1973,10 @@ function StylePills({ value, onPick }){
     <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
       {RUN_STYLES.map(st => (
         <button key={st.id} type="button" onClick={() => onPick(st)}
-                className={'px-3 py-1.5 rounded-full text-xs font-bold border transition active:scale-95 whitespace-nowrap shrink-0 flex items-center gap-1 ' +
-                  (value === st.id ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'bg-white/5 text-white/50 border-white/10')}>
-          <span>{st.emoji}</span>{st.label}
+                style={value === st.id ? { background: runTone(st.id) + '26', color: runTone(st.id), border:'1px solid ' + runTone(st.id) + '5C' } : {}}
+                className={'ps-1.5 pe-3 py-1.5 rounded-full text-xs font-black border transition whitespace-nowrap shrink-0 flex items-center gap-1.5 ' +
+                  (value === st.id ? 'border-transparent' : 'glass-2 text-white/45 border-transparent')}>
+          <RunGlyph type={st.id} size={22} muted={value !== st.id}/>{st.label}
         </button>
       ))}
     </div>
@@ -2791,8 +2822,8 @@ function RunChart({ runs }){
       <svg viewBox={'0 0 ' + W + ' ' + H} className="w-full select-none">
         <defs>
           <linearGradient id="gkm" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#CCFF00" stopOpacity=".42"/>
-            <stop offset="55%" stopColor="#CCFF00" stopOpacity=".14"/>
+            <stop offset="0%" stopColor="#6FDCF7" stopOpacity=".40"/>
+            <stop offset="55%" stopColor="#6FDCF7" stopOpacity=".13"/>
             <stop offset="100%" stopColor="#CCFF00" stopOpacity="0"/>
           </linearGradient>
         </defs>
@@ -2828,13 +2859,13 @@ function RunChart({ runs }){
           const tags = [];
           if (data.length > 1 && bi >= 0) tags.push(
             <g key="pk-km">
-              <circle cx={X(bi)} cy={Ykm(data[bi].km)} r="7" fill="none" stroke="#CCFF00" strokeWidth="1.5" opacity=".55"/>
-              <text x={X(bi)} y={Ykm(data[bi].km) - 12} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#CCFF00">▲{data[bi].km}</text>
+              <circle cx={X(bi)} cy={Ykm(data[bi].km)} r="7" fill="none" stroke="#6FDCF7" strokeWidth="1.5" opacity=".55"/>
+              <text x={X(bi)} y={Ykm(data[bi].km) - 12} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#6FDCF7">▲{data[bi].km}</text>
             </g>);
           if (data.length > 1 && fi >= 0 && fi !== bi) tags.push(
             <g key="pk-pace">
-              <circle cx={X(fi)} cy={Yp(paces2[fi])} r="6" fill="none" stroke="#FF5A1F" strokeWidth="1.5" opacity=".55"/>
-              <text x={X(fi)} y={Yp(paces2[fi]) - 11} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#FF5A1F">⚡{fmtPace(paces2[fi])}</text>
+              <circle cx={X(fi)} cy={Yp(paces2[fi])} r="6" fill="none" stroke="#9BE86B" strokeWidth="1.5" opacity=".55"/>
+              <text x={X(fi)} y={Yp(paces2[fi]) - 11} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#9BE86B">⚡{fmtPace(paces2[fi])}</text>
             </g>);
           return tags;
         })()}
@@ -2851,8 +2882,8 @@ function RunChart({ runs }){
             <div className="text-[10px] text-white/40">{heDate(selRun.date)}</div>
           </div>
           <div className="flex gap-4 text-center shrink-0">
-            <div><div className="font-black text-volt">{selRun.km}</div><div className="text-[9px] text-white/40">ק"מ</div></div>
-            <div><div className="font-black text-ember">{fmtPace(paceOf(selRun))}</div><div className="text-[9px] text-white/40">קצב</div></div>
+            <div><div className="font-black t-num" style={{ color: CHART.fuel.c }}>{selRun.km}</div><div className="t-label" style={{ fontSize:'8px' }}>ק"מ</div></div>
+            <div><div className="font-black t-num" style={{ color: CHART.train.c }}>{fmtPace(paceOf(selRun))}</div><div className="t-label" style={{ fontSize:'8px' }}>קצב</div></div>
             <div><div className="font-black">{fmtDur(selRun.sec)}</div><div className="text-[9px] text-white/40">זמן</div></div>
           </div>
         </div>
@@ -2911,10 +2942,10 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare
     mutate(d => { d.runs = d.runs.filter(x => x.id !== r.id); if (d.deletedRuns.indexOf(r.id) < 0) d.deletedRuns.push(r.id); });
   };
 
-  const Stat = ({ v, l, accent }) => (
-    <div className="glass rounded-2xl py-2.5 text-center">
-      <div className={'font-black text-lg leading-none ' + (accent || '')}>{v}</div>
-      <div className="text-[9px] text-white/40 mt-1">{l}</div>
+  const Stat = ({ v, l, tone }) => (
+    <div className="glass rounded-[18px] py-3 text-center">
+      <div className="t-metric" style={{ fontSize:'19px', color: tone || '#fff' }}>{v}</div>
+      <div className="t-label mt-1.5" style={{ fontSize:'8px' }}>{l}</div>
     </div>
   );
 
@@ -2923,11 +2954,9 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare
     const hasSplits = r.splits && r.splits.length > 0;
     const isOpen = openSplits === r.id;
     return (
-      <div className="glass rounded-2xl p-3" style={{ background:'linear-gradient(135deg, rgba(204,255,0,.05), rgba(15,23,42,.4) 45%)' }}>
+      <div className="glass rounded-[20px] p-3">
         <div className="flex items-center gap-3">
-          <div className={'w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 text-lg border ' + (r.src === 'strava' ? 'bg-strava/15 text-strava border-strava/25' : 'bg-ember/10 text-ember border-ember/20')}>
-            {st ? st.emoji : <Icon d={I.activity} className="w-4 h-4"/>}
-          </div>
+          <RunGlyph type={r.type} size={42}/>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-bold text-sm truncate">{r.title}</span>
@@ -2942,10 +2971,17 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare
               )}
             </div>
           </div>
-          <div className="flex gap-3 text-center shrink-0">
-            <div><div className="font-black text-volt text-sm">{r.km}</div><div className="text-[8px] text-white/40">ק"מ</div></div>
-            <div><div className="font-black text-ember text-sm">{fmtPace(r.sec / Math.max(r.km, .01))}</div><div className="text-[8px] text-white/40">קצב</div></div>
-            <div><div className="font-black text-sm">{fmtDur(r.sec)}</div><div className="text-[8px] text-white/40">זמן</div></div>
+          <div className="flex gap-2.5 text-center shrink-0">
+            {[
+              { v: r.km, l:'ק"מ', c: CHART.fuel.c },
+              { v: fmtPace(r.sec / Math.max(r.km, .01)), l:'קצב', c: CHART.train.c },
+              { v: fmtDur(r.sec), l:'זמן', c:'#fff' }
+            ].map((x, i) => (
+              <div key={i}>
+                <div className="text-[13px] font-black t-num" style={{ color:x.c }}>{x.v}</div>
+                <div className="t-label" style={{ fontSize:'8px' }}>{x.l}</div>
+              </div>
+            ))}
           </div>
           <div className="flex flex-col gap-1 shrink-0">
             <button onClick={() => onShare && onShare(r)} className="w-8 h-7 rounded-lg text-volt/70 bg-volt/10 flex items-center justify-center active:scale-90 transition" title="שתף לסטורי">
@@ -3013,18 +3049,18 @@ function RunsTab({ state, week, mutate, stravaConnected, onOpenSettings, onShare
       </div>
 
       <div className="grid grid-cols-4 gap-2">
-        <Stat v={totKm ? totKm.toFixed(1) : '0'} l={'ק"מ השבוע'} accent="text-volt"/>
+        <Stat v={totKm ? totKm.toFixed(1) : '0'} l={'ק"מ השבוע'} tone={CHART.fuel.c}/>
         <Stat v={weekRuns.length} l="ריצות השבוע"/>
-        <Stat v={fmtPace(avgPace)} l="קצב ממוצע" accent="text-ember"/>
-        <Stat v={fmtPace(bestPace)} l="שיא קצב"/>
+        <Stat v={fmtPace(avgPace)} l="קצב ממוצע" tone={CHART.train.c}/>
+        <Stat v={fmtPace(bestPace)} l="שיא קצב" tone="var(--gold)"/>
       </div>
 
       <div className="glass rounded-[24px] p-4">
         <div className="flex items-center justify-between mb-1">
           <div className="font-black italic">מגמות ביצועים</div>
           <div className="flex gap-3 text-[10px] font-bold">
-            <span className="flex items-center gap-1 text-volt"><span className="w-2.5 h-0.5 bg-volt inline-block rounded-full"></span> מרחק</span>
-            <span className="flex items-center gap-1 text-ember"><span className="w-2.5 h-0.5 bg-ember inline-block rounded-full"></span> קצב</span>
+            <span className="flex items-center gap-1" style={{ color: CHART.fuel.c }}><span className="w-2.5 h-0.5 inline-block rounded-full" style={{ background: CHART.fuel.c }}></span> מרחק</span>
+            <span className="flex items-center gap-1" style={{ color: CHART.train.c }}><span className="w-2.5 h-0.5 inline-block rounded-full" style={{ background: CHART.train.c }}></span> קצב</span>
           </div>
         </div>
         <RunChart runs={state.runs}/>
