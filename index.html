@@ -720,7 +720,7 @@ const CHART = {
   rec:  { c:'#B39CFB', c2:'#8A6FF0' },
   over: '#FF6B57'
 };
-const HYPE = ['אלוף','תותח','מפלצת','אגדה','חיה','אריה','גלדיאטור','טנק','ביסט','בוס','שועל קרבות','ברזל'];
+const HYPE = ['אלוף','אריה','גיבור','לוחם','מלך','קפטן','בוס','תותח','ענק','שיאן','נמר','אגדה','מנצח','כריש'];
 function hypeWord(){ return HYPE[Math.floor(Math.random() * HYPE.length)]; }
 const QUOTES = [
 'הגוף משיג את מה שהמוח מאמין בו.','הסט האחרון הוא זה שבונה אותך.','משמעת היא לבחור את מה שאתה רוצה הכי, על פני מה שאתה רוצה עכשיו.',
@@ -1652,17 +1652,55 @@ function muscleArt(text){
   if (/אירובי|ריצה/.test(s)) return MUSCLE_ART.cardio;
   return MUSCLE_ART.barbell;
 }
-function MuscleBadge({ muscle, size = 40 }){
+/* designed day-glyphs — replace the 🏋️/🌪️/🏃 emoji in workout headers.
+   Push = outward drive, Pull = inward draw, Run = motion, Rest = crescent. */
+const DAY_ART = {
+  /* barbell — press / push day */
+  push: ['M3 9.5v5','M6.5 7v10','M17.5 7v10','M21 9.5v5','M6.5 12h11'],
+  /* pull-up bar with hanging torso — pull day */
+  pull: ['M3 5h18','M8.5 5v3.5','M15.5 5v3.5','M8.5 8.5L12 11.5l3.5-3','M12 11.5V19','M9.5 19h5'],
+  /* runner in motion */
+  run:  ['M14.5 5.6a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z','M8 21l3-5.4 2.7-1.9','M6.5 11.6l3.9-2.4 3.6 1.1 2.4 3','M13.7 13.7L16 21','M3.5 9h3','M3.5 14h2.5'],
+  /* abs grid — core block */
+  core: ['M6.5 4h11v16h-11z','M6.5 9.3h11','M6.5 14.6h11','M12 4v16']
+};
+function dayArt(tpl){
+  const n = String((tpl && tpl.name) || '') + ' ' + String((tpl && tpl.sub) || '');
+  if (tpl && tpl.runDay) return DAY_ART.run;
+  if (/ריצ|אירוב/.test(n)) return DAY_ART.run;
+  if (/push|דחיפ/i.test(n)) return DAY_ART.push;
+  if (/pull|משיכ/i.test(n)) return DAY_ART.pull;
+  if (/בטן|ליבה/.test(n)) return DAY_ART.core;
+  return DAY_ART.push;
+}
+/* day badge: glass tile + accent bloom + the day's symbol */
+function DayGlyph({ tpl, size = 54, tone }){
+  const c = tone || (tpl && tpl.runDay ? CHART.fuel.c : CHART.train.c);
+  const g = size * 0.5;
   return (
-    <div className="rounded-2xl flex items-center justify-center shrink-0 border border-volt/20 bg-volt/5"
-         style={{ width: size, height: size, boxShadow:'0 0 14px rgba(204,255,0,.10) inset' }}>
-      <Icon d={muscleArt(muscle)} className="w-5 h-5 text-volt/85"/>
+    <div className="rounded-[18px] flex items-center justify-center shrink-0 relative overflow-hidden"
+         style={{ width:size, height:size, background:'linear-gradient(160deg, ' + c + '22, ' + c + '08)', border:'1px solid ' + c + '3D' }}>
+      <span className="absolute inset-0 pointer-events-none"
+            style={{ background:'radial-gradient(circle at 32% 22%, ' + c + '30, transparent 64%)' }}></span>
+      <svg width={g} height={g} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.9"
+           strokeLinecap="round" strokeLinejoin="round" style={{ position:'relative' }}>
+        {dayArt(tpl).map((path, i) => <path key={i} d={path}/>)}
+      </svg>
     </div>
   );
 }
-function Icon({ d, className, filled }){
+
+function MuscleBadge({ muscle, size = 40 }){
   return (
-    <svg className={className || 'w-6 h-6'} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'}
+    <div className="rounded-[14px] flex items-center justify-center shrink-0"
+         style={{ width: size, height: size, background:'linear-gradient(160deg,' + CHART.train.c + '1A,' + CHART.train.c + '06)', border:'1px solid ' + CHART.train.c + '33' }}>
+      <Icon d={muscleArt(muscle)} className="" style={{ width: size * 0.5, height: size * 0.5, color: CHART.train.c, opacity:.9 }}/>
+    </div>
+  );
+}
+function Icon({ d, className, filled, style }){
+  return (
+    <svg className={className || 'w-6 h-6'} style={style} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'}
          stroke="currentColor" strokeWidth={filled ? 0 : 2} strokeLinecap="round" strokeLinejoin="round">
       {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p}/>) : <path d={d}/>}
     </svg>
@@ -2067,15 +2105,18 @@ function RestTimer({ trigger }){
 function SetRow({ s, i, prev, onField, onToggle }){
   const ph = f => (prev && prev.sets[i] && prev.sets[i][f] !== '' && prev.sets[i][f] != null) ? String(prev.sets[i][f]) : (f === 'w' ? 'ק"ג' : 'חזרות');
   return (
-    <div className={'flex items-center gap-2 rounded-2xl ps-2 pe-1.5 py-1.5 border transition ' + (s.done ? 'bg-volt/10 border-volt/25' : 'bg-black/25 border-white/5')}>
-      <span className={'w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0 ' + (s.done ? 'bg-volt text-obsidian' : 'bg-white/10 text-white/50')}>{i + 1}</span>
+    <div className={'flex items-center gap-2 rounded-[16px] ps-2 pe-1.5 py-2 border transition ' + (s.done ? 'border-transparent' : 'glass-2 border-transparent')}
+         style={s.done ? { background:'linear-gradient(160deg,' + CHART.train.c + '22,' + CHART.train.c + '0A)', border:'1px solid ' + CHART.train.c + '3D' } : {}}>
+      <span className="w-6 h-6 rounded-[9px] text-[11px] font-black flex items-center justify-center shrink-0 t-num"
+            style={s.done ? { background: CHART.train.c, color:'#0A0C12' } : { background:'rgba(255,255,255,.08)', color:'rgba(255,255,255,.45)' }}>{i + 1}</span>
       <input className="setinp" inputMode="decimal" placeholder={ph('w')} value={s.w}
              onChange={e => onField(i, 'w', e.target.value)}/>
       <span className="text-white/25 text-xs shrink-0">×</span>
       <input className="setinp" inputMode="numeric" placeholder={ph('r')} value={s.r}
              onChange={e => onField(i, 'r', e.target.value)}/>
       <button onClick={() => onToggle(i)}
-              className={'w-9 h-8 rounded-xl flex items-center justify-center transition active:scale-90 shrink-0 ' + (s.done ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 text-white/30')}>
+              className="w-9 h-8 rounded-[12px] flex items-center justify-center shrink-0"
+              style={s.done ? { background: CHART.train.c, color:'#0A0C12', boxShadow:'0 0 16px ' + CHART.train.c + '66' } : { background:'rgba(255,255,255,.06)', color:'rgba(255,255,255,.28)' }}>
         <Icon d={I.check} className="w-4 h-4"/>
       </button>
     </div>
@@ -2180,8 +2221,9 @@ function ExerciseCard({ state, week, tpl, ex, edit, updEx, delEx, setSetField, s
         <div className="flex gap-1.5 mt-2.5 flex-wrap">
           {ex.variants.map(v => (
             <button key={v} onClick={() => setVariant(ex, v)}
-                    className={'px-3 py-1 rounded-full text-[11px] font-bold border transition active:scale-95 ' +
-                      (v === active ? 'bg-volt/15 text-volt border-volt/40 glow-volt' : 'bg-white/5 text-white/40 border-white/10')}>
+                    style={v === active ? { background: CHART.train.c + '26', color: CHART.train.c, border:'1px solid ' + CHART.train.c + '5C' } : {}}
+                    className={'px-3 py-1.5 rounded-full text-[11px] font-black border transition ' +
+                      (v === active ? 'border-transparent' : 'glass-2 text-white/40 border-transparent')}>
               {v}
             </button>
           ))}
@@ -2541,10 +2583,10 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack, onStory }){
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <span className="text-4xl">{tpl.icon}</span>
+            <DayGlyph tpl={tpl} size={58}/>
             <div className="flex-1 min-w-0">
-              <h2 className="text-2xl font-black italic leading-none">{tpl.name}</h2>
-              <div className="text-white/40 text-xs mt-1">{tpl.sub}</div>
+              <h2 className="t-display" style={{ fontSize:'26px' }}>{tpl.name}</h2>
+              <div className="t-cap mt-1.5">{tpl.sub}</div>
             </div>
             {isRunDay && (runDayDone
               ? <span className="text-[10px] font-black text-obsidian bg-volt rounded-full px-2.5 py-1 glow-volt shrink-0">הושלם השבוע ✓</span>
@@ -2554,21 +2596,19 @@ function WorkoutDetail({ state, week, tpl, mutate, onBack, onStory }){
         {!isRunDay && (
           <React.Fragment>
             <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-              <div className="glass-2 rounded-2xl py-2.5">
-                <div className="font-black text-xl text-volt">{prog.done}<span className="text-white/30 text-sm font-bold">/{prog.total}</span></div>
-                <div className="text-[10px] text-white/40 mt-0.5">סטים הושלמו</div>
-              </div>
-              <div className="glass-2 rounded-2xl py-2.5">
-                <div className="font-black text-xl">{ton.toLocaleString()}</div>
-                <div className="text-[10px] text-white/40 mt-0.5">ק"ג נפח שבועי</div>
-              </div>
-              <div className="glass-2 rounded-2xl py-2.5">
-                <div className="font-black text-xl">{tpl.exercises.length}</div>
-                <div className="text-[10px] text-white/40 mt-0.5">תרגילים</div>
-              </div>
+              {[
+                { v: prog.done + '/' + prog.total, l:'סטים', c: CHART.train.c },
+                { v: ton.toLocaleString(), l:'ק"ג נפח', c:'#fff' },
+                { v: tpl.exercises.length, l:'תרגילים', c:'#fff' }
+              ].map((x, i) => (
+                <div key={i} className="glass-2 rounded-[16px] py-3">
+                  <div className="t-metric" style={{ color:x.c, fontSize:'21px' }}>{x.v}</div>
+                  <div className="t-label mt-1.5" style={{ fontSize:'8.5px' }}>{x.l}</div>
+                </div>
+              ))}
             </div>
-            <div className="mt-3 h-1.5 bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-l from-volt/70 to-volt transition-all duration-500" style={{ width:(pct * 100) + '%' }}/>
+            <div className="mt-3 h-[5px] rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,.07)' }} dir="ltr">
+              <div className="h-full rounded-full" style={{ width:(pct * 100) + '%', background:'linear-gradient(90deg,' + CHART.train.c + '55,' + CHART.train.c + ')', boxShadow:'0 0 10px ' + CHART.train.c + '88', transition:'width .6s var(--ease)' }}/>
             </div>
           </React.Fragment>
         )}
@@ -2626,13 +2666,13 @@ function WeekChips({ state, week, onOpen }){
         const pct = p.total ? p.done / p.total : 0;
         return (
           <button key={t.id} onClick={() => onOpen(t.id)} className="glass rounded-2xl ps-2 pe-3 py-2 flex items-center gap-2 shrink-0 active:scale-95 transition">
-            <div className="relative w-[34px] h-[34px]">
-              <Ring pct={pct} size={34} stroke={3} color={pct > 0 ? '#CCFF00' : 'rgba(255,255,255,.15)'}/>
-              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black">{Math.round(pct * 100)}%</span>
+            <div className="relative w-[34px] h-[34px] shrink-0">
+              <Ring pct={pct} size={34} stroke={3} color={pct > 0 ? CHART.train.c : 'rgba(255,255,255,.14)'}/>
+              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black t-num">{Math.round(pct * 100)}%</span>
             </div>
             <div className="text-start">
-              <div className="text-xs font-bold whitespace-nowrap">{t.name}</div>
-              <div className="text-[10px] text-white/40 whitespace-nowrap">{p.done}/{p.total} סטים</div>
+              <div className="text-[12px] font-black whitespace-nowrap">{t.name}</div>
+              <div className="t-cap whitespace-nowrap" style={{ fontSize:'9.5px' }}>{p.done}/{p.total} סטים</div>
             </div>
           </button>
         );
@@ -2661,20 +2701,20 @@ function WorkoutsTab({ state, week, mutate, openTpl, setOpenTpl, onStory }){
         return (
           <button key={t.id} onClick={() => setOpenTpl(t.id)} className="w-full glass rounded-[24px] p-4 text-start active:scale-[.985] transition block">
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-3xl shrink-0">{t.icon}</div>
+              <DayGlyph tpl={t} size={54}/>
               <div className="flex-1 min-w-0">
-                <div className="font-black text-lg italic leading-tight">{t.name}</div>
-                <div className="text-white/40 text-xs mt-0.5">{t.sub} · {t.exercises.length} תרגילים</div>
+                <div className="t-title">{t.name}</div>
+                <div className="t-cap mt-1">{t.sub} · {t.exercises.length} תרגילים</div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {pct >= 1
-                  ? <span className="text-[10px] font-black text-obsidian bg-volt rounded-full px-2.5 py-1 glow-volt">הושלם ✓</span>
-                  : <span className="text-xs font-bold text-white/50">{p.done}/{p.total}</span>}
-                <Icon d={I.chevL} className="w-5 h-5 text-white/25"/>
+                  ? <span className="text-[9.5px] font-black rounded-full px-2.5 py-1.5" style={{ background: CHART.train.c, color:'#0A0C12' }}>הושלם ✓</span>
+                  : <span className="text-[12px] font-black t-num" style={{ color:'rgba(255,255,255,.45)' }}>{p.done}<span className="text-white/25">/{p.total}</span></span>}
+                <Icon d={I.chevL} className="w-4 h-4 text-white/20"/>
               </div>
             </div>
-            <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-l from-volt/70 to-volt transition-all duration-500" style={{ width:(pct * 100) + '%' }}/>
+            <div className="mt-3 h-[5px] rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,.07)' }} dir="ltr">
+              <div className="h-full rounded-full" style={{ width:(pct * 100) + '%', background:'linear-gradient(90deg,' + CHART.train.c + '55,' + CHART.train.c + ')', boxShadow:'0 0 10px ' + CHART.train.c + '88', transition:'width .6s var(--ease)' }}/>
             </div>
           </button>
         );
