@@ -671,7 +671,7 @@ const MEAL_PREP_RECIPES = [
 ];
 const FLEX_MEAL_OPTIONS = [
   { id:'flex_eggs_pita', group:'ארוחה ראשונה', icon:'🍳', name:'פיתה, ביצים וגבינה', desc:'מהיר; אפשר להכין ביצים קשות מראש.', items:[['f_pita_spelt',1],['f_egg',2],['f_egg_white',2],['f_yellow28',1]] },
-  { id:'flex_oats_skyr', group:'ארוחה ראשונה', icon:'🥣', name:'סקיר, שיבולת שועל ובננה', desc:'קערה קרה, בלי בישול.', items:[['f_skyr',1],['f_oats',60],['f_banana',1],['f_honey',1],['f_walnut',2]] },
+  { id:'flex_oats_skyr', group:'ארוחה ראשונה', icon:'🥣', name:'יוגורט חלבון, שיבולת שועל ובננה', desc:'קערה קרה בלי בישול; אפשר להחליף לקוטג׳ או ליוגורט שאתה אוהב.', items:[['f_pro_yogurt',1],['f_oats',60],['f_banana',1],['f_honey',1],['f_walnut',2]] },
   { id:'flex_tuna_pita', group:'ארוחה ראשונה', icon:'🥪', name:'פיתה טונה ומיונז', desc:'אפשר להוסיף מלפפון או עגבנייה.', items:[['f_pita_spelt',1],['f_tuna',1],['f_mayo',1],['f_cucumber',1]] },
   { id:'flex_cottage_bagel', group:'ארוחה ראשונה', icon:'🥯', name:'בייגל וקוטג׳', desc:'לצד ירקות חתוכים.', items:[['f_bagel',1],['f_cottage5',200],['f_cucumber',1]] },
   { id:'flex_biomax_shake', group:'אחרי אימון', icon:'🥤', name:'שייק BioMax וקראטין', desc:'המנה הקבועה שלך; 124 קק״ל ו־25.5 ג׳ חלבון.', items:[['f_biomax_coffee',1],['f_creatine',1]] },
@@ -3767,6 +3767,18 @@ function NutritionTab({ state, week, mutate }){
   /* a template section that a materialised day predates (e.g. the snacks bucket
      added later) is appended on the fly — in plan order, so indexes stay stable */
   const blankSection = m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => Object.assign({}, it, { eaten: false })) });
+  const prepareEditableDay = (entry, d) => {
+    if (!entry.mealPlanVersion) {
+      const hasEatenItems = (entry.meals || []).some(m => (m.items || []).some(it => it.eaten));
+      if (!hasEatenItems && (entry.meals || []).length) {
+        /* Retain the previous plan in the saved day record, but show the new
+           flexible slots instead of stale unchecked template food. */
+        entry.previousMealPlan = clone(entry.meals);
+        entry.meals = planForWeek(d).map(m => ({ id:m.id, icon:m.icon, title:m.title, snack:!!m.snack, items:(m.items||[]).map(it => Object.assign({},it,{id:uid(),eaten:false})) }));
+      }
+      entry.mealPlanVersion = 1;
+    }
+  };
   const planForWeek = src => {
     const plan = clone(src.mealPlan || []);
     const recipeId = (((src.settings || {}).mealPrepByWeek || {})[week]);
@@ -3783,7 +3795,9 @@ function NutritionTab({ state, week, mutate }){
     (state.mealPlan || []).forEach(pm => { if (!out.some(m => m.id === pm.id)) out.push(blankSection(pm)); });
     return out;
   };
-  const viewMeals = mergeSections((d2 && d2.meals) ? d2.meals : planForWeek(state).map(blankSection));
+  const dayHasEatenItems = d2 && (d2.meals || []).some(m => (m.items || []).some(it => it.eaten));
+  const currentPlanMeals = d2 && (d2.mealPlanVersion || dayHasEatenItems) ? d2.meals : planForWeek(state).map(blankSection);
+  const viewMeals = mergeSections(currentPlanMeals);
 
   let eatK = 0, eatP = 0, eatC = 0, eatF = 0;
   viewMeals.forEach(m => (m.items || []).forEach(it => { if (it.eaten) { eatK += numOr0(it.kcal); eatP += numOr0(it.p); eatC += numOr0(it.c); eatF += numOr0(it.f); } }));
@@ -3800,8 +3814,9 @@ function NutritionTab({ state, week, mutate }){
     const n2 = (w2.nutri2 = w2.nutri2 || {});
     if (!n2[day]) n2[day] = {
       meals: planForWeek(d).map(m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) })),
-      water: 0, sleep: ''
+      water: 0, sleep: '', mealPlanVersion:1
     };
+    prepareEditableDay(n2[day], d);
     /* keep the stored day in sync with template sections added after it began */
     n2[day].meals = n2[day].meals || [];
     (d.mealPlan || []).forEach(pm => {
@@ -3817,8 +3832,9 @@ function NutritionTab({ state, week, mutate }){
     const n2 = (w2.nutri2 = w2.nutri2 || {});
     if (!n2[day]) n2[day] = {
       meals:planForWeek(d).map(m => ({ id:m.id, icon:m.icon, title:m.title, snack:!!m.snack, items:(m.items || []).map(it => Object.assign({}, it, { id:uid(), eaten:false })) })),
-      water:0, sleep:''
+      water:0, sleep:'', mealPlanVersion:1
     };
+    prepareEditableDay(n2[day], d);
     const sectionId = ({ 'ארוחה ראשונה':'mp1', 'לפני אימון':'mp2', 'אחרי אימון':'mp3', 'ארוחה קלה':'mp4', 'ארוחת ערב':'mp5' })[option.group] || ('flex_' + option.group.replace(/[^א-ת]/g, ''));
     let section = (n2[day].meals || []).find(m => m.id === sectionId);
     if (!section) {
@@ -3856,6 +3872,7 @@ function NutritionTab({ state, week, mutate }){
 
   const plannedRecipeId = (state.settings.mealPrepByWeek || {})[prepWeek];
   const plannedRecipe = MEAL_PREP_RECIPES.find(r => r.id === plannedRecipeId);
+  const dinnerRecipeForSelectedWeek = MEAL_PREP_RECIPES.find(r => r.id === (state.settings.mealPrepByWeek || {})[week]);
 
   const toggleItem = (mi, ii) => withDay(dd => { const it = (dd.meals[mi] || { items: [] }).items[ii]; if (it) it.eaten = !it.eaten; });
   /* recompute an item from its source food when we know it, otherwise scale the
@@ -4066,7 +4083,7 @@ function NutritionTab({ state, week, mutate }){
 
           <section className="space-y-2">
             <div className="flex items-end justify-between px-1"><div><h2 className="font-black text-lg">מה אוכלים היום?</h2><p className="text-[10px] text-white/40">בחר כרטיס אחד בכל מקטע. לחיצה מחליפה את הבחירה הקודמת באותו מקטע.</p></div><button onClick={()=>setShowQuickMeals(!showQuickMeals)} className="text-[10px] text-volt">{showQuickMeals?'הסתר':'אפשרויות'}</button></div>
-            {showQuickMeals && ['ארוחה ראשונה','לפני אימון','אחרי אימון','ארוחה קלה','ארוחת ערב'].map(group=><div key={group} className="rounded-2xl bg-white/[.025] border border-white/[.06] p-3">
+            {showQuickMeals && ['ארוחה ראשונה','לפני אימון','אחרי אימון','ארוחה קלה','ארוחת ערב'].filter(group=>group!=='ארוחת ערב'||!dinnerRecipeForSelectedWeek).map(group=><div key={group} className="rounded-2xl bg-white/[.025] border border-white/[.06] p-3">
               <div className="text-xs font-black text-white/75 mb-2">{group}{group==='לפני אימון'?' · בחר לפי זמן ועיכול':''}</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {FLEX_MEAL_OPTIONS.filter(o=>o.group===group).map(option=><button key={option.id} onClick={()=>addQuickMeal(option)} className="text-start flex items-center gap-2 rounded-xl bg-black/20 border border-white/[.07] px-3 py-2.5 active:scale-[.99]"><span className="text-lg">{option.icon}</span><span className="flex-1"><span className="block text-xs font-bold">{option.name}</span><span className="block text-[10px] text-white/35">{option.desc}</span></span><span className="text-volt font-black">בחר</span></button>)}
