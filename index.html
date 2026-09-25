@@ -347,6 +347,7 @@ const FOOD_DB = [
   { id:'f_dark_choc',    name:'שוקולד מריר (קובייה)',    per:'unit', unitName:'קובייה',  kcal:32,  p:0.4,  c:2.8, f:2.2 },
   /* --- בשר, עוף ודגים --- */
   { id:'f_chicken_thigh', name:'שוקיים עוף (מבושל)', per:'100g', kcal:209, p:26, c:0, f:11 },
+  { id:'f_chicken_leg_meat', name:'בשר כרעיים/שוק מבושל, ללא עור ועצם', per:'100g', kcal:180, p:27, c:0, f:7.5, source:'אומדן לבשר מבושל ללא עור/עצם; משתנה לפי הנתח — לשקול את הבשר האכיל בלבד' },
   { id:'f_chicken_wings', name:'כנפיים עוף', per:'100g', kcal:266, p:25, c:0, f:18 },
   { id:'f_turkey_breast', name:'חזה הודו', per:'100g', kcal:135, p:29, c:0, f:1.7 },
   { id:'f_turkey_ground', name:'הודו טחון רזה', per:'100g', kcal:150, p:28, c:0, f:4 },
@@ -355,6 +356,7 @@ const FOOD_DB = [
   { id:'f_entrecote', name:'אנטריקוט', per:'100g', kcal:250, p:26, c:0, f:16 },
   { id:'f_sinta', name:'סינטה', per:'100g', kcal:200, p:28, c:0, f:9.5 },
   { id:'f_beef_fillet', name:'פילה בקר', per:'100g', kcal:190, p:28, c:0, f:8 },
+  { id:'f_beef_chuck_cooked', name:'כתף בקר מבושלת (אומדן)', per:'100g', kcal:220, p:29, c:0, f:10, source:'אומדן לכתף בקר מבושלת; אחוז השומן והנוזלים משתנים בין נתחים — תווית האריזה קובעת' },
   { id:'f_beef20', name:'בשר טחון 20%', per:'100g', kcal:254, p:17, c:0, f:20 },
   { id:'f_lamb', name:'טלה', per:'100g', kcal:282, p:25, c:0, f:20 },
   { id:'f_kebab', name:'קבב (יחידה)', per:'unit', unitName:'יחידה', kcal:250, p:14, c:3, f:20 },
@@ -477,6 +479,7 @@ const FOOD_DB = [
   { id:'f_kiwi', name:'קיווי', per:'unit', unitName:'יחידה', kcal:42, p:0.8, c:10, f:0.4 },
   { id:'f_strawberry', name:'תות שדה', per:'100g', kcal:32, p:0.7, c:7.7, f:0.3 },
   { id:'f_blueberry', name:'אוכמניות', per:'100g', kcal:57, p:0.7, c:14.5, f:0.3 },
+  { id:'f_frozen_berries', name:'תערובת תות ופירות יער קפואה (אומדן)', per:'100g', kcal:50, p:1, c:12, f:0.4, source:'אומדן לתערובת לא ממותקת; בדוק תווית אריזה' },
   { id:'f_raspberry', name:'פטל', per:'100g', kcal:52, p:1.2, c:12, f:0.7 },
   { id:'f_pomegranate', name:'גרעיני רימון', per:'100g', kcal:83, p:1.7, c:19, f:1.2 },
   { id:'f_date_medjool', name:"תמר מג'הול", per:'unit', unitName:'תמר', kcal:66, p:0.4, c:18, f:0 },
@@ -644,41 +647,53 @@ function mkPlanItem(foodId, qty){
 /* Coach-built recipe cards. The quantity basis for each ingredient is stated
    in the recipe card and metadata below. */
 const MEAL_PREP_RECIPES = [
-  { id:'prep_mediterranean_chicken', title:'עוף ים־תיכוני, אורז וברוקולי', style:'ים־תיכוני', icon:'🍋',
-    shopping:['1.1 ק״ג חזה עוף נא, ללא עור ועצמות','500 ג׳ אורז יבש','1 ק״ג ברוקולי קפוא או טרי','50 ג׳ שמן זית','לימון אחד, 4 שיני שום, 2 כפיות פפריקה, כפית כמון, מלח ופלפל'],
-    steps:['מערבבים את העוף עם לימון, שום, פפריקה, כמון, מלח ופלפל.','צולים בתנור ב־210°C או צורבים במחבת עד שהעוף מוכן לגמרי.','מבשלים את האורז לפי הוראות האריזה ומחממים את הברוקולי.','מחלקים לחמש קופסאות. מודדים את השמן ומוסיפים בחלוקה שווה.'],
+  { id:'prep_mediterranean_chicken', category:'עוף', title:'חזה עוף לימוני, אורז וברוקולי', style:'ים־תיכוני', icon:'🍋', prepTime:'15 דק׳ הכנה + 25 דק׳ אפייה ובישול', servings:5,
+    shopping:['חזה עוף ללא עור/עצם: 1.1 ק״ג נא','אורז בסמטי/לבן: 500 ג׳ יבש','ברוקולי קפוא: שקית 1 ק״ג','שמן זית: 50 ג׳ (כ־55 מ״ל)','לימון: 1; שום: 4 שיניים; פפריקה מתוקה: 2 כפיות; כמון: 1 כפית; מלח: 1 כפית; פלפל שחור: ½ כפית'],
+    steps:['מחממים תנור ל־210°C. מרפדים תבנית בנייר אפייה.','מערבבים בקערה את העוף עם מיץ לימון, שום כתוש, פפריקה, כמון, מלח, פלפל ו־25 ג׳ שמן. משרים 10 דקות בזמן שהתנור מתחמם.','מסדרים את העוף בשכבה אחת. אופים 18–23 דקות (נתחים עבים עשויים לדרוש עוד 3–5 דקות), עד שמרכז החלק העבה מגיע ל־74°C. מוציאים ונחים 5 דקות.','בינתיים שוטפים 500 ג׳ אורז. שמים בסיר עם 750 מ״ל מים ו־½ כפית מלח. מביאים לרתיחה, מכסים ומבשלים על אש קטנה 15 דקות; מכבים ומשאירים מכוסה 10 דקות.','מערבבים ברוקולי קפוא עם יתרת 25 ג׳ השמן. אופים בתבנית נפרדת 15–18 דקות ב־210°C, מערבבים פעם אחת באמצע.','מחלקים ל־5 קופסאות: כ־170 ג׳ חזה עוף מבושל, 280 ג׳ אורז מבושל ו־200 ג׳ ברוקולי בכל קופסה. הסלט לא כלול ואינו נחוץ למנה.'],
     items:[['f_chicken',170],['f_rice',280],['f_broccoli',200],['f_olive_100',10]] },
-  { id:'prep_sweet_soy_chicken', title:'עוף סויה־דבש, אורז וירקות', style:'אסייתי מתקתק', icon:'🥢',
-    shopping:['1.1 ק״ג חזה עוף נא, ללא עור ועצמות','500 ג׳ אורז יבש','1 ק״ג ברוקולי/לקט ירקות מוקפץ','75 מ״ל רוטב סויה, 75 ג׳ דבש, 4 שיני שום ו־10 ג׳ ג׳ינג׳ר','25 ג׳ שמן זית או שמן ניטרלי'],
-    steps:['חותכים את העוף לקוביות וצורבים במחבת עם מעט שמן.','מערבבים רוטב סויה, דבש, שום וג׳ינג׳ר; מוסיפים למחבת ומבשלים עד שהרוטב מצפה את העוף.','מבשלים אורז ומקפיצים ירקות קפואים עד שהם חמים ורכים במידה.','מחלקים לחמש קופסאות; את הרוטב והאורז שוקלים/מחלקים שווה.'],
+  { id:'prep_sweet_soy_chicken', category:'עוף', title:'עוף סויה־דבש, אורז וברוקולי', style:'אסייתי מתקתק', icon:'🥢', prepTime:'15 דק׳ הכנה + 25 דק׳ בישול', servings:5,
+    shopping:['חזה עוף ללא עור/עצם: 1.1 ק״ג נא','אורז: 500 ג׳ יבש','ברוקולי או לקט מוקפץ קפוא: 1 ק״ג','רוטב סויה: 75 מ״ל (5 כפות)','דבש: 75 ג׳ (כ־3½ כפות)','שמן: 25 ג׳ (כ־2 כפות)','שום: 4 שיניים; ג׳ינג׳ר טרי מגורר: 10 ג׳; מים: 3 כפות'],
+    steps:['שוטפים ומבשלים את האורז: 500 ג׳ אורז + 750 מ״ל מים, רתיחה, מכסה ואש קטנה 15 דקות; מנוחה מכוסה 10 דקות.','חותכים עוף לקוביות של 3 ס״מ. מחממים מחבת רחבה, מוסיפים 15 ג׳ שמן וצורבים ב־2 נגלות 4–5 דקות לכל נגלה, עד שאין ורוד והמרכז מגיע ל־74°C. מעבירים לצלחת.','מערבבים בקערית סויה, דבש, שום, ג׳ינג׳ר ו־3 כפות מים. שופכים למחבת ומבשלים 2 דקות. מחזירים עוף ומערבבים 2–3 דקות עד שהרוטב מסמיך ומצפה אותו.','במחבת נפרדת מחממים את 10 ג׳ השמן הנותרים ומקפיצים ירקות קפואים 7–9 דקות, עד שהם חמים ורכים אך לא מתפרקים.','מחלקים ל־5 קופסאות: 170 ג׳ עוף מבושל, 280 ג׳ אורז מבושל ו־200 ג׳ ירקות לכל מנה. לא צריך סלט בצד; אפשר להוסיף מלפפון טרי אם רוצים.'],
     items:[['f_chicken',170],['f_rice',280],['f_broccoli',200],['f_soy_sauce',1],['f_honey_100',15],['f_olive_100',5]] },
-  { id:'prep_pargit_shawarma', title:'פרגית שווארמה, אורז וסלט', style:'מזרח־תיכוני', icon:'🌯',
-    shopping:['1.2 ק״ג פרגית ללא עצם (אפשר לבקש מהקצב)','500 ג׳ אורז יבש','מלפפון, עגבנייה, בצל וגמבה לסלט יומי','50 ג׳ שמן זית','תבלין שווארמה/פפריקה, כמון, שום ולימון'],
-    steps:['חותכים פרגית ללא עצם לרצועות ומתבלים בשווארמה, פפריקה, כמון, שום, מלח ופלפל.','צולים במחבת חמה עד שהפרגית מוכנה לגמרי; אין צורך להכין קציצות.','מבשלים אורז ומחלקים לחמש קופסאות עם הפרגית.','את הסלט חותכים באותו יום אם רוצים שיהיה פריך; מודדים את שמן הזית בנפרד.'],
-    items:[['f_pargit',180],['f_rice',280],['f_olive_100',10]] },
-  { id:'prep_beef_tomato', title:'בשר טחון ברוטב עגבניות, אורז וקישוא', style:'ים־תיכוני', icon:'🍅',
-    shopping:['1 ק״ג בשר בקר טחון 5% נא (בדוק תווית; 10% ישנה את הערכים)','500 ג׳ אורז יבש','2 קישואים, בצל ו־2 קופסאות עגבניות מרוסקות (כ־800 ג׳)','25 ג׳ שמן זית','פפריקה, שום, אורגנו, מלח ופלפל'],
-    steps:['מטגנים בצל קצוץ במעט שמן עד שמתרכך.','מוסיפים בשר טחון ומפוררים בכף תוך כדי בישול עד שאין חלקים ורודים.','מוסיפים עגבניות, קישוא חתוך ותבלינים; מבשלים 15–20 דקות עד שהרוטב מסמיך.','מבשלים אורז ומחלקים את הרוטב והאורז לחמש קופסאות.'],
-    items:[['f_beef5',200],['f_rice',280],['f_tomato_sauce',160],['f_zucchini',100],['f_olive_100',5]] },
-  { id:'prep_salmon_potato', title:'סלמון, תפוחי אדמה וברוקולי בתנור', style:'דג בתנור', icon:'🐟',
-    shopping:['850 ג׳ סלמון טרי או מופשר','1.75 ק״ג תפוחי אדמה','1 ק״ג ברוקולי','25 ג׳ שמן זית','לימון, שום, פפריקה, מלח ופלפל'],
-    steps:['חותכים תפוחי אדמה לקוביות, מתבלים במעט שמן, מלח ופפריקה ואופים ב־220°C עד שמתרככים ומשחימים.','מוסיפים ברוקולי לתבנית או מכינים בנפרד.','מתבלים סלמון בלימון, שום ומלח ואופים עד שהוא מבושל לטעמך.','מחלקים לחמש קופסאות. אפשר להכין את הסלמון באמצע השבוע אם מעדיפים דג טרי יותר.'],
-    items:[['f_salmon',170],['f_potato',350],['f_broccoli',200],['f_olive_100',5]] },
-  { id:'prep_beef_taco', title:'קערת בקר בסגנון טאקו, אורז ופלפלים', style:'מקסיקני', icon:'🌶️',
-    shopping:['1 ק״ג בשר בקר טחון 5% נא (בדוק תווית)','500 ג׳ אורז יבש','4 פלפלים ובצל גדול','25 ג׳ שמן זית','פפריקה, כמון, שום, צ׳ילי, לימון'],
-    steps:['מטגנים בצל ופלפלים עם מעט שמן עד שמתרככים.','מוסיפים בשר טחון ותבלינים ומפוררים תוך כדי בישול עד שמוכן לגמרי.','מבשלים אורז ומחלקים לחמש קופסאות. מוסיפים סלסה או לימון בהגשה לפי הטעם.','אין במתכון תירס או שעועית; אפשר להוסיף קישוא אם רוצים עוד ירק.'],
-    items:[['f_beef5',200],['f_rice',280],['f_pepper_100',150],['f_onion',0.2],['f_olive_100',5]] },
+  { id:'prep_pargit_shawarma', category:'עוף', title:'פרגית שווארמה, אורז וירקות צרובים', style:'מזרח־תיכוני', icon:'🌯', prepTime:'20 דק׳ הכנה + 20 דק׳ בישול', servings:5,
+    shopping:['פרגית ללא עצם: 1.2 ק״ג נא','אורז: 500 ג׳ יבש','פלפלים: 3 בינוניים (כ־450 ג׳)','בצל: 2 בינוניים','שמן זית: 50 ג׳','תבלין שווארמה: 2 כפות; כמון: 1 כפית; פפריקה: 1 כפית; שום: 3 שיניים; מלח ופלפל'],
+    steps:['מבשלים אורז: שוטפים 500 ג׳, מוסיפים 750 מ״ל מים ו־½ כפית מלח, מביאים לרתיחה, מכסים ומבשלים על אש קטנה 15 דקות. מניחים מכוסה 10 דקות.','חותכים פרגית לרצועות ברוחב 2–3 ס״מ. מערבבים עם תבלין שווארמה, כמון, פפריקה, שום, מלח ופלפל.','מחממים מחבת גדולה עם 25 ג׳ שמן. צורבים פרגית בשתי נגלות, 5–7 דקות לכל נגלה, עד שאין חלקים ורודים והחלק העבה מגיע ל־74°C. מעבירים לצלחת.','חותכים פלפלים לרצועות ובצל לחצאי טבעות. מוסיפים למחבת עם 25 ג׳ השמן הנותר ומבשלים 8–10 דקות, מערבבים מדי פעם עד ריכוך והשחמה קלה. מחזירים פרגית ומערבבים דקה.','מחלקים ל־5 קופסאות: 180 ג׳ פרגית מבושלת, 280 ג׳ אורז מבושל, כ־90 ג׳ פלפל ו־⅖ בצל לכל מנה. הירקות הצרובים הם התוספת; סלט נוסף הוא אופציונלי בלבד.'],
+    items:[['f_pargit',180],['f_rice',280],['f_pepper_100',90],['f_onion',0.4],['f_olive_100',10]] },
+  { id:'prep_beef_tomato', category:'בשר', title:'בקר טחון ברוטב עגבניות, קישוא ואורז', style:'ים־תיכוני', icon:'🍅', prepTime:'20 דק׳ הכנה + 25 דק׳ בישול', servings:5,
+    shopping:['בקר טחון 5%: 1 ק״ג נא (אם האריזה 10% ומעלה המאקרו יעלה)','אורז: 500 ג׳ יבש','עגבניות מרוסקות: 2 קופסאות של 400 ג׳','קישואים: 3 קטנים, כ־500 ג׳ יחד','בצל: 1 בינוני','שמן זית: 25 ג׳','רסק עגבניות: 2 כפות; פפריקה: 2 כפיות; אורגנו: 1 כפית; שום: 3 שיניים; מלח ופלפל'],
+    steps:['מבשלים אורז: 500 ג׳ אורז שטוף + 750 מ״ל מים, רתיחה, מכסה ואש קטנה 15 דקות; מנוחה מכוסה 10 דקות.','קוצצים בצל לקוביות. מחממים סיר רחב עם 25 ג׳ שמן ומטגנים 4 דקות על אש בינונית, עד שהבצל מתרכך.','מוסיפים 1 ק״ג בקר טחון. מפוררים בכף עץ ומבשלים 7–9 דקות תוך ערבוב, עד שכל הבשר משנה צבע ואין חלקים ורודים.','מוסיפים שום, רסק, פפריקה ואורגנו ומערבבים דקה. מוסיפים עגבניות מרוסקות, קישואים חתוכים לקוביות 1.5 ס״מ, 150 מ״ל מים, מלח ופלפל.','מביאים לבעבוע עדין ומבשלים ללא מכסה 15–18 דקות; מערבבים מדי פעם עד שהקישוא רך והרוטב סמיך. מחלקים את הסיר ל־5 מנות שוות.','בכל קופסה: מנה חמישית מהרוטב (בערך 350–400 ג׳) ו־280 ג׳ אורז מבושל. המתכון כולל קישוא וירקות ברוטב; אין צורך בסלט נוסף.'],
+    items:[['f_beef5',200],['f_rice',280],['f_tomato_sauce',160],['f_zucchini',100],['f_olive_100',5],['f_onion',0.2]] },
+  { id:'prep_salmon_potato', category:'דגים', title:'סלמון ותפוחי אדמה בתנור עם ברוקולי', style:'דג בתנור', icon:'🐟', prepTime:'20 דק׳ הכנה + 40 דק׳ אפייה', servings:5,
+    shopping:['פילה סלמון ללא עצמות: 850 ג׳ נא','תפוחי אדמה: 1.75 ק״ג (כ־350 ג׳ נא לאדם)','ברוקולי קפוא: 1 ק״ג','שמן זית: 25 ג׳','לימון: 1; שום: 3 שיניים; פפריקה: 2 כפיות; מלח ופלפל'],
+    steps:['מחממים תנור ל־220°C. חותכים תפוחי אדמה לקוביות 2 ס״מ (אין חובה לקלף). מערבבים עם 15 ג׳ שמן, פפריקה, מלח ופלפל.','מפזרים תפוחי אדמה בשכבה אחת בתבנית גדולה. אופים 25 דקות לבד ומערבבים. הם צריכים עוד כ־15 דקות.','מוציאים את התבנית. מוסיפים ברוקולי קפוא מעורבב עם 5 ג׳ שמן לצד תפוחי האדמה (לא מעליהם), ומחזירים לתנור ל־12–15 דקות.','במקביל מניחים סלמון בתבנית נפרדת, מתבלים במיץ לימון, שום, מלח, פלפל ו־5 ג׳ שמן. אופים ב־200°C כ־12–15 דקות לנתח בעובי 2–3 ס״מ, עד שהדג אטום ומתפרק בקלות במזלג. אין לאפות אותו 40 דקות יחד עם תפוחי האדמה.','מחלקים ל־5 קופסאות: 170 ג׳ סלמון נא לפני האפייה (שוקלים לפני), כ־300 ג׳ תפוח אדמה מבושל ו־200 ג׳ ברוקולי. ירקות ועמילן יחד באותה ארוחה — לא צריך סלט, אלא אם בא לך.'],
+    items:[['f_salmon',170],['f_potato',300],['f_broccoli',200],['f_olive_100',5]] },
+  { id:'prep_beef_taco', category:'בשר', title:'קערת בקר, פלפלים ואורז בסגנון טאקו', style:'מקסיקני', icon:'🌶️', prepTime:'15 דק׳ הכנה + 25 דק׳ בישול', servings:5,
+    shopping:['בקר טחון 5%: 1 ק״ג נא','אורז: 500 ג׳ יבש','פלפלים: 4 בינוניים (כ־600 ג׳)','בצל: 1 גדול (כ־200 ג׳)','שמן זית: 25 ג׳','פפריקה: 2 כפיות; כמון: 2 כפיות; שום: 3 שיניים; מיץ לימון: 1 לימון; מלח ופלפל; צ׳ילי אופציונלי'],
+    steps:['מבשלים אורז: 500 ג׳ שטוף עם 750 מ״ל מים, מכוסה על אש נמוכה 15 דקות ועוד 10 דקות מנוחה.','חותכים פלפלים לרצועות ובצל לחצאי טבעות. במחבת גדולה מחממים 10 ג׳ שמן ומבשלים ירקות 8 דקות עד שהם מתרככים. מעבירים לקערה.','מוסיפים למחבת את יתרת 15 ג׳ השמן ואת הבקר. מפוררים ומבשלים 7–9 דקות, עד שאין ורוד.','מוסיפים פפריקה, כמון, שום, מלח, פלפל ו־100 מ״ל מים. מבשלים 3 דקות, מחזירים פלפלים ובצל ומערבבים. סוחטים לימון בסוף.','מחלקים ל־5: 200 ג׳ בקר נא (לפני בישול), 280 ג׳ אורז מבושל, כ־120 ג׳ פלפל ו־40 ג׳ בצל לכל קופסה. הירקות כבר בתוך המנה; סלט בצד לא נדרש, אבל אפשר להוסיף סלסה/ירקות טריים לפי הטעם.'],
+    items:[['f_beef5',200],['f_rice',280],['f_pepper_100',120],['f_onion',0.2],['f_olive_100',5]] },
+  { id:'prep_chicken_legs_rice', category:'עוף', title:'כרעיים בתנור עם בצל ואורז', style:'תבנית תנור ביתית', icon:'🍗', prepTime:'20 דק׳ הכנה + 55–70 דק׳ אפייה', servings:5,
+    shopping:['5 כרעיים שלמות (ירך ושוק מחוברות), עם עצם ועור, 350–400 ג׳ לכרעייה','אורז: 500 ג׳ יבש','בצל: 4 בינוניים (כ־600 ג׳)','פלפל אדום: 2 בינוניים','שמן זית: 35 ג׳','פפריקה מתוקה: 2 כפיות; כמון: 1 כפית; שום גבישי: 1 כפית; מלח: 1½ כפית; פלפל שחור: ½ כפית; מים: 150 מ״ל לתבנית'],
+    steps:['מחממים תנור ל־200°C, חום עליון־תחתון. משתמשים בתבנית עמוקה גדולה.','פורסים בצל לחצאי טבעות ופלפל לרצועות. מערבבים בתבנית עם 15 ג׳ שמן, ½ כפית מלח ופלפל.','מנגבים את העוף. מערבבים פפריקה, כמון, שום גבישי, יתרת המלח והפלפל עם 20 ג׳ שמן. מורחים על העוף מכל הצדדים ומניחים על הירקות כשהעור כלפי מעלה. יוצקים 150 מ״ל מים לפינת התבנית, לא על העור.','מכסים היטב בנייר אפייה ומעליו נייר כסף. אופים 40 דקות. מסירים כיסוי ואופים עוד 15–25 דקות עד שהעור שחום והחלק העבה מגיע ל־74°C; כרעיים גדולות עשויות לדרוש 70 דקות סך הכול.','בזמן שהעוף בתנור מכינים אורז בנפרד: שוטפים 500 ג׳ אורז, מוסיפים 750 מ״ל מים ו־½ כפית מלח, מביאים לרתיחה, מכסים ומבשלים 15 דקות על אש נמוכה. מכבים ומשאירים מכוסה 10 דקות.','מוציאים את העוף ונחים 10 דקות. מסירים עור ועצמות ושוקלים את הבשר האכיל; מחלקים ל־5 מנות של כ־180 ג׳ בשר מבושל. מוסיפים לכל קופסה 280 ג׳ אורז מבושל וחמישית מהבצל והפלפל. לא צריך סלט נוסף.'],
+    items:[['f_chicken_leg_meat',180],['f_rice',280],['f_onion',0.8],['f_pepper_100',60],['f_olive_100',7]] },
+  { id:'prep_beef_braise', category:'בשר', title:'כתף בקר בבישול ארוך עם תפוחי אדמה וגזר', style:'תבשיל תנור · הופ, מכינים ושוכחים', icon:'🥘', prepTime:'20 דק׳ הכנה + 3½–4 שעות בתנור', servings:5,
+    shopping:['כתף בקר או צלי כתף, חתיכה אחת: 1.25 ק״ג נא, בלי עצם','תפוחי אדמה: 1.25 ק״ג','גזר: 500 ג׳ (כ־5 בינוניים)','בצל: 2 בינוניים','שום: 6 שיניים','ציר בקר או מים: 500 מ״ל','שמן זית: 20 ג׳','רסק עגבניות: 2 כפות; פפריקה מתוקה: 2 כפיות; כמון: 1 כפית; מלח: 1½ כפית; פלפל שחור: ½ כפית; עלי דפנה: 2'],
+    steps:['מחממים תנור ל־160°C, חום עליון־תחתון. משתמשים בסיר כבד עם מכסה שמתאים לתנור (או תבנית עמוקה ואטימה היטב).','חותכים בצל לרבעים וגזר למקטעים באורך 4 ס״מ. מקלפים תפוחי אדמה וחותכים לקוביות גדולות של 4 ס״מ.','מייבשים את הבשר. מחממים את השמן בסיר על הכיריים וצורבים את הנתח 3–4 דקות מכל צד. אם הסיר אינו מתאים לכיריים, מדלגים על הצריבה ומכניסים לתבנית.','מוציאים לרגע את הבשר, מוסיפים בצל ורסק ומערבבים דקה. מוסיפים ציר/מים, שום, פפריקה, כמון, מלח, פלפל ועלי דפנה. מחזירים את הבשר ומסדרים סביבו את הגזר ותפוחי האדמה; הנוזל אמור להגיע בערך עד חצי גובה הבשר.','מכסים היטב. אופים 3 שעות, ואז בודקים במזלג. אם הבשר עדיין אינו נפרד בקלות, ממשיכים עוד 30–60 דקות. התבשיל מוכן כשהבשר רך מאוד ותפוחי האדמה רכים אך שומרים צורה.','מוציאים את הבשר לקרש ונחים 10 דקות. פורסים נגד כיוון הסיבים. מחלקים בשר ותוספות ל־5 קופסאות שוות, כ־200 ג׳ בשר מבושל למנה לפי התשואה. הארוחה כוללת גזר ותפוח אדמה, אין חובה לסלט.'],
+    items:[['f_beef_chuck_cooked',200],['f_potato',250],['f_carrot',1],['f_onion',0.4],['f_olive_100',4]] },
+  { id:'prep_tilapia_tray', category:'דגים', title:'אמנון לימוני בתנור עם אורז וברוקולי', style:'קליל ומהיר', icon:'🐟', prepTime:'15 דק׳ הכנה + 20 דק׳ אפייה ובישול', servings:5,
+    shopping:['פילה אמנון ללא עור ועצמות: 1 ק״ג נא','אורז: 500 ג׳ יבש','ברוקולי קפוא: 1 ק״ג','שמן זית: 35 ג׳','לימון: 2; שום: 4 שיניים; פפריקה מתוקה: 1 כפית; מלח ופלפל'],
+    steps:['מבשלים אורז: שוטפים 500 ג׳, מוסיפים 750 מ״ל מים ו־½ כפית מלח. מביאים לרתיחה, מכסים ומבשלים על אש קטנה 15 דקות; מכבים ומשאירים מכוסה 10 דקות.','מחממים תנור ל־200°C. מניחים את הברוקולי הקפוא בתבנית, מערבבים עם 20 ג׳ שמן, מלח ופלפל ואופים 10 דקות.','מייבשים את הדג בנייר סופג. מניחים בתבנית נפרדת, מתבלים במיץ לימון, שום כתוש, פפריקה, יתרת 15 ג׳ השמן, מלח ופלפל.','אופים את האמנון 12–15 דקות, עד שהוא אטום ומתפרק בקלות במזלג (נתחים עבים עשויים להזדקק לעוד 2–3 דקות). בזמן הזה מערבבים את הברוקולי ואופים עוד 5–8 דקות, עד שהוא חם ורך. אפשר להכניס את שתי התבניות יחד; מוציאים כל אחת כשהיא מוכנה.','מחלקים ל־5 קופסאות: 200 ג׳ דג נא לפני אפייה, 280 ג׳ אורז מבושל וכ־200 ג׳ ברוקולי. לא צריך סלט; לימון נוסף להגשה הוא אופציונלי.'],
+    items:[['f_white_fish',200],['f_rice',280],['f_broccoli',200],['f_olive_100',7]] },
 ];
 const FLEX_MEAL_OPTIONS = [
   { id:'flex_eggs_pita', group:'ארוחה ראשונה', icon:'🍳', name:'פיתה, ביצים וגבינה', desc:'מהיר; אפשר להכין ביצים קשות מראש.', items:[['f_pita_spelt',1],['f_egg',2],['f_egg_white',2],['f_yellow28',1]] },
-  { id:'flex_oats_skyr', group:'ארוחה ראשונה', icon:'🥣', name:'יוגורט חלבון, שיבולת שועל ובננה', desc:'קערה קרה בלי בישול; אפשר להחליף לקוטג׳ או ליוגורט שאתה אוהב.', items:[['f_pro_yogurt',1],['f_oats',60],['f_banana',1],['f_honey',1],['f_walnut',2]] },
+  { id:'flex_berry_smoothie', group:'ארוחה ראשונה', icon:'🫐', name:'שייק פירות יער, בננה ושיבולת שועל', desc:'שייק סמיך: חלב, פירות יער קפואים, בננה, שיבולת שועל וכף חמאת בוטנים.', items:[['f_milk3',1],['f_frozen_berries',150],['f_banana',1],['f_oats',40],['f_peanut_butter',1]] },
   { id:'flex_tuna_pita', group:'ארוחה ראשונה', icon:'🥪', name:'פיתה טונה ומיונז', desc:'אפשר להוסיף מלפפון או עגבנייה.', items:[['f_pita_spelt',1],['f_tuna',1],['f_mayo',1],['f_cucumber',1]] },
-  { id:'flex_cottage_bagel', group:'ארוחה ראשונה', icon:'🥯', name:'בייגל וקוטג׳', desc:'לצד ירקות חתוכים.', items:[['f_bagel',1],['f_cottage5',200],['f_cucumber',1]] },
+  { id:'flex_cottage_pita', group:'ארוחה ראשונה', icon:'🥒', name:'פיתה כוסמין עם קוטג׳ וירקות', desc:'150 ג׳ קוטג׳ בתוך הפיתה או בצד, עם מלפפון ועגבנייה.', items:[['f_pita_spelt',1],['f_cottage5',150],['f_cucumber',1],['f_tomato',1]] },
   { id:'flex_biomax_shake', group:'אחרי אימון', icon:'🥤', name:'שייק BioMax וקראטין', desc:'המנה הקבועה שלך; 124 קק״ל ו־25.5 ג׳ חלבון.', items:[['f_biomax_coffee',1],['f_creatine',1]] },
-  { id:'flex_biomax_banana', group:'אחרי אימון', icon:'🍌', name:'שייק BioMax ובננה', desc:'כשמתאים לך גם פרי לצד השייק.', items:[['f_biomax_coffee',1],['f_creatine',1],['f_banana',1]] },
+  { id:'flex_biomax_banana', group:'אחרי אימון', icon:'🍌', name:'שייק BioMax, קריאטין ובננה', desc:'הקריאטין נשאר תמיד; הבננה היא תוספת פחמימה וקלוריות, לא חובה למניעת פירוק שריר.', items:[['f_biomax_coffee',1],['f_creatine',1],['f_banana',1]] },
   { id:'flex_banana_honey', group:'לפני אימון', icon:'🍌', name:'בננה ודבש', desc:'בחירה קלה כשנותרו בערך 30–60 דקות.', items:[['f_banana',1],['f_honey',1]] },
   { id:'flex_pb_pita', group:'לפני אימון', icon:'🥜', name:'פיתה עם דבש וחמאת בוטנים', desc:'משביעה יותר; עדיף כשיש כשעה–שעתיים.', items:[['f_pita_spelt',1],['f_peanut_butter',2],['f_honey',1]] },
-  { id:'flex_skyr_banana', group:'לפני אימון', icon:'🍌', name:'יוגורט חלבון ובננה', desc:'פחמימה וחלבון; מנה נוחה כשיש זמן לעיכול.', items:[['f_skyr',1],['f_banana',1]] },
+  { id:'flex_skyr_banana', group:'לפני אימון', icon:'🍌', name:'יוגורט חלבון ובננה', desc:'פחמימה וחלבון; מנה נוחה כשיש זמן לעיכול.', items:[['f_pro_yogurt',1],['f_banana',1]] },
   { id:'flex_hummus_turkey', group:'לפני אימון', icon:'🥙', name:'פיתה חומוס ופסטרמה', desc:'בלי ביצה; מתאים יותר כשיש זמן לפני האימון.', items:[['f_pita_spelt',1],['f_hummus',50],['f_pastrami',4]] },
   { id:'flex_toast', group:'לפני אימון', icon:'🧀', name:'טוסט גבינה', desc:'אפשר לצרף פרי אם צריך עוד אנרגיה.', items:[['f_toast_cheese',1]] },
   { id:'flex_go_granola', group:'ארוחה קלה', icon:'🍮', name:'GO וגרנולה', desc:'מוסיפים גרנולה לפי הכמות שנשקלה.', items:[['f_go_pudding',1],['f_granola',30]] },
@@ -3756,10 +3771,15 @@ function NutritionTab({ state, week, mutate }){
   const [view, setView] = useState('day');
   const [showRecipeLibrary, setShowRecipeLibrary] = useState(false);
   const [openRecipeId, setOpenRecipeId] = useState(null);
+  const [openRecipeCategory, setOpenRecipeCategory] = useState(null);
   const [showQuickMeals, setShowQuickMeals] = useState(true);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [optionDraft, setOptionDraft] = useState(null);
+  const [optionFoodPicker, setOptionFoodPicker] = useState(false);
   useEffect(() => { setDay(weekStartISO(new Date()) === week ? new Date().getDay() : 0); setPicker(null); }, [week]);
 
   const targets = nutriTargets(state);
+  const mealOptions = (state.settings && state.settings.mealOptions) || FLEX_MEAL_OPTIONS;
   const wk = state.logs[week] || {};
   const d2 = (wk.nutri2 || {})[day];
   const legacyChecks = (wk.nutrition || {})[day] || {};
@@ -3958,6 +3978,31 @@ function NutritionTab({ state, week, mutate }){
     }, 'meals');
   };
   const setTarget = (k, v) => mutate(d => { d.settings.nutri = Object.assign({}, nutriTargets(d), { [k]: numOr0(v) }); }, 'settings');
+  const saveOptionDraft = () => {
+    if (!optionDraft || !optionDraft.name.trim()) return;
+    mutate(d => {
+      const list = clone(d.settings.mealOptions || FLEX_MEAL_OPTIONS);
+      const at = list.findIndex(o => o.id === optionDraft.id);
+      if (at >= 0) list[at] = clone(optionDraft);
+      d.settings.mealOptions = list;
+    }, 'settings');
+    setOptionDraft(null);
+  };
+  const addMealOption = async group => {
+    const name = await uiPrompt('שם האפשרות החדשה בתפריט הקבוע', '', { title:'הוספת ארוחה', okText:'המשך' });
+    if (name === null || !name.trim()) return;
+    const icon = group === 'ארוחה ראשונה' ? '🍽️' : group === 'לפני אימון' ? '⚡' : group === 'אחרי אימון' ? '🥤' : group === 'ארוחה קלה' ? '🥪' : '🌙';
+    mutate(d => {
+      const list = clone(d.settings.mealOptions || FLEX_MEAL_OPTIONS);
+      list.push({ id:'custom_meal_' + uid(), group, icon, name:name.trim(), desc:'', items:[] });
+      d.settings.mealOptions = list;
+    }, 'settings');
+  };
+  const removeMealOption = id => {
+    mutate(d => { d.settings.mealOptions = clone(d.settings.mealOptions || FLEX_MEAL_OPTIONS).filter(o => o.id !== id); }, 'settings');
+    setOptionDraft(null);
+  };
+  const editMealOption = option => { setEditingGroup(option.group); setOptionDraft(clone(option)); };
 
   const trained = burn.total > 0;
   const sleepOk = numOr0(sleep) >= 7;
@@ -4069,26 +4114,36 @@ function NutritionTab({ state, week, mutate }){
             {plannedRecipe ? <div className="rounded-xl bg-volt/10 border border-volt/20 p-3 text-xs"><span className="text-white/45">נבחר לשבוע שמתחיל {heDate(prepWeek)}:</span><div className="font-black text-volt mt-1">{plannedRecipe.icon} {plannedRecipe.title}</div></div> : <div className="text-xs text-white/40">עוד לא נבחר מתכון. אפשר גם לדלג ולהרכיב ארוחת ערב שונה בכל יום.</div>}
             <button onClick={()=>setShowRecipeLibrary(!showRecipeLibrary)} className="w-full py-3 rounded-xl bg-volt text-obsidian font-black text-sm">{showRecipeLibrary?'סגור את המתכונים':'בחר מתכון ורשימת קניות'}</button>
             {showRecipeLibrary && <div className="space-y-2">
-              {MEAL_PREP_RECIPES.map(recipe=>{
+              {[['עוף','🍗'],['בשר','🥩'],['דגים','🐟']].map(([category,icon])=><div key={category} className="rounded-2xl border border-white/10 bg-black/15 overflow-hidden">
+                <button onClick={()=>setOpenRecipeCategory(openRecipeCategory===category?null:category)} className="w-full flex items-center gap-3 px-3 py-3 text-start"><span className="text-xl">{icon}</span><span className="flex-1 text-sm font-black">{category}</span><span className="text-[10px] text-white/40">{MEAL_PREP_RECIPES.filter(r=>r.category===category).length} מתכונים</span><span className="text-volt">{openRecipeCategory===category?'▲':'＋'}</span></button>
+                {openRecipeCategory===category&&<div className="px-2 pb-2 space-y-2">{MEAL_PREP_RECIPES.filter(r=>r.category===category).map(recipe=>{
                 const total=recipe.items.reduce((a,[fid,qty])=>{const f=FOOD_DB.find(x=>x.id===fid);if(!f)return a;const m=calcMacros(f,qty);return {k:a.k+m.kcal,p:a.p+m.p};},{k:0,p:0});
                 const open=openRecipeId===recipe.id;
                 return <div key={recipe.id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <button onClick={()=>setOpenRecipeId(open?null:recipe.id)} className="w-full text-start flex items-center gap-2"><span className="text-xl">{recipe.icon}</span><span className="flex-1"><span className="block text-sm font-bold">{recipe.title}</span><span className="text-[10px] text-white/40">{recipe.style} · כ־{Math.round(total.k)} קק״ל · {Math.round(total.p)} ג׳ חלבון למנה</span></span><span className="text-volt text-xs">{open?'▲':'פרטים'}</span></button>
-                  {open && <div className="border-t border-white/10 mt-2 pt-2 space-y-2"><div className="text-xs font-black">קניות ל־5 מנות</div><ul className="list-disc pe-5 text-[11px] text-white/55">{recipe.shopping.map((x,i)=><li key={i}>{x}</li>)}</ul><div className="text-xs font-black">הכנה</div><ol className="list-decimal pe-5 text-[11px] text-white/55">{recipe.steps.map((x,i)=><li key={i}>{x}</li>)}</ol><div className="text-[10px] text-white/35">משקלי המאקרו: חזה עוף ופרגית מבושלים; בקר טחון וסלמון נאים; אורז ותפוח אדמה מבושלים. כמויות בקנייה לפני הכנה (אורז יבש). הערכים אומדן — תווית האריזה עדיפה.</div><button onClick={()=>{applyPrepRecipe(recipe);setShowRecipeLibrary(false);setOpenRecipeId(null);}} className="w-full py-2.5 rounded-xl bg-volt/15 border border-volt/30 text-volt font-black">בחר את המנה לשבוע</button></div>}
+                  <button onClick={()=>setOpenRecipeId(open?null:recipe.id)} className="w-full text-start flex items-center gap-2"><span className="text-xl">{recipe.icon}</span><span className="flex-1"><span className="block text-sm font-bold">{recipe.title}</span><span className="text-[10px] text-white/40">{recipe.style} · {recipe.prepTime} · כ־{Math.round(total.k)} קק״ל · {Math.round(total.p)} ג׳ חלבון למנה</span></span><span className="text-volt text-xs">{open?'▲':'פרטים'}</span></button>
+                  {open && <div className="border-t border-white/10 mt-2 pt-2 space-y-2"><div className="text-xs font-black">רשימת קניות מדויקת ל־5 קופסאות</div><ul className="list-disc pe-5 text-[11px] text-white/55 space-y-1">{recipe.shopping.map((x,i)=><li key={i}>{x}</li>)}</ul><div className="text-xs font-black">הכנה לפי הסדר</div><ol className="list-decimal pe-5 text-[11px] text-white/55 space-y-1">{recipe.steps.map((x,i)=><li key={i}>{x}</li>)}</ol><div className="text-[10px] text-white/35">משקל העוף במנה הוא לאחר בישול וללא עצם (בכרעיים גם ללא עור); בקר וסלמון נמדדים נאים. אורז ותפוח אדמה נמדדים מבושלים. הקניות נמדדות לפני בישול, ואורז נשקל יבש. ערכים הם אומדן; אם האריזה שונה, תווית המוצר קובעת.</div><button onClick={()=>{applyPrepRecipe(recipe);setShowRecipeLibrary(false);setOpenRecipeId(null);}} className="w-full py-2.5 rounded-xl bg-volt/15 border border-volt/30 text-volt font-black">בחר את המנה לשבוע</button></div>}
                 </div>;
-              })}
-              <div className="text-[10px] text-white/35">מקררים מנות קרובות ומקפיאים מראש את מנת חמישי. מפשירים במקרר בלילה שלפני.</div>
+              })}</div>}
+              </div>)}
+              <div className="rounded-xl bg-sky-300/[.06] border border-sky-200/10 p-3 text-[10px] leading-relaxed text-white/50">בטיחות ושמירה: מצננים ומכניסים למקרר בתוך שעתיים. מנות לימים שמעבר ל־3–4 ימים מקפיאים ביום ההכנה ומפשירים במקרר לילה לפני; מחממים עד שהמנה חמה ומהבילה לכל אורכה. את האורז אפשר לבשל פעמיים בשבוע לפי הנוחות.</div>
             </div>}
           </section>
 
           <section className="space-y-2">
             <div className="flex items-end justify-between px-1"><div><h2 className="font-black text-lg">מה אוכלים היום?</h2><p className="text-[10px] text-white/40">בחר כרטיס אחד בכל מקטע. לחיצה מחליפה את הבחירה הקודמת באותו מקטע.</p></div><button onClick={()=>setShowQuickMeals(!showQuickMeals)} className="text-[10px] text-volt">{showQuickMeals?'הסתר':'אפשרויות'}</button></div>
-            {showQuickMeals && ['ארוחה ראשונה','לפני אימון','אחרי אימון','ארוחה קלה','ארוחת ערב'].filter(group=>group!=='ארוחת ערב'||!dinnerRecipeForSelectedWeek).map(group=><div key={group} className="rounded-2xl bg-white/[.025] border border-white/[.06] p-3">
-              <div className="text-xs font-black text-white/75 mb-2">{group}{group==='לפני אימון'?' · בחר לפי זמן ועיכול':''}</div>
+            {showQuickMeals && ['ארוחה ראשונה','לפני אימון','אחרי אימון','ארוחה קלה','ארוחת ערב'].map(group=><div key={group} className="rounded-2xl bg-white/[.025] border border-white/[.06] p-3">
+              <div className="flex items-center justify-between mb-2"><div className="text-xs font-black text-white/75">{group}{group==='לפני אימון'?' · בחר לפי זמן ועיכול':''}</div><button onClick={()=>{setEditingGroup(editingGroup===group?null:group);setOptionDraft(null);}} className="text-[10px] text-volt">עריכת תפריט קבוע</button></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {FLEX_MEAL_OPTIONS.filter(o=>o.group===group).map(option=><button key={option.id} onClick={()=>addQuickMeal(option)} className="text-start flex items-center gap-2 rounded-xl bg-black/20 border border-white/[.07] px-3 py-2.5 active:scale-[.99]"><span className="text-lg">{option.icon}</span><span className="flex-1"><span className="block text-xs font-bold">{option.name}</span><span className="block text-[10px] text-white/35">{option.desc}</span></span><span className="text-volt font-black">בחר</span></button>)}
+                {mealOptions.filter(o=>o.group===group&&(group!=='ארוחת ערב'||!dinnerRecipeForSelectedWeek)).map(option=><div key={option.id} className="flex gap-1.5"><button onClick={()=>addQuickMeal(option)} className="flex-1 text-start flex items-center gap-2 rounded-xl bg-black/20 border border-white/[.07] px-3 py-2.5 active:scale-[.99]"><span className="text-lg">{option.icon}</span><span className="flex-1"><span className="block text-xs font-bold">{option.name}</span><span className="block text-[10px] text-white/35">{option.desc}</span></span><span className="text-volt font-black">בחר</span></button><button onClick={()=>editMealOption(option)} title="עריכת האפשרות הקבועה" className="rounded-xl px-2.5 bg-white/[.04] border border-white/[.07] text-white/45">✎</button></div>)}
               </div>
-              {group==='ארוחת ערב'&&<div className="text-[10px] text-white/35 mt-2">בחירה כאן היא רק ליום הזה, ומשאירה את בחירת ההכנה השבועית ללא שינוי.</div>}
+              {editingGroup===group&&<div className="mt-3 rounded-xl bg-volt/[.04] border border-volt/15 p-3 space-y-2"><div className="text-[10px] text-volt/80">העריכה כאן קבועה ונשמרת בסנכרון לכל המכשירים. שינויים ביומן למטה נוגעים ליום הזה בלבד.</div>
+                {optionDraft&&optionDraft.group===group&&<div className="space-y-2"><input className="inp text-sm font-bold" value={optionDraft.name} onChange={e=>setOptionDraft(Object.assign({},optionDraft,{name:e.target.value}))} placeholder="שם המנה"/><input className="inp text-xs" value={optionDraft.desc||''} onChange={e=>setOptionDraft(Object.assign({},optionDraft,{desc:e.target.value}))} placeholder="תיאור קצר / זמני הכנה"/>
+                  {(optionDraft.items||[]).map((part,pi)=>{const fd=foodCatalog(state).find(f=>f.id===part[0]);return <div key={pi} className="flex items-center gap-2"><span className="flex-1 text-xs">{fd?fd.name:part[0]}</span><input className="inp w-16 text-center text-xs" inputMode="decimal" value={part[1]} onChange={e=>setOptionDraft(Object.assign({},optionDraft,{items:optionDraft.items.map((x,i)=>i===pi?[x[0],numOr0(e.target.value)]:x)}))}/><button onClick={()=>setOptionDraft(Object.assign({},optionDraft,{items:optionDraft.items.filter((_,i)=>i!==pi)}))} className="text-red-300 px-2">הסר</button></div>;})}
+                  <div className="flex gap-2"><button onClick={()=>setOptionFoodPicker(true)} className="flex-1 py-2 rounded-lg bg-white/5 text-xs text-volt">＋ הוסף רכיב</button><button onClick={saveOptionDraft} className="flex-1 py-2 rounded-lg bg-volt text-obsidian text-xs font-black">שמור קבוע</button></div><button onClick={()=>removeMealOption(optionDraft.id)} className="w-full py-2 rounded-lg border border-red-300/15 text-red-200 text-xs">הסר את כל המנה מרשימת הבחירה</button><button onClick={()=>setOptionDraft(null)} className="w-full py-1 text-white/40 text-xs">ביטול</button>
+                </div>}
+                {!optionDraft&&<div className="flex flex-wrap gap-1.5">{mealOptions.filter(o=>o.group===group).map(o=><button key={o.id} onClick={()=>editMealOption(o)} className="px-2.5 py-1.5 rounded-lg bg-white/5 text-[10px] text-white/65">ערוך: {o.name}</button>)}<button onClick={()=>addMealOption(group)} className="px-2.5 py-1.5 rounded-lg bg-volt text-obsidian text-[10px] font-black">＋ הוסף מנה קבועה</button></div>}
+              </div>}
+              {group==='ארוחת ערב'&&<div className="text-[10px] text-white/35 mt-2">{dinnerRecipeForSelectedWeek?'נבחר מתכון להכנה לשבוע הזה. העריכה הקבועה עדיין זמינה; אפשר להוסיף/לערוך מאכלים ביומן של יום מסוים.':'בחירה כאן היא רק ליום הזה, ומשאירה את בחירת ההכנה השבועית ללא שינוי.'}</div>}
             </div>)}
           </section>
 
@@ -4119,6 +4174,7 @@ function NutritionTab({ state, week, mutate }){
       )}
 
       {picker != null && <FoodPicker state={state} mutate={mutate} onClose={()=>setPicker(null)} onPick={item=>{addItemTo(picker,item);setPicker(null);}} onPickMany={items=>{addItemsTo(picker,items);setPicker(null);}}/>}
+      {optionFoodPicker && optionDraft && <FoodPicker state={state} mutate={mutate} onClose={()=>setOptionFoodPicker(false)} onPick={item=>{setOptionDraft(Object.assign({},optionDraft,{items:[...(optionDraft.items||[]),[item.foodId||item.id,numOr0(item.qty)||1]]}));setOptionFoodPicker(false);}}/>}
     </div>
   );
 }
