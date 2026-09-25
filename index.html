@@ -217,7 +217,7 @@ const TOKEN_KEY = 'athletics.gh.token';
 const GIST_FILE = 'athletics-data.json';
 const GIST_DESC = 'ATHLETICS · sync data (auto-managed)';
 const PHOTO_FILE = 'photo.b64.txt';
-const ROUTINE_V = 8;
+const ROUTINE_V = 9;
 const DAY = 86400000;
 const DAYS_HE = ['א','ב','ג','ד','ה','ו','ש'];
 const DAYS_FULL = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'];
@@ -308,6 +308,7 @@ const FOOD_DB = [
   { id:'f_pro_pud',      name:'מעדן חלבון PRO (20 ג׳)',  per:'unit', unitName:'מעדן',    kcal:150, p:20,   c:14,  f:1.8 },
   { id:'f_pro_yogurt',   name:'יוגורט חלבון (24 ג׳)',    per:'unit', unitName:'גביע',    kcal:160, p:24,   c:13,  f:0.5 },
   { id:'f_whey',         name:'אבקת חלבון וואי (סקופ)',  per:'unit', unitName:'סקופ',    kcal:120, p:24,   c:3,   f:1.5 },
+  { id:'f_biomax_coffee',name:'אבקת BioMax קפה (32 ג׳)', per:'unit', unitName:'מנה',     kcal:124, p:25.5, c:2.6, f:0.9, source:'קלוריות וחלבון לפי הנתון שנמסר; פחמימות ושומן אמצע הטווח שנמסר' },
   { id:'f_creatine',     name:'קריאטין 5 ג׳',            per:'unit', unitName:'מנה',     kcal:0,   p:0,    c:0,   f:0 },
   { id:'f_banana',       name:'בננה',                    per:'unit', unitName:'בננה',    kcal:105, p:1.3,  c:27,  f:0.4 },
   { id:'f_apple',        name:'תפוח',                    per:'unit', unitName:'תפוח',    kcal:95,  p:0.5,  c:25,  f:0.3 },
@@ -317,8 +318,8 @@ const FOOD_DB = [
   { id:'f_almonds',      name:'שקדים',                   per:'100g',                     kcal:579, p:21,   c:22,  f:50 },
   { id:'f_chicken',      name:'חזה עוף (מבושל)',         per:'100g',                     kcal:165, p:31,   c:0,   f:3.6 },
   { id:'f_pargit',       name:'פרגית (מבושל)',           per:'100g',                     kcal:190, p:25,   c:0,   f:10 },
-  { id:'f_beef5',        name:'בשר טחון רזה 5%',         per:'100g',                     kcal:140, p:21,   c:0,   f:5.5 },
-  { id:'f_salmon',       name:'סלמון',                   per:'100g',                     kcal:208, p:20,   c:0,   f:13 },
+  { id:'f_beef5',        name:'בשר טחון 5% (נא)',         per:'100g',                     kcal:140, p:21,   c:0,   f:5.5, source:'אומדן למוצר נא — תווית האריזה קובעת' },
+  { id:'f_salmon',       name:'סלמון (נא)',               per:'100g',                     kcal:208, p:20,   c:0,   f:13, source:'אומדן; משתנה לפי מקור ואחוז שומן' },
   { id:'f_white_fish',   name:'דג לבן (אמנון/דניס)',     per:'100g',                     kcal:128, p:26,   c:0,   f:2.6 },
   { id:'f_tuna',         name:'טונה במים (קופסה)',       per:'unit', unitName:'קופסה',   kcal:90,  p:20,   c:0,   f:1 },
   { id:'f_rice',         name:'אורז לבן מבושל',          per:'100g',                     kcal:130, p:2.7,  c:28,  f:0.3 },
@@ -337,6 +338,12 @@ const FOOD_DB = [
   { id:'f_avocado',      name:'אבוקדו (חצי)',            per:'unit', unitName:'חצי',     kcal:120, p:1.5,  c:6,   f:11 },
   { id:'f_tahini',       name:'טחינה גולמית (כף)',       per:'unit', unitName:'כף',      kcal:89,  p:2.6,  c:3.2, f:8 },
   { id:'f_hummus',       name:'חומוס מוכן',              per:'100g',                     kcal:166, p:8,    c:14,  f:9.6 },
+  { id:'f_mayo',         name:'מיונז (כף, כ־15 ג׳)',      per:'unit', unitName:'כף',      kcal:100, p:0.2,  c:0.1, f:11, source:'אומדן — לבדוק מותג' },
+  { id:'f_peanut_butter',name:'חמאת בוטנים (כף, כ־16 ג׳)',per:'unit', unitName:'כף',      kcal:94,  p:3.6,  c:3.2, f:8, source:'אומדן — לבדוק מותג' },
+  { id:'f_olive_100',    name:'שמן זית',                  per:'100g',                     kcal:884, p:0,    c:0,   f:100 },
+  { id:'f_honey_100',    name:'דבש',                      per:'100g',                     kcal:304, p:0.3,  c:82.4,f:0 },
+  { id:'f_tomato_sauce', name:'רוטב עגבניות פשוט',        per:'100g',                     kcal:32,  p:1.5,  c:7,   f:0.4, source:'אומדן — לבדוק תווית' },
+  { id:'f_pepper_100',   name:'פלפל מתוק',                per:'100g',                     kcal:26,  p:1,    c:6,   f:0.3 },
   { id:'f_dark_choc',    name:'שוקולד מריר (קובייה)',    per:'unit', unitName:'קובייה',  kcal:32,  p:0.4,  c:2.8, f:2.2 },
   /* --- בשר, עוף ודגים --- */
   { id:'f_chicken_thigh', name:'שוקיים עוף (מבושל)', per:'100g', kcal:209, p:26, c:0, f:11 },
@@ -634,14 +641,61 @@ function mkPlanItem(foodId, qty){
   const fd = FOOD_DB.find(x => x.id === foodId);
   return Object.assign({ id: foodId + '_' + qty, foodId, name: fd.name, qty: String(qty), per: fd.per, unitName: fd.unitName || 'גרם' }, calcMacros(fd, qty));
 }
+/* Coach-built recipe cards. The quantity basis for each ingredient is stated
+   in the recipe card and metadata below. */
+const MEAL_PREP_RECIPES = [
+  { id:'prep_mediterranean_chicken', title:'עוף ים־תיכוני, אורז וברוקולי', style:'ים־תיכוני', icon:'🍋',
+    shopping:['1.1 ק״ג חזה עוף נא, ללא עור ועצמות','500 ג׳ אורז יבש','1 ק״ג ברוקולי קפוא או טרי','50 ג׳ שמן זית','לימון אחד, 4 שיני שום, 2 כפיות פפריקה, כפית כמון, מלח ופלפל'],
+    steps:['מערבבים את העוף עם לימון, שום, פפריקה, כמון, מלח ופלפל.','צולים בתנור ב־210°C או צורבים במחבת עד שהעוף מוכן לגמרי.','מבשלים את האורז לפי הוראות האריזה ומחממים את הברוקולי.','מחלקים לחמש קופסאות. מודדים את השמן ומוסיפים בחלוקה שווה.'],
+    items:[['f_chicken',170],['f_rice',280],['f_broccoli',200],['f_olive_100',10]] },
+  { id:'prep_sweet_soy_chicken', title:'עוף סויה־דבש, אורז וירקות', style:'אסייתי מתקתק', icon:'🥢',
+    shopping:['1.1 ק״ג חזה עוף נא, ללא עור ועצמות','500 ג׳ אורז יבש','1 ק״ג ברוקולי/לקט ירקות מוקפץ','75 מ״ל רוטב סויה, 75 ג׳ דבש, 4 שיני שום ו־10 ג׳ ג׳ינג׳ר','25 ג׳ שמן זית או שמן ניטרלי'],
+    steps:['חותכים את העוף לקוביות וצורבים במחבת עם מעט שמן.','מערבבים רוטב סויה, דבש, שום וג׳ינג׳ר; מוסיפים למחבת ומבשלים עד שהרוטב מצפה את העוף.','מבשלים אורז ומקפיצים ירקות קפואים עד שהם חמים ורכים במידה.','מחלקים לחמש קופסאות; את הרוטב והאורז שוקלים/מחלקים שווה.'],
+    items:[['f_chicken',170],['f_rice',280],['f_broccoli',200],['f_soy_sauce',1],['f_honey_100',15],['f_olive_100',5]] },
+  { id:'prep_pargit_shawarma', title:'פרגית שווארמה, אורז וסלט', style:'מזרח־תיכוני', icon:'🌯',
+    shopping:['1.2 ק״ג פרגית ללא עצם (אפשר לבקש מהקצב)','500 ג׳ אורז יבש','מלפפון, עגבנייה, בצל וגמבה לסלט יומי','50 ג׳ שמן זית','תבלין שווארמה/פפריקה, כמון, שום ולימון'],
+    steps:['חותכים פרגית ללא עצם לרצועות ומתבלים בשווארמה, פפריקה, כמון, שום, מלח ופלפל.','צולים במחבת חמה עד שהפרגית מוכנה לגמרי; אין צורך להכין קציצות.','מבשלים אורז ומחלקים לחמש קופסאות עם הפרגית.','את הסלט חותכים באותו יום אם רוצים שיהיה פריך; מודדים את שמן הזית בנפרד.'],
+    items:[['f_pargit',180],['f_rice',280],['f_olive_100',10]] },
+  { id:'prep_beef_tomato', title:'בשר טחון ברוטב עגבניות, אורז וקישוא', style:'ים־תיכוני', icon:'🍅',
+    shopping:['1 ק״ג בשר בקר טחון 5% נא (בדוק תווית; 10% ישנה את הערכים)','500 ג׳ אורז יבש','2 קישואים, בצל ו־2 קופסאות עגבניות מרוסקות (כ־800 ג׳)','25 ג׳ שמן זית','פפריקה, שום, אורגנו, מלח ופלפל'],
+    steps:['מטגנים בצל קצוץ במעט שמן עד שמתרכך.','מוסיפים בשר טחון ומפוררים בכף תוך כדי בישול עד שאין חלקים ורודים.','מוסיפים עגבניות, קישוא חתוך ותבלינים; מבשלים 15–20 דקות עד שהרוטב מסמיך.','מבשלים אורז ומחלקים את הרוטב והאורז לחמש קופסאות.'],
+    items:[['f_beef5',200],['f_rice',280],['f_tomato_sauce',160],['f_zucchini',100],['f_olive_100',5]] },
+  { id:'prep_salmon_potato', title:'סלמון, תפוחי אדמה וברוקולי בתנור', style:'דג בתנור', icon:'🐟',
+    shopping:['850 ג׳ סלמון טרי או מופשר','1.75 ק״ג תפוחי אדמה','1 ק״ג ברוקולי','25 ג׳ שמן זית','לימון, שום, פפריקה, מלח ופלפל'],
+    steps:['חותכים תפוחי אדמה לקוביות, מתבלים במעט שמן, מלח ופפריקה ואופים ב־220°C עד שמתרככים ומשחימים.','מוסיפים ברוקולי לתבנית או מכינים בנפרד.','מתבלים סלמון בלימון, שום ומלח ואופים עד שהוא מבושל לטעמך.','מחלקים לחמש קופסאות. אפשר להכין את הסלמון באמצע השבוע אם מעדיפים דג טרי יותר.'],
+    items:[['f_salmon',170],['f_potato',350],['f_broccoli',200],['f_olive_100',5]] },
+  { id:'prep_beef_taco', title:'קערת בקר בסגנון טאקו, אורז ופלפלים', style:'מקסיקני', icon:'🌶️',
+    shopping:['1 ק״ג בשר בקר טחון 5% נא (בדוק תווית)','500 ג׳ אורז יבש','4 פלפלים ובצל גדול','25 ג׳ שמן זית','פפריקה, כמון, שום, צ׳ילי, לימון'],
+    steps:['מטגנים בצל ופלפלים עם מעט שמן עד שמתרככים.','מוסיפים בשר טחון ותבלינים ומפוררים תוך כדי בישול עד שמוכן לגמרי.','מבשלים אורז ומחלקים לחמש קופסאות. מוסיפים סלסה או לימון בהגשה לפי הטעם.','אין במתכון תירס או שעועית; אפשר להוסיף קישוא אם רוצים עוד ירק.'],
+    items:[['f_beef5',200],['f_rice',280],['f_pepper_100',150],['f_onion',0.2],['f_olive_100',5]] },
+];
+const FLEX_MEAL_OPTIONS = [
+  { id:'flex_eggs_pita', group:'ארוחה ראשונה', icon:'🍳', name:'פיתה, ביצים וגבינה', desc:'מהיר; אפשר להכין ביצים קשות מראש.', items:[['f_pita_spelt',1],['f_egg',2],['f_egg_white',2],['f_yellow28',1]] },
+  { id:'flex_oats_skyr', group:'ארוחה ראשונה', icon:'🥣', name:'סקיר, שיבולת שועל ובננה', desc:'קערה קרה, בלי בישול.', items:[['f_skyr',1],['f_oats',60],['f_banana',1],['f_honey',1],['f_walnut',2]] },
+  { id:'flex_tuna_pita', group:'ארוחה ראשונה', icon:'🥪', name:'פיתה טונה ומיונז', desc:'אפשר להוסיף מלפפון או עגבנייה.', items:[['f_pita_spelt',1],['f_tuna',1],['f_mayo',1],['f_cucumber',1]] },
+  { id:'flex_cottage_bagel', group:'ארוחה ראשונה', icon:'🥯', name:'בייגל וקוטג׳', desc:'לצד ירקות חתוכים.', items:[['f_bagel',1],['f_cottage5',200],['f_cucumber',1]] },
+  { id:'flex_biomax_shake', group:'אחרי אימון', icon:'🥤', name:'שייק BioMax וקראטין', desc:'המנה הקבועה שלך; 124 קק״ל ו־25.5 ג׳ חלבון.', items:[['f_biomax_coffee',1],['f_creatine',1]] },
+  { id:'flex_biomax_banana', group:'אחרי אימון', icon:'🍌', name:'שייק BioMax ובננה', desc:'כשמתאים לך גם פרי לצד השייק.', items:[['f_biomax_coffee',1],['f_creatine',1],['f_banana',1]] },
+  { id:'flex_banana_honey', group:'לפני אימון', icon:'🍌', name:'בננה ודבש', desc:'בחירה קלה כשנותרו בערך 30–60 דקות.', items:[['f_banana',1],['f_honey',1]] },
+  { id:'flex_pb_pita', group:'לפני אימון', icon:'🥜', name:'פיתה עם דבש וחמאת בוטנים', desc:'משביעה יותר; עדיף כשיש כשעה–שעתיים.', items:[['f_pita_spelt',1],['f_peanut_butter',2],['f_honey',1]] },
+  { id:'flex_skyr_banana', group:'לפני אימון', icon:'🍌', name:'יוגורט חלבון ובננה', desc:'פחמימה וחלבון; מנה נוחה כשיש זמן לעיכול.', items:[['f_skyr',1],['f_banana',1]] },
+  { id:'flex_hummus_turkey', group:'לפני אימון', icon:'🥙', name:'פיתה חומוס ופסטרמה', desc:'בלי ביצה; מתאים יותר כשיש זמן לפני האימון.', items:[['f_pita_spelt',1],['f_hummus',50],['f_pastrami',4]] },
+  { id:'flex_toast', group:'לפני אימון', icon:'🧀', name:'טוסט גבינה', desc:'אפשר לצרף פרי אם צריך עוד אנרגיה.', items:[['f_toast_cheese',1]] },
+  { id:'flex_go_granola', group:'ארוחה קלה', icon:'🍮', name:'GO וגרנולה', desc:'מוסיפים גרנולה לפי הכמות שנשקלה.', items:[['f_go_pudding',1],['f_granola',30]] },
+  { id:'flex_cottage_crackers', group:'ארוחה קלה', icon:'🥒', name:'קוטג׳, קרקרים וירקות', desc:'קל לקחת לעבודה; אפשר להכין ירקות מראש.', items:[['f_cottage5',200],['f_cracker',4],['f_cucumber',1],['f_cherry',100]] },
+  { id:'flex_dinner_chicken', group:'ארוחת ערב', icon:'🍗', name:'חזה עוף, אורז וברוקולי', desc:'מנה מהירה שאפשר להכין באותו יום.', items:[['f_chicken',180],['f_rice',280],['f_broccoli',200],['f_olive_tsp',2]] },
+  { id:'flex_dinner_beef', group:'ארוחת ערב', icon:'🍅', name:'בקר טחון ברוטב ואורז', desc:'בקר נא 200 ג׳, אורז מבושל 280 ג׳ ורוטב עגבניות.', items:[['f_beef5',200],['f_rice',280],['f_tomato_sauce',160],['f_zucchini',100]] },
+  { id:'flex_dinner_tuna', group:'ארוחת ערב', icon:'🐟', name:'טונה, אורז וסלט', desc:'אפשרות זריזה כשלא הכנת מראש.', items:[['f_tuna',1],['f_rice',300],['f_salad',1],['f_olive_tsp',2]] },
+  { id:'flex_dinner_salmon', group:'ארוחת ערב', icon:'🐠', name:'סלמון, תפוח אדמה וברוקולי', desc:'סלמון נא 170 ג׳, לצד תפוח אדמה וברוקולי מבושלים.', items:[['f_salmon',170],['f_potato',300],['f_broccoli',200],['f_olive_tsp',1]] },
+];
 /* the user's default daily menu — recomposition @ ~74kg, protein-first.
    every new day starts from this; edits on a specific day stay on that day */
 const DEFAULT_MEAL_PLAN = [
-  { id:'mp1', icon:'🌅', title:'ארוחת בוקר', items:[ mkPlanItem('f_pita_spelt', 2), mkPlanItem('f_egg', 3), mkPlanItem('f_egg_white', 1), mkPlanItem('f_white5', 30), mkPlanItem('f_yellow9', 2) ] },
-  { id:'mp2', icon:'🥤', title:'לאחר אימון', items:[ mkPlanItem('f_whey', 1), mkPlanItem('f_creatine', 1) ] },
-  { id:'mp3', icon:'🥪', title:'ארוחת ביניים', items:[ mkPlanItem('f_egg', 2), mkPlanItem('f_yellow9', 2), mkPlanItem('f_salad', 1) ] },
-  { id:'mp4', icon:'🍮', title:'מעדן חלבון', items:[ mkPlanItem('f_pro_pud', 1) ] },
-  { id:'mp5', icon:'🌙', title:'ארוחת ערב', items:[ mkPlanItem('f_pargit', 180), mkPlanItem('f_rice', 240), mkPlanItem('f_salad', 1), mkPlanItem('f_olive_tbsp', 1) ] },
+  { id:'mp1', icon:'🌅', title:'ארוחה ראשונה · לפי שעת הקימה', items:[] },
+  { id:'mp2', icon:'🍌', title:'לפני אימון · בחר אפשרות אחת', items:[] },
+  { id:'mp3', icon:'☕', title:'אחרי אימון / שייק יומי', items:[ mkPlanItem('f_biomax_coffee', 1), mkPlanItem('f_creatine', 1) ] },
+  { id:'mp4', icon:'🥪', title:'ארוחה קלה · לפי המשמרת', items:[] },
+  { id:'mp5', icon:'🌙', title:'ארוחת הכנה לשבוע', items:[] },
   /* free-form bucket for anything off-template (a spoon of PB, a beer, a snack).
      `snack:true` keeps its calories counted but excludes it from the meals ratio */
   { id:'mp6', icon:'🥨', title:'נשנושים ותוספות', items:[], snack:true },
@@ -981,6 +1035,24 @@ function migrateRoutine(s){
     if (!s.favMeals) s.favMeals = [];
     if (!s.deletedFavs) s.deletedFavs = [];
     v = 8;
+  }
+  if (v < 9) {
+    /* v9: replace only the untouched original seed menu with flexible meal slots.
+       Real day logs remain untouched; customized templates are preserved. */
+    const oldSeed = {
+      mp1:['f_pita_spelt_2','f_egg_3','f_egg_white_1','f_white5_30','f_yellow9_2'],
+      mp2:['f_whey_1','f_creatine_1'],
+      mp3:['f_egg_2','f_yellow9_2','f_salad_1'],
+      mp4:['f_pro_pud_1'],
+      mp5:['f_pargit_180','f_rice_240','f_salad_1','f_olive_tbsp_1'],
+      mp6:[]
+    };
+    const untouched = Object.keys(oldSeed).every(id => {
+      const m = (s.mealPlan || []).find(x => x.id === id);
+      return m && (m.items || []).map(x => x.foodId + '_' + x.qty).join('|') === oldSeed[id].join('|');
+    });
+    if (untouched) s.mealPlan = clone(DEFAULT_MEAL_PLAN);
+    v = 9;
   }
   s.routineVersion = v;
   s.stamps.templates = Date.now();
@@ -1325,7 +1397,7 @@ function weekNutriStats(state, week, targets){
   }
   const avgKcal = days ? Math.round(kcal / days) : 0;
   const avgBurn = days ? Math.round(burn / days) : 0;
-  const goal = targets.kcal + avgBurn;              /* fair comparison: training days earn more */
+  const goal = targets.kcal;                        /* daily target already accounts for a normal training week */
   const diffPct = goal ? Math.round((avgKcal - goal) / goal * 100) : 0;
   const totalDiff = Math.round((avgKcal - goal) * days);
   return { days, avgKcal, avgProtein: days ? Math.round(prot / days) : 0,
@@ -3617,6 +3689,7 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
           <div className="space-y-2.5 fadein">
             <button onClick={() => setSel(null)} className="text-white/50 text-xs font-bold flex items-center gap-1 active:scale-95 transition"><Icon d={I.chevR} className="w-4 h-4"/> חזרה לחיפוש</button>
             <div className="font-bold text-lg">{sel.name}</div>
+            {sel.source && <div className="text-[10px] text-white/45 leading-relaxed">מקור/הערה: {sel.source}</div>}
             {sel.bc && (
               <div className="text-[10px] text-white/35 flex items-center gap-1.5 flex-wrap">
                 <span dir="ltr" className="inline-flex items-center gap-1.5"><Icon d={I.camera} className="w-3 h-3"/>{sel.bc}</span>
@@ -3675,10 +3748,15 @@ function FoodPicker({ state, mutate, onPick, onPickMany, onClose }){
 function NutritionTab({ state, week, mutate }){
   const todayISO = toISO(new Date());
   const isCur = weekStartISO(new Date()) === week;
+  const todayDow = new Date().getDay();
+  const prepWeek = todayDow === 0 ? weekStartISO(new Date()) : addDays(weekStartISO(new Date()), 7);
   const [day, setDay] = useState(isCur ? new Date().getDay() : 0);
   const [picker, setPicker] = useState(null);
   const [showTargets, setShowTargets] = useState(false);
   const [view, setView] = useState('day');
+  const [showRecipeLibrary, setShowRecipeLibrary] = useState(false);
+  const [openRecipeId, setOpenRecipeId] = useState(null);
+  const [showQuickMeals, setShowQuickMeals] = useState(true);
   useEffect(() => { setDay(weekStartISO(new Date()) === week ? new Date().getDay() : 0); setPicker(null); }, [week]);
 
   const targets = nutriTargets(state);
@@ -3689,12 +3767,23 @@ function NutritionTab({ state, week, mutate }){
   /* a template section that a materialised day predates (e.g. the snacks bucket
      added later) is appended on the fly — in plan order, so indexes stay stable */
   const blankSection = m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => Object.assign({}, it, { eaten: false })) });
+  const planForWeek = src => {
+    const plan = clone(src.mealPlan || []);
+    const recipeId = (((src.settings || {}).mealPrepByWeek || {})[week]);
+    const recipe = MEAL_PREP_RECIPES.find(r => r.id === recipeId);
+    const dinner = plan.find(m => m.id === 'mp5');
+    if (recipe && dinner) {
+      dinner.title = 'ארוחת ערב · ' + recipe.title; dinner.icon = recipe.icon;
+      dinner.items = recipe.items.map(([foodId, qty]) => mkPlanItem(foodId, qty));
+    }
+    return plan;
+  };
   const mergeSections = meals => {
     const out = (meals || []).slice();
     (state.mealPlan || []).forEach(pm => { if (!out.some(m => m.id === pm.id)) out.push(blankSection(pm)); });
     return out;
   };
-  const viewMeals = mergeSections((d2 && d2.meals) ? d2.meals : (state.mealPlan || []).map(blankSection));
+  const viewMeals = mergeSections((d2 && d2.meals) ? d2.meals : planForWeek(state).map(blankSection));
 
   let eatK = 0, eatP = 0, eatC = 0, eatF = 0;
   viewMeals.forEach(m => (m.items || []).forEach(it => { if (it.eaten) { eatK += numOr0(it.kcal); eatP += numOr0(it.p); eatC += numOr0(it.c); eatF += numOr0(it.f); } }));
@@ -3703,14 +3792,14 @@ function NutritionTab({ state, week, mutate }){
   const sleep = d2 ? (d2.sleep || '') : '';
   const dateISO = addDays(week, day);
   const burn = dayBurn(state, dateISO);
-  const kcalTarget = Math.round(targets.kcal + burn.total);
+  const kcalTarget = Math.round(targets.kcal);
   const remaining = kcalTarget - eatK;
 
   const withDay = fn => mutate(d => {
     const w2 = (d.logs[week] = d.logs[week] || {});
     const n2 = (w2.nutri2 = w2.nutri2 || {});
     if (!n2[day]) n2[day] = {
-      meals: (d.mealPlan || []).map(m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) })),
+      meals: planForWeek(d).map(m => ({ id: m.id, icon: m.icon, title: m.title, snack: !!m.snack, items: (m.items || []).map(it => Object.assign({}, it, { id: uid(), eaten: false })) })),
       water: 0, sleep: ''
     };
     /* keep the stored day in sync with template sections added after it began */
@@ -3722,6 +3811,51 @@ function NutritionTab({ state, week, mutate }){
     });
     fn(n2[day], d);
   }, ['week', week]);
+
+  const addQuickMeal = option => mutate(d => {
+    const w2 = (d.logs[week] = d.logs[week] || {});
+    const n2 = (w2.nutri2 = w2.nutri2 || {});
+    if (!n2[day]) n2[day] = {
+      meals:planForWeek(d).map(m => ({ id:m.id, icon:m.icon, title:m.title, snack:!!m.snack, items:(m.items || []).map(it => Object.assign({}, it, { id:uid(), eaten:false })) })),
+      water:0, sleep:''
+    };
+    const sectionId = ({ 'ארוחה ראשונה':'mp1', 'לפני אימון':'mp2', 'אחרי אימון':'mp3', 'ארוחה קלה':'mp4', 'ארוחת ערב':'mp5' })[option.group] || ('flex_' + option.group.replace(/[^א-ת]/g, ''));
+    let section = (n2[day].meals || []).find(m => m.id === sectionId);
+    if (!section) {
+      section = { id:sectionId, icon:option.icon, title:option.group, snack:option.group !== 'ארוחה ראשונה', items:[] };
+      n2[day].meals.push(section);
+    }
+    const foods = foodCatalog(d);
+    section.items = [];
+    section.title = option.group === 'ארוחת ערב' ? option.name : section.title;
+    section.icon = option.icon;
+    option.items.forEach(([foodId, qty]) => {
+      const fd = foods.find(x => x.id === foodId);
+      if (fd) section.items.push(Object.assign({ id:uid(), foodId:fd.id, name:fd.name, qty:String(qty), per:fd.per, unitName:fd.unitName || 'גרם', unit:fd.per === '100g' ? 'g' : null, eaten:false }, calcMacros(fd, qty)));
+    });
+  }, ['week', week]);
+
+  const applyPrepRecipe = recipe => mutate(d => {
+    const foods = foodCatalog(d);
+    const items = recipe.items.map(([foodId, qty]) => {
+      const fd = foods.find(x => x.id === foodId);
+      return fd ? Object.assign({ id:uid(), foodId:fd.id, name:fd.name, qty:String(qty), per:fd.per, unitName:fd.unitName || 'גרם', unit:fd.per === '100g' ? 'g' : null, eaten:false }, calcMacros(fd, qty)) : null;
+    }).filter(Boolean);
+    d.settings.mealPrepByWeek = Object.assign({}, d.settings.mealPrepByWeek || {}, { [prepWeek]:recipe.id });
+    /* Update only future, not-yet-eaten dinner placeholders. Existing records and
+       all past meals remain intact; future blank days inherit the new template. */
+    const w2 = d.logs[prepWeek];
+    if (w2 && w2.nutri2) for (let i = 0; i < 5; i++) {
+      const iso = addDays(prepWeek, i);
+      const logged = w2.nutri2[i];
+      if (iso < todayISO || !logged) continue;
+      const target = (logged.meals || []).find(m => m.id === 'mp5' || /ערב/.test(m.title || ''));
+      if (target && !(target.items || []).some(it => it.eaten)) { target.title = 'ארוחת ערב · ' + recipe.title; target.icon = recipe.icon; target.items = clone(items).map(it => Object.assign({}, it, { id:uid(), eaten:false })); }
+    }
+  }, ['settings',['week',prepWeek]]);
+
+  const plannedRecipeId = (state.settings.mealPrepByWeek || {})[prepWeek];
+  const plannedRecipe = MEAL_PREP_RECIPES.find(r => r.id === plannedRecipeId);
 
   const toggleItem = (mi, ii) => withDay(dd => { const it = (dd.meals[mi] || { items: [] }).items[ii]; if (it) it.eaten = !it.eaten; });
   /* recompute an item from its source food when we know it, otherwise scale the
@@ -3842,274 +3976,132 @@ function NutritionTab({ state, week, mutate }){
     : Math.abs(ws.diffPct) <= 5
       ? { t:'שבוע מושלם לשמירה ובניית שריר', c:'bg-volt/15 text-volt border-volt/35 glow-volt' }
       : ws.diffPct > 5
-        ? { t:'חריגה שבועית קלה — מומלץ לקזז ' + Math.abs(ws.totalDiff).toLocaleString() + ' קק"ל בימים הקרובים', c:'bg-ember/10 text-ember border-ember/30' }
-        : { t:'גירעון שבועי קל — דחוף עוד פחמימה/חלבון', c:'bg-sky-400/10 text-sky-300 border-sky-400/30' };
+        ? { t:'ממוצע הצריכה השבועי מעל היעד ההתחלתי — נבדוק מול מגמת המשקל', c:'bg-ember/10 text-ember border-ember/30' }
+        : { t:'ממוצע הצריכה השבועי מתחת ליעד ההתחלתי — הוסף ארוחה או נשנוש ותעד', c:'bg-sky-400/10 text-sky-300 border-sky-400/30' };
 
   return (
-    <div className="fadein space-y-3">
-      <div className="glass rounded-2xl p-2 space-y-2">
-        <div className="grid grid-cols-7 gap-1.5">
-          {DAYS_HE.map((d, i) => {
-            const iso = addDays(week, i);
-            const nsI = dayNutriSummary(state, week, i);
-            const active = day === i && view === 'day';
-            return (
-              <button key={i} onClick={() => { setDay(i); setView('day'); }}
-                      className={'rounded-xl py-1.5 flex flex-col items-center transition active:scale-95 ' + (active ? 'bg-volt text-obsidian glow-volt' : 'bg-white/5 text-white/60')}>
-                <span className="text-sm font-black leading-none">{d}</span>
-                <span className={'text-[9px] mt-0.5 ' + (active ? 'text-obsidian/60' : (iso === todayISO ? 'text-volt' : 'text-white/30'))}>{fromISO(iso).getDate()}</span>
-                <span className={'mt-1 w-1 h-1 rounded-full ' + (nsI.full ? (active ? 'bg-obsidian' : 'bg-volt') : (nsI.done > 0 ? 'bg-ember' : 'bg-transparent'))}></span>
-              </button>
-            );
-          })}
+    <div className="fadein space-y-4 pb-6">
+      <section className="rounded-[28px] p-5 border border-volt/20 bg-gradient-to-br from-volt/10 via-white/[.025] to-transparent">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-black tracking-wide text-volt/70">המסלול שלך · 73 → 80 ק״ג</div>
+            <h1 className="text-2xl font-black mt-1">תזונה שבנויה לחיים שלך</h1>
+            <p className="text-xs text-white/45 mt-1">בחר ארוחות לפי השעה והמשמרת. סמן מה אכלת, ונכוון לפי מגמת המשקל.</p>
+          </div>
+          <span className="text-3xl">🍽️</span>
         </div>
-        <div className="flex gap-1.5">
-          <button onClick={() => setView('day')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'day' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>יומי</button>
-          <button onClick={() => setView('week')} className={'flex-1 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ' + (view === 'week' ? 'bg-volt/15 text-volt border-volt/35' : 'bg-white/5 text-white/45 border-white/10')}>שבועי</button>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <div className="rounded-2xl bg-black/25 p-3"><div className="text-[10px] text-white/40">יעד קלורי התחלתי</div><div className="font-black text-xl text-volt">{targets.kcal.toLocaleString()} <span className="text-xs">קק״ל</span></div></div>
+          <div className="rounded-2xl bg-black/25 p-3"><div className="text-[10px] text-white/40">יעד חלבון</div><div className="font-black text-xl">{targets.protein} <span className="text-xs">ג׳ ליום</span></div></div>
+        </div>
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => setShowTargets(!showTargets)} className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white/65">{showTargets ? 'סגור הגדרות יעד' : 'עריכת יעדים'}</button>
+          <button onClick={() => setView(view === 'week' ? 'day' : 'week')} className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white/65">{view === 'week' ? 'חזרה ליום' : 'סיכום שבועי'}</button>
+        </div>
+        {showTargets && <div className="grid grid-cols-2 gap-2 mt-3">
+          {[['kcal','קלוריות'],['protein','חלבון (ג׳)'],['carbs','פחמימות (ג׳)'],['fat','שומן (ג׳)'],['water','מים (מ״ל)']].map(([key,label]) => <label key={key} className="text-[10px] text-white/45">{label}<input className="inp mt-1 text-center font-bold" inputMode="numeric" value={targets[key]} onChange={e => setTarget(key,e.target.value)}/></label>)}
+        </div>}
+      </section>
+
+      <div className="glass rounded-2xl p-2">
+        <div className="flex items-center justify-between px-2 pb-2"><span className="text-xs font-black">היום שלך</span><span className="text-[10px] text-white/35">{heDate(week)}</span></div>
+        <div className="grid grid-cols-7 gap-1">
+          {DAYS_HE.map((d,i) => {
+            const iso = addDays(week,i), active = day === i;
+            const sum = dayNutriSummary(state,week,i);
+            return <button key={i} onClick={() => {setDay(i);setView('day');}} className={'rounded-xl py-2 flex flex-col items-center '+(active?'bg-volt text-obsidian':'bg-white/5 text-white/55')}>
+              <span className="text-xs font-black">{d}</span><span className="text-[9px] opacity-60">{fromISO(iso).getDate()}</span>
+              <span className={'mt-1 w-1 h-1 rounded-full '+(sum.done>0?'bg-volt':'bg-transparent')}/>
+            </button>;
+          })}
         </div>
       </div>
 
-      {view === 'week' && (
-        <div className="fadein space-y-3">
-          <div className="glass rounded-[24px] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-lg font-black italic leading-none">מאזן שבועי</h2>
-                <div className="text-white/40 text-[10px] mt-1">{ws.days} ימים נרשמו · שבוע {weekNum(week)}</div>
-              </div>
-              <div className="relative w-[72px] h-[72px]">
-                <Ring pct={ws.goal ? ws.avgKcal / ws.goal : 0} size={72} stroke={6} color={ws.diffPct > 5 ? CHART.over : CHART.fuel.c}/>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-black text-base leading-none">{ws.avgKcal}</span>
-                  <span className="text-[8px] text-white/40 mt-0.5">ממוצע/יום</span>
-                </div>
-              </div>
-            </div>
-            <div className={'rounded-2xl px-3.5 py-2.5 border text-sm font-black text-center ' + wStatus.c}>{wStatus.t}</div>
-            <div className="grid grid-cols-4 gap-2 mt-3 text-center">
-              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
-                <div className={'font-black ' + (ws.avgProtein >= targets.protein * 0.9 ? 'text-volt' : 'text-white')}>{ws.avgProtein}</div>
-                <div className="text-[9px] text-white/40 mt-0.5">חלבון ממוצע</div>
-              </div>
-              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
-                <div className="font-black">{ws.avgCarbs}</div>
-                <div className="text-[9px] text-white/40 mt-0.5">פחמימה ממוצעת</div>
-              </div>
-              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
-                <div className="font-black text-ember">{ws.avgFat}</div>
-                <div className="text-[9px] text-white/40 mt-0.5">שומן ממוצע</div>
-              </div>
-              <div className="bg-black/25 rounded-2xl py-2.5 border border-white/5">
-                <div className="font-black">{ws.goal}</div>
-                <div className="text-[9px] text-white/40 mt-0.5">יעד יומי ממוצע</div>
-              </div>
-            </div>
-            {ws.avgBurn > 0 && (
-              <div className="flex items-center justify-center gap-1.5 mt-2 t-label" style={{ fontSize:'9.5px' }}>
-                <Icon d={I.flame} className="w-3 h-3" style={{ color:'var(--c-train)' }}/>
-                כולל שריפה ממוצעת מאימונים · +{ws.avgBurn} קק"ל ליום
-              </div>
-            )}
+      {view === 'week' ? (
+        <section className="glass rounded-[24px] p-4 space-y-3">
+          <div><div className="font-black text-lg">סיכום השבוע</div><div className="text-xs text-white/40">{ws.days} ימים עם נתונים · מסתכלים על המגמה, לא על יום בודד</div></div>
+          <div className="grid grid-cols-2 gap-2">
+            {[['קלוריות ממוצעות',ws.avgKcal,'קק״ל'],['חלבון ממוצע',ws.avgProtein,'ג׳'],['פחמימה ממוצעת',ws.avgCarbs,'ג׳'],['שומן ממוצע',ws.avgFat,'ג׳']].map(([label,value,unit])=><div key={label} className="rounded-2xl bg-black/25 p-3"><div className="text-[10px] text-white/40">{label}</div><div className="font-black text-lg">{value} <span className="text-[10px] font-normal">{unit}</span></div></div>)}
           </div>
-
-          <div className="glass rounded-[24px] p-4">
-            <div className="text-[10px] font-bold text-white/40 mb-2">קלוריות לפי יום</div>
-            <BarChart items={DAYS_HE.map((d, i) => ({ label: d, v: dayNutriSummary(state, week, i).kcal }))}/>
-            <div className="text-[10px] font-bold text-white/40 mt-3 mb-2">חלבון לפי יום (ג׳)</div>
-            <BarChart items={DAYS_HE.map((d, i) => ({ label: d, v: dayNutriSummary(state, week, i).p }))}/>
-          </div>
-        </div>
-      )}
-      {view === 'day' && (
-      <React.Fragment>
-
-      {isLegacy ? (
-        <React.Fragment>
-          <div className="glass rounded-[24px] p-4 text-center">
-            <div className="text-white/50 text-sm font-bold">יום מהמעקב הקודם (צ'קליסט)</div>
-            <div className="text-white/30 text-xs mt-1">הסימונים ההיסטוריים נשמרו — אפשר להמשיך לסמן כרגיל</div>
-            <button onClick={() => withDay(() => {})} className="mt-2.5 px-4 py-2 rounded-2xl bg-volt/10 border border-volt/25 text-volt text-xs font-bold active:scale-95 transition">עבור למעקב המאקרו החדש ליום זה ←</button>
-          </div>
-          {state.meals.map(m => {
-            const done = !!legacyChecks[m.id];
-            return (
-              <button key={m.id} onClick={() => toggleLegacy(m.id)}
-                      className={'w-full text-start rounded-[24px] p-4 flex gap-3 items-start transition active:scale-[.985] border ' + (done ? 'bg-volt/10 border-volt/25' : 'glass border-transparent')}>
-                <div className={'w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition ' + (done ? 'bg-volt border-volt text-obsidian glow-volt' : 'border-white/15 text-transparent')}>
-                  <Icon d={I.check} className="w-4 h-4"/>
-                </div>
-                <MealGlyph meal={m} size={34}/>
-                <div className="min-w-0">
-                  <div className={'font-bold leading-snug ' + (done ? 'text-volt' : '')}>{m.title}</div>
-                  <div className={'text-xs leading-relaxed mt-1 ' + (done ? 'text-white/30' : 'text-white/45')}>{m.desc}</div>
-                </div>
-              </button>
-            );
-          })}
-        </React.Fragment>
+          <div className={'rounded-xl border p-3 text-xs font-bold '+wStatus.c}>{wStatus.t}</div>
+          <BarChart items={DAYS_HE.map((label,i)=>({label,v:dayNutriSummary(state,week,i).kcal}))}/>
+        </section>
       ) : (
         <React.Fragment>
-          <div className="glass rounded-[24px] p-4">
+          <section className="rounded-[24px] p-4 border border-white/10 bg-white/[.035]">
             <div className="flex items-center gap-4">
-              <div className="relative shrink-0" style={{ width:'110px', height:'110px' }}>
-                <Ring pct={eatK / Math.max(1, kcalTarget)} size={110} stroke={9} color={eatK > kcalTarget ? CHART.over : CHART.fuel.c}/>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-black text-2xl leading-none">{eatK}</span>
-                  <span className="text-[9px] text-white/40 mt-0.5">מתוך {kcalTarget}</span>
-                </div>
+              <div className="relative shrink-0" style={{width:'92px',height:'92px'}}>
+                <Ring pct={eatK/Math.max(1,kcalTarget)} size={92} stroke={8} color={eatK>kcalTarget?CHART.over:CHART.fuel.c}/>
+                <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="font-black text-xl">{eatK}</span><span className="text-[9px] text-white/40">מתוך {kcalTarget}</span></div>
               </div>
-              <div className="flex-1 min-w-0 space-y-1.5">
-                <div className={'rounded-2xl px-3 py-2 border text-sm font-black ' + (remaining >= 0 ? 'bg-volt/10 border-volt/25 text-volt' : 'bg-ember/10 border-ember/25 text-ember')}>
-                  {remaining >= 0 ? 'נשארו ' + remaining + ' קק"ל' : 'חריגה של ' + (-remaining) + ' קק"ל'}
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  <span className="text-[9px] font-bold text-white/40 bg-white/5 rounded-full px-2 py-1">בסיס {targets.kcal}</span>
-                  {burn.strengthKcal > 0 && <span className="text-[9px] font-bold text-volt bg-volt/10 border border-volt/20 rounded-full px-2 py-1">אימון +{burn.strengthKcal}</span>}
-                  {burn.runKcal > 0 && <span className="text-[9px] font-bold text-ember bg-ember/10 border border-ember/20 rounded-full px-2 py-1">ריצה +{burn.runKcal}</span>}
-                </div>
+              <div className="flex-1 space-y-2">
+                <div className="font-black">{remaining>=0?'נשארו לך '+remaining+' קק״ל':'עברת את היעד ב־'+(-remaining)+' קק״ל'}</div>
+                <MacroBar label="חלבון" val={eatP} target={targets.protein} tone={CHART.train.c}/>
+                <MacroBar label="פחמימות" val={eatC} target={targets.carbs} tone={CHART.fuel.c}/>
+                <MacroBar label="שומן" val={eatF} target={targets.fat} tone={CHART.rec.c}/>
               </div>
             </div>
-            <div className="mt-3.5 space-y-2.5">
-              <MacroBar label="חלבון" val={eatP} target={targets.protein} tone={CHART.train.c}/>
-              <MacroBar label="פחמימות" val={eatC} target={targets.carbs} tone={CHART.fuel.c}/>
-              <MacroBar label="שומן" val={eatF} target={targets.fat} tone={CHART.rec.c}/>
-            </div>
-            <div className="mt-3.5">
-              <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-[6px] h-[6px] rounded-full" style={{ background: CHART.fuel.c, boxShadow:'0 0 7px ' + CHART.fuel.c }}></span>
-                  <span className="t-label" style={{ letterSpacing:'.08em' }}>מים</span>
-                </span>
-                <span className="text-[11px] font-bold t-num" style={{ color: CHART.fuel.c }}>{water}<span className="text-white/25"> / {targets.water} מ"ל</span></span>
-              </div>
-              <div className="h-[6px] rounded-full overflow-hidden mb-2.5" style={{ background:'rgba(255,255,255,.07)' }} dir="ltr">
-                <div className="h-full rounded-full" style={{ width: Math.min(100, water / Math.max(1, targets.water) * 100) + '%', background:'linear-gradient(90deg,' + CHART.fuel.c + '55,' + CHART.fuel.c + ')', boxShadow:'0 0 10px ' + CHART.fuel.c + '88', transition:'width .6s var(--ease)' }}/>
-              </div>
-              <div className="flex gap-1.5">
-                <button onClick={() => addWater(250)} className="flex-1 py-2 rounded-[13px] text-xs font-black transition" style={{ background: CHART.fuel.c + '1A', color: CHART.fuel.c, border:'1px solid ' + CHART.fuel.c + '3D' }}>+250 מ"ל</button>
-                <button onClick={() => addWater(500)} className="flex-1 py-2 rounded-[13px] text-xs font-black transition" style={{ background: CHART.fuel.c + '1A', color: CHART.fuel.c, border:'1px solid ' + CHART.fuel.c + '3D' }}>+500 מ"ל</button>
-                <button onClick={() => addWater(-250)} className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-xs font-bold active:scale-95 transition">−250</button>
-              </div>
-            </div>
-          </div>
+            <div className="mt-3 flex items-center justify-between text-xs"><span className="font-bold">מים</span><span className="text-white/45">{water} / {targets.water} מ״ל</span></div>
+            <div className="flex gap-2 mt-2">{[250,500].map(x=><button key={x} onClick={()=>addWater(x)} className="flex-1 py-2 rounded-xl bg-sky-400/10 border border-sky-300/15 text-sky-200 text-xs font-bold">+{x} מ״ל</button>)}<button onClick={()=>addWater(-250)} className="px-3 rounded-xl bg-white/5 text-white/40 text-xs">−250</button></div>
+          </section>
 
-          <div className="glass rounded-[24px] p-4">
-            <div className="flex items-center gap-3">
-              <Icon d={I.timer} className="w-6 h-6" style={{ color:'#B39CFB' }}/>
-              <div className="flex-1">
-                <div className="text-[10px] font-bold text-white/50 mb-1">שעות שינה הלילה</div>
-                <input className="inp text-center font-black" inputMode="decimal" placeholder="7.5" value={sleep} onChange={e => setSleep(e.target.value)} style={{ maxWidth:'110px' }}/>
-              </div>
-              <div className="flex flex-col items-end gap-1 text-[9px] font-bold">
-                <span className={sleepOk ? 'text-volt' : 'text-white/30'}>שינה 7+ שע׳ {sleepOk ? '✓' : '·'}</span>
-                <span className={protOk ? 'text-volt' : 'text-white/30'}>חלבון 90% {protOk ? '✓' : '·'}</span>
-                <span className={trained ? 'text-volt' : 'text-white/30'}>אימון היום {trained ? '✓' : '·'}</span>
-              </div>
+          <section className="rounded-[26px] p-4 border border-volt/20 bg-gradient-to-br from-volt/[.08] to-transparent space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div><div className="text-[10px] font-black text-volt/75">ארוחת הערב · ראשון–חמישי</div><h2 className="font-black text-lg mt-1">הכנה לשבוע</h2><div className="text-[10px] text-white/40 mt-1">בחר מנה אחת לחמש הקופסאות. מתכוני שבת/שישי לא נכללים.</div></div><span className="text-2xl">🍱</span>
             </div>
-            <div className={'mt-3 rounded-2xl px-3.5 py-2.5 border text-sm font-black text-center ' + recovery.c}>{recovery.t}</div>
-          </div>
+            {plannedRecipe ? <div className="rounded-xl bg-volt/10 border border-volt/20 p-3 text-xs"><span className="text-white/45">נבחר לשבוע שמתחיל {heDate(prepWeek)}:</span><div className="font-black text-volt mt-1">{plannedRecipe.icon} {plannedRecipe.title}</div></div> : <div className="text-xs text-white/40">עוד לא נבחר מתכון. אפשר גם לדלג ולהרכיב ארוחת ערב שונה בכל יום.</div>}
+            <button onClick={()=>setShowRecipeLibrary(!showRecipeLibrary)} className="w-full py-3 rounded-xl bg-volt text-obsidian font-black text-sm">{showRecipeLibrary?'סגור את המתכונים':'בחר מתכון ורשימת קניות'}</button>
+            {showRecipeLibrary && <div className="space-y-2">
+              {MEAL_PREP_RECIPES.map(recipe=>{
+                const total=recipe.items.reduce((a,[fid,qty])=>{const f=FOOD_DB.find(x=>x.id===fid);if(!f)return a;const m=calcMacros(f,qty);return {k:a.k+m.kcal,p:a.p+m.p};},{k:0,p:0});
+                const open=openRecipeId===recipe.id;
+                return <div key={recipe.id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                  <button onClick={()=>setOpenRecipeId(open?null:recipe.id)} className="w-full text-start flex items-center gap-2"><span className="text-xl">{recipe.icon}</span><span className="flex-1"><span className="block text-sm font-bold">{recipe.title}</span><span className="text-[10px] text-white/40">{recipe.style} · כ־{Math.round(total.k)} קק״ל · {Math.round(total.p)} ג׳ חלבון למנה</span></span><span className="text-volt text-xs">{open?'▲':'פרטים'}</span></button>
+                  {open && <div className="border-t border-white/10 mt-2 pt-2 space-y-2"><div className="text-xs font-black">קניות ל־5 מנות</div><ul className="list-disc pe-5 text-[11px] text-white/55">{recipe.shopping.map((x,i)=><li key={i}>{x}</li>)}</ul><div className="text-xs font-black">הכנה</div><ol className="list-decimal pe-5 text-[11px] text-white/55">{recipe.steps.map((x,i)=><li key={i}>{x}</li>)}</ol><div className="text-[10px] text-white/35">משקלי המאקרו: חזה עוף ופרגית מבושלים; בקר טחון וסלמון נאים; אורז ותפוח אדמה מבושלים. כמויות בקנייה לפני הכנה (אורז יבש). הערכים אומדן — תווית האריזה עדיפה.</div><button onClick={()=>{applyPrepRecipe(recipe);setShowRecipeLibrary(false);setOpenRecipeId(null);}} className="w-full py-2.5 rounded-xl bg-volt/15 border border-volt/30 text-volt font-black">בחר את המנה לשבוע</button></div>}
+                </div>;
+              })}
+              <div className="text-[10px] text-white/35">מקררים מנות קרובות ומקפיאים מראש את מנת חמישי. מפשירים במקרר בלילה שלפני.</div>
+            </div>}
+          </section>
 
-          {viewMeals.map((m, mi) => {
-            const items = m.items || [];
-            const planned = Math.round(items.reduce((a, it) => a + numOr0(it.kcal), 0));
-            const eaten = Math.round(items.reduce((a, it) => a + (it.eaten ? numOr0(it.kcal) : 0), 0));
-            const allDone = items.length > 0 && items.every(it => it.eaten);
-            return (
-              <div key={m.id || mi} className={'rounded-[24px] p-4 border transition ' + (allDone ? 'bg-volt/10 border-volt/25' : 'glass border-transparent')}>
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <MealGlyph meal={m} size={42} done={allDone}/>
-                  <button onClick={() => renameMeal(mi, m)} className="flex-1 min-w-0 text-start">
-                    <div className="font-black text-[15px] flex items-center gap-1.5" style={allDone ? { color: CHART.train.c } : {}}>
-                      <span className="truncate">{m.title}</span>
-                      <Icon d={I.pencil} className="w-3 h-3 shrink-0" style={{ opacity:.28 }}/>
-                    </div>
-                    <div className="t-cap mt-0.5" style={{ fontSize:'10px' }}>{eaten}/{planned} קק"ל</div>
-                  </button>
-                  {items.length > 0 && (
-                    <button onClick={() => saveFav(mi)} title="שמור כמועדף"
-                            className="w-8 h-8 rounded-[11px] glass-2 flex items-center justify-center shrink-0"
-                            style={{ color:'var(--gold)' }}>
-                      <Icon d={I.trophy} className="w-[15px] h-[15px]"/>
-                    </button>
-                  )}
-                  {items.length > 0 && (
-                    <button onClick={() => toggleAllMeal(mi)}
-                            className="text-[10px] font-black rounded-full px-3 py-2 shrink-0 border transition"
-                            style={allDone ? { background: CHART.train.c, color:'#0A0C12', borderColor: CHART.train.c }
-                                           : { background:'rgba(255,255,255,.05)', color:'rgba(255,255,255,.5)', borderColor:'rgba(255,255,255,.10)' }}>
-                      {allDone ? '✓' : 'סמן הכל'}
-                    </button>
-                  )}
-                </div>
+          <section className="space-y-2">
+            <div className="flex items-end justify-between px-1"><div><h2 className="font-black text-lg">מה אוכלים היום?</h2><p className="text-[10px] text-white/40">בחר כרטיס אחד בכל מקטע. לחיצה מחליפה את הבחירה הקודמת באותו מקטע.</p></div><button onClick={()=>setShowQuickMeals(!showQuickMeals)} className="text-[10px] text-volt">{showQuickMeals?'הסתר':'אפשרויות'}</button></div>
+            {showQuickMeals && ['ארוחה ראשונה','לפני אימון','אחרי אימון','ארוחה קלה','ארוחת ערב'].map(group=><div key={group} className="rounded-2xl bg-white/[.025] border border-white/[.06] p-3">
+              <div className="text-xs font-black text-white/75 mb-2">{group}{group==='לפני אימון'?' · בחר לפי זמן ועיכול':''}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {FLEX_MEAL_OPTIONS.filter(o=>o.group===group).map(option=><button key={option.id} onClick={()=>addQuickMeal(option)} className="text-start flex items-center gap-2 rounded-xl bg-black/20 border border-white/[.07] px-3 py-2.5 active:scale-[.99]"><span className="text-lg">{option.icon}</span><span className="flex-1"><span className="block text-xs font-bold">{option.name}</span><span className="block text-[10px] text-white/35">{option.desc}</span></span><span className="text-volt font-black">בחר</span></button>)}
+              </div>
+              {group==='ארוחת ערב'&&<div className="text-[10px] text-white/35 mt-2">בחירה כאן היא רק ליום הזה, ומשאירה את בחירת ההכנה השבועית ללא שינוי.</div>}
+            </div>)}
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-end justify-between px-1"><div><h2 className="font-black text-lg">היומן של היום</h2><p className="text-[10px] text-white/40">סמן את מה שאכלת; אפשר לשנות כמות, לערוך או להוסיף מאכל.</p></div></div>
+            {viewMeals.map((m,mi)=>{
+              const items=m.items||[], planned=Math.round(items.reduce((a,it)=>a+numOr0(it.kcal),0)), eaten=Math.round(items.reduce((a,it)=>a+(it.eaten?numOr0(it.kcal):0),0)), allDone=items.length>0&&items.every(it=>it.eaten);
+              return <article key={m.id||mi} className={'rounded-[22px] p-4 border '+(allDone?'bg-volt/[.07] border-volt/20':'glass border-white/[.04]')}>
+                <div className="flex items-center gap-2.5 mb-2"><MealGlyph meal={m} size={36} done={allDone}/><div className="flex-1 min-w-0"><div className="font-black text-sm truncate">{m.title}</div><div className="text-[10px] text-white/40">{eaten} מתוך {planned} קק״ל סומנו</div></div>{items.length>0&&<button onClick={()=>saveFav(mi)} className="rounded-lg px-2 py-1 bg-white/5 text-[10px] text-white/50">שמור</button>}</div>
                 <div className="space-y-1.5">
-                  {items.length === 0 && <div className="text-center text-white/25 text-xs py-2">ריק — הוסף כאן כל דבר שאכלת מחוץ לתפריט</div>}
-                  {items.map((it, ii) => (
-                    <div key={it.id || ii} className={'flex items-center gap-2 rounded-[15px] ps-2 pe-1.5 py-2 border ' + (it.eaten ? 'border-transparent' : 'glass-2 border-transparent')}
-                         style={it.eaten ? { background:'linear-gradient(160deg,' + CHART.train.c + '1E,' + CHART.train.c + '08)', border:'1px solid ' + CHART.train.c + '33' } : {}}>
-                      <button onClick={() => toggleItem(mi, ii)}
-                              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                              style={it.eaten ? { background: CHART.train.c, color:'#0A0C12', boxShadow:'0 0 12px ' + CHART.train.c + '66' } : { border:'2px solid rgba(255,255,255,.16)', color:'transparent' }}>
-                        <Icon d={I.check} className="w-3.5 h-3.5"/>
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <input value={it.name} onChange={e => setItemName(mi, ii, e.target.value)}
-                               className="w-full bg-transparent border-0 outline-none text-sm font-bold leading-tight p-0 truncate"
-                               style={{ fontSize:'14px' }}/>
-                        <div className="text-[9px] text-white/40">{it.kcal} קק"ל · ח {it.p} · פ {it.c} · ש {it.f}</div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <input className="inp text-center font-bold" inputMode="decimal" value={it.qty}
-                               onChange={e => setItemQty(mi, ii, e.target.value)} style={{ width:'50px', fontSize:'13px', padding:'4px 4px' }}/>
-                        {it.per === '100g' ? (
-                          <button onClick={() => {
-                                    const i2 = SERVING_UNITS.findIndex(u => u.id === (it.unit || 'g'));
-                                    const nx = SERVING_UNITS[(i2 + 1) % SERVING_UNITS.length];
-                                    setItemUnit(mi, ii, nx.id);
-                                  }}
-                                  title="החלף יחידת מדידה"
-                                  className="text-[9px] font-bold text-volt/80 bg-volt/10 border border-volt/20 rounded-lg px-1.5 py-1 active:scale-90 transition shrink-0"
-                                  style={{ minWidth:'38px' }}>{unitById(it.unit).short}</button>
-                        ) : (
-                          <span className="text-[9px] text-white/35 truncate" style={{ width:'36px' }}>{it.unitName || 'יחידה'}</span>
-                        )}
-                      </div>
-                      <button onClick={() => delItem(mi, ii)} className="w-7 h-7 rounded-lg text-white/20 flex items-center justify-center active:scale-90 transition shrink-0">
-                        <Icon d={I.trash} className="w-3.5 h-3.5"/>
-                      </button>
-                    </div>
-                  ))}
+                  {items.map((it,ii)=><div key={it.id||ii} className={'flex items-center gap-2 rounded-xl px-2 py-2 '+(it.eaten?'bg-volt/[.08]':'bg-black/20')}>
+                    <button onClick={()=>toggleItem(mi,ii)} className={'w-5 h-5 rounded-full border flex items-center justify-center text-[10px] '+(it.eaten?'bg-volt text-obsidian border-volt':'border-white/20 text-transparent')}><Icon d={I.check} className="w-3 h-3"/></button>
+                    <div className="flex-1 min-w-0"><input value={it.name} onChange={e=>setItemName(mi,ii,e.target.value)} className="w-full bg-transparent text-xs font-bold outline-none truncate"/><div className="text-[9px] text-white/40">{it.kcal} קק״ל · ח׳ {it.p} · פ׳ {it.c} · ש׳ {it.f}</div></div>
+                    <input className="inp text-center text-xs font-bold" inputMode="decimal" value={it.qty} onChange={e=>setItemQty(mi,ii,e.target.value)} style={{width:'52px',padding:'4px'}}/>
+                    {it.per==='100g'&&<button onClick={()=>{const i2=SERVING_UNITS.findIndex(u=>u.id===(it.unit||'g'));setItemUnit(mi,ii,SERVING_UNITS[(i2+1)%SERVING_UNITS.length].id);}} className="text-[9px] text-volt">{unitById(it.unit).short}</button>}
+                    {it.per!=='100g'&&<span className="text-[9px] text-white/35">{it.unitName||'יח׳'}</span>}
+                    <button onClick={()=>delItem(mi,ii)} className="text-white/30 px-1"><Icon d={I.trash} className="w-3.5 h-3.5"/></button>
+                  </div>)}
+                  {!items.length&&<div className="text-[10px] text-white/30 py-1">עוד לא נרשם אוכל בחלק הזה.</div>}
                 </div>
-                <button onClick={() => setPicker(mi)} className="mt-2 w-full py-2.5 rounded-xl bg-volt/10 border border-volt/25 text-volt text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[.98] transition">
-                  <Icon d={I.plus} className="w-4 h-4"/> הוסף מאכל לארוחה זו
-                </button>
-              </div>
-            );
-          })}
-
-          <button onClick={saveAsTemplate} className="w-full glass rounded-2xl py-3 text-white/50 text-xs font-bold active:scale-[.98] transition">שמור את התפריט של היום כתבנית הקבועה לכל יום</button>
-
-          <button onClick={() => setShowTargets(!showTargets)} className="w-full glass rounded-2xl py-2.5 text-white/40 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[.98] transition">
-            יעדים יומיים <Icon d={showTargets ? I.chevUp : I.chevDown} className="w-3.5 h-3.5"/>
-          </button>
-          {showTargets && (
-            <div className="glass rounded-[24px] p-4 grid grid-cols-3 gap-2 fadein">
-              {[['kcal','קק"ל בסיס'], ['protein','חלבון (ג׳)'], ['carbs','פחמימות (ג׳)'], ['fat','שומן (ג׳)'], ['water','מים (מ"ל)'], ['strengthBurn','שריפה באימון כוח']].map(p2 => (
-                <div key={p2[0]}><label className="lbl">{p2[1]}</label>
-                  <input className="inp text-center font-bold" inputMode="numeric" value={targets[p2[0]]} onChange={e => setTarget(p2[0], e.target.value)}/>
-                </div>
-              ))}
-            </div>
-          )}
+                <button onClick={()=>setPicker(mi)} className="w-full mt-2 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-volt">＋ הוסף מאכל לארוחה</button>
+              </article>;
+            })}
+            <button onClick={()=>setShowTargets(!showTargets)} className="text-[10px] text-white/35 underline">לעריכת יעדי היום</button>
+            <div className="glass rounded-2xl p-3 flex items-center gap-3"><span>😴</span><label className="flex-1 text-xs font-bold">שעות שינה<input className="inp mt-1" inputMode="decimal" placeholder="8" value={sleep} onChange={e=>setSleep(e.target.value)}/></label><span className="text-[10px] text-white/35">שינה טובה תומכת בהתאוששות</span></div>
+          </section>
         </React.Fragment>
       )}
-      </React.Fragment>
-      )}
 
-      {picker != null && (
-        <FoodPicker state={state} mutate={mutate} onClose={() => setPicker(null)}
-                    onPick={item => { addItemTo(picker, item); setPicker(null); }}
-                    onPickMany={items => { addItemsTo(picker, items); setPicker(null); }}/>
-      )}
+      {picker != null && <FoodPicker state={state} mutate={mutate} onClose={()=>setPicker(null)} onPick={item=>{addItemTo(picker,item);setPicker(null);}} onPickMany={items=>{addItemsTo(picker,items);setPicker(null);}}/>}
     </div>
   );
 }
@@ -4146,7 +4138,7 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
   const dayIdx = fromISO(sel).getDay();
   const ns = dayNutriSummary(state, week, dayIdx);
   const burn = dayBurn(state, sel);
-  const kcalTarget = Math.round(targets.kcal + burn.total);
+  const kcalTarget = Math.round(targets.kcal);
   const kcalLeft = kcalTarget - ns.kcal;
   const wSeries = useMemo(() => state.weights.slice().sort((a, b) => a.date < b.date ? -1 : 1).slice(-8).map(w => numOr0(w.kg)), [state.weights]);
   const weekAgo = addDays(realToday, -7);
@@ -4280,11 +4272,7 @@ function Dashboard({ state, setTab, setOpenTpl, setWeek }){
             <div className="flex items-center gap-2 pt-1">
               <span className="t-label shrink-0" style={{ letterSpacing:'.08em' }}>חלבון</span>
               <span className="text-[11px] font-bold t-num shrink-0" style={{ color:'var(--c-train)' }}>{ns.p}<span className="text-white/25">/{targets.protein}</span></span>
-              {burn.total > 0 && (
-                <span className="ms-auto flex items-center gap-1 shrink-0 whitespace-nowrap text-[9px] font-black t-num" style={{ color:'var(--c-train)' }}>
-                  <Icon d={I.flame} className="w-3 h-3"/>+{burn.total}
-                </span>
-              )}
+              {burn.total > 0 && <span className="ms-auto flex items-center gap-1 shrink-0 whitespace-nowrap text-[9px] font-bold text-white/30"><Icon d={I.flame} className="w-3 h-3"/>אימון נרשם</span>}
             </div>
           </div>
         </div>
@@ -5497,10 +5485,12 @@ function App(){
     const d = clone(stateRef.current);
     fn(d);
     const t = Date.now();
-    if (stamp === 'templates') d.stamps.templates = t;
-    else if (stamp === 'meals') d.stamps.meals = t;
-    else if (stamp === 'settings') d.stamps.settings = t;
-    else if (Array.isArray(stamp) && stamp[0] === 'week') d.stamps.weeks[stamp[1]] = t;
+    const stamps = Array.isArray(stamp) ? stamp : [stamp];
+    if (stamps.includes('templates')) d.stamps.templates = t;
+    if (stamps.includes('meals')) d.stamps.meals = t;
+    if (stamps.includes('settings')) d.stamps.settings = t;
+    const weekStamp = stamps.find(x => Array.isArray(x) && x[0] === 'week');
+    if (weekStamp) d.stamps.weeks[weekStamp[1]] = t;
     stateRef.current = d; persist(d); setState(d); schedulePush();
   }, [schedulePush]);
 
